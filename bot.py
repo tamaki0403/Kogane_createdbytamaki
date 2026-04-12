@@ -818,7 +818,7 @@ async def ランキング(ctx):
 # 管理者専用レート編集
 # =========================
 @bot.command()
-async def setrate(ctx, member: discord.Member, new_rating: int):
+async def setrate(ctx, user_id: int, new_rating: int):
     if ctx.author.id != OWNER_ID:
         await ctx.send("このコマンドは管理者専用です。")
         return
@@ -827,13 +827,22 @@ async def setrate(ctx, member: discord.Member, new_rating: int):
         await ctx.send("レートは0以上を指定してくれ")
         return
 
-    user_id = str(member.id)
-    old_rating = ratings.get(user_id, DEFAULT_RATING)
-    ratings[user_id] = new_rating
+    user_id_str = str(user_id)
+    old_rating = ratings.get(user_id_str, DEFAULT_RATING)
+    ratings[user_id_str] = new_rating
     save_ratings(ratings)
 
+    member = ctx.guild.get_member(user_id)
+    if member is None:
+        try:
+            member = await ctx.guild.fetch_member(user_id)
+        except Exception:
+            member = None
+
+    name = member.display_name if member else f"ユーザーID:{user_id}"
+
     await ctx.send(
-        f"{member.display_name} のレートを変更しました\n"
+        f"{name} のレートを変更しました\n"
         f"{old_rating} → {new_rating}"
     )
 
