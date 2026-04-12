@@ -11,6 +11,9 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RATINGS_FILE = os.path.join(BASE_DIR, "ratings.json")
 TOKEN = os.getenv("DISCORD_TOKEN")
 
+# 初期レート
+DEFAULT_RATING = 2500
+
 # =========================
 # レート関連
 # =========================
@@ -152,11 +155,13 @@ def is_user_joined(user):
 
 def create_mode_select_text():
     return (
-        "どのモードを選びますか？\n\n"
+        "俺はコガネ！泳者と死滅回遊を繋ぐ窓口さ！\n"
+        "試合するモードを選んでくれ！\n\n"
         "!1 後衛分け\n"
         "!2 後衛塗り分け\n"
         "!3 ナワバリ\n"
-        "!4 ランダム"
+        "!4 ランダム\n"
+        "!5 やっぱりやめる"
     )
 
 
@@ -195,7 +200,7 @@ def create_result_prompt(team1, team2):
     def fmt(team):
         lines = []
         for user in team:
-            rate = ratings.get(str(user.id), 1500)
+            rate = ratings.get(str(user.id), DEFAULT_RATING)
             lines.append(f"{user.display_name} {rate}")
         return "\n".join(lines)
 
@@ -310,16 +315,16 @@ class RoleJoinButton(discord.ui.Button):
         user = interaction.user
 
         if game_state != "waiting":
-            await interaction.response.send_message("今は募集してないよ", ephemeral=True)
+            await interaction.response.send_message("今は募集していません", ephemeral=True)
             return
 
         if is_user_joined(user):
-            await interaction.response.send_message("すでに参加してるよ", ephemeral=True)
+            await interaction.response.send_message("既に参加しています", ephemeral=True)
             return
 
         role = get_role_config(self.role_key)
         if role is None:
-            await interaction.response.send_message("その役割は使えないよ", ephemeral=True)
+            await interaction.response.send_message("その役割は使えません", ephemeral=True)
             return
 
         if len(players[self.role_key]) >= role["cap"]:
@@ -340,7 +345,7 @@ class LeaveButton(discord.ui.Button):
         user = interaction.user
 
         if game_state != "waiting":
-            await interaction.response.send_message("試合準備が進んでいるので今は抜けられないよ", ephemeral=True)
+            await interaction.response.send_message("試合準備が進んでいるので今は抜けられません", ephemeral=True)
             return
 
         removed = False
@@ -351,7 +356,7 @@ class LeaveButton(discord.ui.Button):
                 break
 
         if not removed:
-            await interaction.response.send_message("まだ参加してないよ", ephemeral=True)
+            await interaction.response.send_message("まだ参加していません", ephemeral=True)
             return
 
         await interaction.response.edit_message(content=create_recruit_text(), view=self.view)
@@ -435,7 +440,7 @@ async def process_result(ctx, winner_num: int):
     team1, team2 = last_match
 
     def avg(team):
-        return sum([ratings.get(str(user.id), 1500) for user in team]) / len(team)
+        return sum([ratings.get(str(user.id), DEFAULT_RATING) for user in team]) / len(team)
 
     avg1 = avg(team1)
     avg2 = avg(team2)
@@ -443,10 +448,10 @@ async def process_result(ctx, winner_num: int):
     s1, s2 = (1, 0) if winner_num == 1 else (0, 1)
 
     last_rating_changes = {}
-    result_text = "【レート更新】\n\n"
+    result_text = "【レート更新】\n5点が追加されました\n\n"
 
     for user in team1:
-        old = ratings.get(str(user.id), 1500)
+        old = ratings.get(str(user.id), DEFAULT_RATING)
         new = elo_update(old, avg2, s1)
         last_rating_changes[str(user.id)] = old
         ratings[str(user.id)] = new
@@ -455,7 +460,7 @@ async def process_result(ctx, winner_num: int):
     result_text += "\n"
 
     for user in team2:
-        old = ratings.get(str(user.id), 1500)
+        old = ratings.get(str(user.id), DEFAULT_RATING)
         new = elo_update(old, avg1, s2)
         last_rating_changes[str(user.id)] = old
         ratings[str(user.id)] = new
@@ -479,36 +484,38 @@ async def handle_disconnect(ctx, member):
     all_players = team1 + team2
 
     if member not in all_players:
-        await ctx.send("そのユーザーは今回の試合に参加していないよ")
+        await ctx.send("そのユーザーは今回の試合に参加していません")
         return
 
     penalty = 21
     receivers = [user for user in all_players if user != member]
 
     if len(receivers) == 0:
-        await ctx.send("分配先がいないよ")
+        await ctx.send("分配先がいません")
         return
 
     if penalty % len(receivers) != 0:
-        await ctx.send("均等配分できない設定になっているよ")
+        await ctx.send("均等配分できない設定になっています")
         return
 
     reward_each = penalty // len(receivers)
 
     last_rating_changes = {}
 
-    old_member_rate = ratings.get(str(member.id), 1500)
+    old_member_rate = ratings.get(str(member.id), DEFAULT_RATING)
     last_rating_changes[str(member.id)] = old_member_rate
     ratings[str(member.id)] = old_member_rate - penalty
 
     result_lines = [
         "【回線落ち処理】",
+        "「有罪（ギルティ）」",
+        "「没収（コンフィスケイション）」",
         f"{member.display_name}: {old_member_rate} → {ratings[str(member.id)]} (-{penalty})",
         ""
     ]
 
     for user in receivers:
-        old_rate = ratings.get(str(user.id), 1500)
+        old_rate = ratings.get(str(user.id), DEFAULT_RATING)
         last_rating_changes[str(user.id)] = old_rate
         new_rate = old_rate + reward_each
         ratings[str(user.id)] = new_rate
@@ -525,7 +532,7 @@ async def undo_result(ctx):
     global ratings, last_rating_changes, game_state
 
     if not last_rating_changes:
-        await ctx.send("戻せる試合結果がないよ")
+        await ctx.send("戻せる試合結果がありません")
         return
 
     for user_id, old_rate in last_rating_changes.items():
@@ -551,7 +558,7 @@ async def end_room(ctx):
     last_rating_changes = None
     game_state = "idle"
 
-    await ctx.send("部屋を終了しました。次の募集をするときは !部屋作成 を使ってね")
+    await ctx.send("部屋作成をやめました。次の募集をするときは !部屋作成 を使ってね")
 
 
 # =========================
@@ -567,9 +574,13 @@ async def handle_mode_select(ctx, cmd_num: int):
         4: "d",
     }
 
+    if cmd_num == 5:
+        await end_room(ctx)
+        return
+
     selected_mode = mode_map.get(cmd_num)
     if selected_mode is None:
-        await ctx.send("モード選択は !1〜!4 を使ってね")
+        await ctx.send("モード選択は !1〜!5")
         return
 
     current_mode = selected_mode
@@ -581,7 +592,7 @@ async def handle_ready(ctx, cmd_num: int):
     if cmd_num == 1:
         await start_game(ctx)
     else:
-        await ctx.send("今は !1 で試合開始してね")
+        await ctx.send("今は !1 で試合開始")
 
 
 async def handle_playing(ctx, cmd_num: int):
@@ -597,10 +608,10 @@ async def handle_playing(ctx, cmd_num: int):
         if ctx.message.mentions:
             await handle_disconnect(ctx, ctx.message.mentions[0])
         else:
-            await ctx.send("回線落ちは !3 @ユーザー で送ってね")
+            await ctx.send("回線落ちは !3 @ユーザー で送ってくれ")
         return
 
-    await ctx.send("試合中は !1 !2 !3 を使ってね")
+    await ctx.send("試合中は !1 !2 !3 を使ってくれ")
 
 
 async def handle_finished(ctx, cmd_num: int):
@@ -616,7 +627,7 @@ async def handle_finished(ctx, cmd_num: int):
         await undo_result(ctx)
         return
 
-    await ctx.send("今は !1 !2 !3 を使ってね")
+    await ctx.send("今は !1 !2 !3 を使ってくれ")
 
 
 STATE_HANDLERS = {
@@ -630,7 +641,7 @@ STATE_HANDLERS = {
 async def dispatch_number_command(ctx, cmd_num: int):
     handler = STATE_HANDLERS.get(game_state)
     if handler is None:
-        await ctx.send(f"今は !{cmd_num} を受け付ける状態じゃないよ")
+        await ctx.send(f"今は !{cmd_num} を受け付ける状態じゃない")
         return
     await handler(ctx, cmd_num)
 
@@ -689,7 +700,7 @@ async def result(ctx, num: int):
     elif num == 2:
         await process_result(ctx, 2)
     else:
-        await ctx.send("今は !result 1 か !result 2 だけ使えるよ")
+        await ctx.send("今は !result 1 か !result 2 だけ使えます")
 
 
 if __name__ == "__main__":
