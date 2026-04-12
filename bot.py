@@ -11,8 +11,18 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RATINGS_FILE = os.path.join(BASE_DIR, "ratings.json")
 TOKEN = os.getenv("DISCORD_TOKEN")
 
-# 初期レート
+# =========================
+# 管理者設定
+# =========================
+# ここをあなたのDiscordユーザーIDに変更
+OWNER_ID = 1225788050894753865
+
+# =========================
+# レート設定
+# =========================
 DEFAULT_RATING = 2500
+K_FACTOR = 140          # 同格相手に勝つとだいたい +70
+PARTICIPATION_BONUS = 5 # 1試合ごとに全員 +5
 
 # =========================
 # レート関連
@@ -30,7 +40,7 @@ def save_ratings(ratings):
         json.dump(ratings, f, indent=2, ensure_ascii=False)
 
 
-def elo_update(rA, rB, scoreA, K=32):
+def elo_update(rA, rB, scoreA, K=K_FACTOR):
     expected_a = 1 / (1 + 10 ** ((rB - rA) / 400))
     return int(rA + K * (scoreA - expected_a))
 
@@ -40,9 +50,13 @@ ratings = load_ratings()
 # =========================
 # Discord設定
 # =========================
+# !ランキング でオフラインのメンバーも含めるため members intent を有効化
+# Discord Developer Portal 側でも Server Members Intent を ON にしておくこと
 intents = discord.Intents.default()
 intents.message_content = True
 intents.voice_states = True
+intents.members = True
+
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # =========================
@@ -99,13 +113,18 @@ game_state = "idle"
 # idle         : 何もしていない
 # mode_select  : !部屋作成後のモード選択中
 # waiting      : 募集中
-# ready        : 初回のチーム決定後、開始待ち
+# ready        : 初回チーム決定後、開始待ち
 # playing      : 試合中
 # finished     : レート更新後、次試合/終了/訂正待ち
 
-last_match = None
+current_match = None      # 今プレイした（またはプレイ中の）試合
+prepared_match = None     # 次に始める予定の試合
 last_rating_changes = None
 recruit_message = None
+
+# 部屋開始から終了までの増減確認用
+session_start_ratings = {}  # user_id(str) -> 最初に参加した時点のレート
+session_participants = {}   # user_id(str) -> Member
 
 # =========================
 # 共通ユーティリティ
@@ -119,6 +138,12 @@ def reset_players():
         "lact": [],
         "other": [],
     }
+
+
+def reset_room_tracking():
+    global session_start_ratings, session_participants
+    session_start_ratings = {}
+    session_participants = {}
 
 
 def get_mode_config():
@@ -137,11 +162,6 @@ def get_role_config(role_key):
     return None
 
 
-def get_role_label(role_key):
-    role = get_role_config(role_key)
-    return role["label"] if role else role_key
-
-
 def get_all_joined_users():
     users = []
     for role_users in players.values():
@@ -151,6 +171,21 @@ def get_all_joined_users():
 
 def is_user_joined(user):
     return user in get_all_joined_users()
+
+
+def ensure_session_player(user):
+    user_id = str(user.id)
+    session_participants[user_id] = user
+    if user_id not in session_start_ratings:
+        session_start_ratings[user_id] = ratings.get(user_id, DEFAULT_RATING)
+
+
+def display_name(user):
+    return user.display_name
+
+
+def format_names(team):
+    return "\n".join([display_name(user) for user in team]) if team else "なし"
 
 
 def create_mode_select_text():
@@ -181,17 +216,14 @@ def create_recruit_text():
 
 
 def create_team_text(team1, team2, require_start=True):
-    def fmt(team):
-        return "\n".join([user.mention for user in team])
-
     suffix = "試合開始するなら !1 を送ってください" if require_start else "試合を開始します"
     mode_name = get_mode_config()["name"] if get_mode_config() else "不明"
 
     return (
         f"🔥チーム決定🔥\n"
         f"モード：{mode_name}\n\n"
-        f"【アルファ】\n{fmt(team1)}\n\n"
-        f"【ブラボー】\n{fmt(team2)}\n\n"
+        f"【アルファ】\n{format_names(team1)}\n\n"
+        f"【ブラボー】\n{format_names(team2)}\n\n"
         f"{suffix}"
     )
 
@@ -201,7 +233,7 @@ def create_result_prompt(team1, team2):
         lines = []
         for user in team:
             rate = ratings.get(str(user.id), DEFAULT_RATING)
-            lines.append(f"{user.display_name} {rate}")
+            lines.append(f"{display_name(user)} {rate}")
         return "\n".join(lines)
 
     return (
@@ -216,7 +248,7 @@ def create_result_prompt(team1, team2):
 def create_finished_prompt():
     return (
         "次の試合に進みますか？\n\n"
-        "!1 で続ける\n"
+        "!1 で次の試合開始\n"
         "!2 で終わる\n"
         "!3 で試合結果の訂正"
     )
@@ -231,6 +263,10 @@ def is_mode_full():
         if len(players[role["key"]]) != role["cap"]:
             return False
     return True
+
+
+def get_avg_rating(team):
+    return sum([ratings.get(str(user.id), DEFAULT_RATING) for user in team]) / len(team)
 
 
 # =========================
@@ -332,6 +368,8 @@ class RoleJoinButton(discord.ui.Button):
             return
 
         players[self.role_key].append(user)
+        ensure_session_player(user)
+
         await interaction.response.edit_message(content=create_recruit_text(), view=self.view)
         await check_full(interaction)
 
@@ -387,13 +425,13 @@ async def start_recruit(ctx):
 
 
 async def check_full(interaction):
-    global last_match, game_state
+    global prepared_match, game_state
 
     if not is_mode_full():
         return
 
     team1, team2 = make_teams()
-    last_match = (team1, team2)
+    prepared_match = (team1, team2)
     game_state = "ready"
 
     await interaction.followup.send(create_team_text(team1, team2, require_start=True))
@@ -404,83 +442,110 @@ async def check_full(interaction):
 
 
 async def start_game(ctx):
-    global game_state, last_match
+    global game_state, current_match, prepared_match
 
-    if not last_match:
+    if not prepared_match:
         await ctx.send("試合情報がないよ")
         return
 
-    team1, team2 = last_match
+    current_match = prepared_match
+    prepared_match = None
     game_state = "playing"
 
+    team1, team2 = current_match
     await ctx.send("試合を開始します")
     await move_members_to_vc(ctx.guild, team1, team2)
     await ctx.send(create_result_prompt(team1, team2))
 
 
 async def next_game(ctx):
-    global game_state, last_match
+    global game_state, current_match, prepared_match
 
-    team1, team2 = make_teams()
-    last_match = (team1, team2)
+    if not prepared_match:
+        await ctx.send("次の試合情報がありません")
+        return
+
+    current_match = prepared_match
+    prepared_match = None
     game_state = "playing"
 
-    await ctx.send(create_team_text(team1, team2, require_start=False))
+    team1, team2 = current_match
+    await ctx.send("試合を開始します")
     await move_members_to_vc(ctx.guild, team1, team2)
     await ctx.send(create_result_prompt(team1, team2))
 
 
 async def process_result(ctx, winner_num: int):
-    global last_match, ratings, game_state, last_rating_changes
+    global current_match, prepared_match, ratings, game_state, last_rating_changes
 
-    if not last_match:
+    if not current_match:
         await ctx.send("試合がないよ")
         return
 
-    team1, team2 = last_match
-
-    def avg(team):
-        return sum([ratings.get(str(user.id), DEFAULT_RATING) for user in team]) / len(team)
-
-    avg1 = avg(team1)
-    avg2 = avg(team2)
+    team1, team2 = current_match
+    avg1 = get_avg_rating(team1)
+    avg2 = get_avg_rating(team2)
 
     s1, s2 = (1, 0) if winner_num == 1 else (0, 1)
 
+    # 先に現在の値を保存しておく（訂正用）
     last_rating_changes = {}
-    result_text = "【レート更新】\n5点が追加されました\n\n"
+    for user in team1 + team2:
+        last_rating_changes[str(user.id)] = ratings.get(str(user.id), DEFAULT_RATING)
 
+    # レート更新
     for user in team1:
         old = ratings.get(str(user.id), DEFAULT_RATING)
-        new = elo_update(old, avg2, s1)
-        last_rating_changes[str(user.id)] = old
+        new = elo_update(old, avg2, s1) + PARTICIPATION_BONUS
         ratings[str(user.id)] = new
-        result_text += f"{user.display_name}: {old} → {new}\n"
-
-    result_text += "\n"
 
     for user in team2:
         old = ratings.get(str(user.id), DEFAULT_RATING)
-        new = elo_update(old, avg1, s2)
-        last_rating_changes[str(user.id)] = old
+        new = elo_update(old, avg1, s2) + PARTICIPATION_BONUS
         ratings[str(user.id)] = new
-        result_text += f"{user.display_name}: {old} → {new}\n"
 
     save_ratings(ratings)
+
+    # 次試合を先に作る
+    prepared_match = make_teams()
+    next_team1, next_team2 = prepared_match
+
+    # 【レート更新】は次の試合順で表示
+    result_lines = [
+        "【レート更新】",
+        f"全員に +{PARTICIPATION_BONUS} が追加されました",
+        "",
+        "【アルファ】",
+    ]
+    for user in next_team1:
+        old = last_rating_changes[str(user.id)]
+        new = ratings[str(user.id)]
+        diff = new - old
+        sign = "+" if diff >= 0 else ""
+        result_lines.append(f"{display_name(user)}: {old} → {new} ({sign}{diff})")
+
+    result_lines += ["", "【ブラボー】"]
+    for user in next_team2:
+        old = last_rating_changes[str(user.id)]
+        new = ratings[str(user.id)]
+        diff = new - old
+        sign = "+" if diff >= 0 else ""
+        result_lines.append(f"{display_name(user)}: {old} → {new} ({sign}{diff})")
+
     game_state = "finished"
 
-    await ctx.send(result_text)
+    await ctx.send("\n".join(result_lines))
     await ctx.send(create_finished_prompt())
 
 
 async def handle_disconnect(ctx, member):
-    global ratings, game_state, last_rating_changes, last_match
+    global ratings, game_state, last_rating_changes, current_match, prepared_match
 
-    if not last_match:
+    if not current_match:
         await ctx.send("試合情報がないよ")
         return
 
-    team1, team2 = last_match
+    team1, team2 = current_match
     all_players = team1 + team2
 
     if member not in all_players:
@@ -501,27 +566,53 @@ async def handle_disconnect(ctx, member):
     reward_each = penalty // len(receivers)
 
     last_rating_changes = {}
+    for user in all_players:
+        last_rating_changes[str(user.id)] = ratings.get(str(user.id), DEFAULT_RATING)
 
-    old_member_rate = ratings.get(str(member.id), DEFAULT_RATING)
-    last_rating_changes[str(member.id)] = old_member_rate
-    ratings[str(member.id)] = old_member_rate - penalty
+    # まず全員に参加ボーナス +5
+    for user in all_players:
+        uid = str(user.id)
+        ratings[uid] = ratings.get(uid, DEFAULT_RATING) + PARTICIPATION_BONUS
+
+    # 回線落ち本人にペナルティ
+    member_id = str(member.id)
+    ratings[member_id] -= penalty
+
+    # 他メンバーに分配
+    for user in receivers:
+        uid = str(user.id)
+        ratings[uid] += reward_each
+
+    save_ratings(ratings)
+
+    # 次試合を先に作る
+    prepared_match = make_teams()
+    next_team1, next_team2 = prepared_match
 
     result_lines = [
         "【回線落ち処理】",
+        f"全員に +{PARTICIPATION_BONUS}",
         "「有罪（ギルティ）」",
         "「没収（コンフィスケイション）」",
-        f"{member.display_name}: {old_member_rate} → {ratings[str(member.id)]} (-{penalty})",
-        ""
+        "",
+        "【アルファ】",
     ]
 
-    for user in receivers:
-        old_rate = ratings.get(str(user.id), DEFAULT_RATING)
-        last_rating_changes[str(user.id)] = old_rate
-        new_rate = old_rate + reward_each
-        ratings[str(user.id)] = new_rate
-        result_lines.append(f"{user.display_name}: {old_rate} → {new_rate} (+{reward_each})")
+    for user in next_team1:
+        old = last_rating_changes[str(user.id)]
+        new = ratings[str(user.id)]
+        diff = new - old
+        sign = "+" if diff >= 0 else ""
+        result_lines.append(f"{display_name(user)}: {old} → {new} ({sign}{diff})")
 
-    save_ratings(ratings)
+    result_lines += ["", "【ブラボー】"]
+    for user in next_team2:
+        old = last_rating_changes[str(user.id)]
+        new = ratings[str(user.id)]
+        diff = new - old
+        sign = "+" if diff >= 0 else ""
+        result_lines.append(f"{display_name(user)}: {old} → {new} ({sign}{diff})")
+
     game_state = "finished"
 
     await ctx.send("\n".join(result_lines))
@@ -529,7 +620,7 @@ async def handle_disconnect(ctx, member):
 
 
 async def undo_result(ctx):
-    global ratings, last_rating_changes, game_state
+    global ratings, last_rating_changes, game_state, prepared_match
 
     if not last_rating_changes:
         await ctx.send("戻せる試合結果がありません")
@@ -540,24 +631,52 @@ async def undo_result(ctx):
 
     save_ratings(ratings)
     last_rating_changes = None
+    prepared_match = None
     game_state = "playing"
 
     await ctx.send("試合結果を訂正しました")
-    if last_match:
-        team1, team2 = last_match
+    if current_match:
+        team1, team2 = current_match
         await ctx.send(create_result_prompt(team1, team2))
 
 
+def create_room_summary_text():
+    if not session_participants:
+        return None
+
+    rows = []
+    for user_id, member in session_participants.items():
+        start_rate = session_start_ratings.get(user_id, DEFAULT_RATING)
+        end_rate = ratings.get(user_id, DEFAULT_RATING)
+        diff = end_rate - start_rate
+        rows.append((diff, end_rate, member.display_name, start_rate))
+
+    # 増減が大きい順、同値なら最終レート順
+    rows.sort(key=lambda x: (-x[0], -x[1], x[2]))
+
+    lines = ["【今回の部屋のレート増減】"]
+    for diff, end_rate, name, start_rate in rows:
+        sign = "+" if diff >= 0 else ""
+        lines.append(f"{name}: {start_rate} → {end_rate} ({sign}{diff})")
+    return "\n".join(lines)
+
+
 async def end_room(ctx):
-    global current_mode, game_state, last_match, recruit_message, last_rating_changes
+    global current_mode, game_state, current_match, prepared_match, recruit_message, last_rating_changes
+
+    summary_text = create_room_summary_text()
 
     reset_players()
+    reset_room_tracking()
     current_mode = None
-    last_match = None
+    current_match = None
+    prepared_match = None
     recruit_message = None
     last_rating_changes = None
     game_state = "idle"
 
+    if summary_text:
+        await ctx.send(summary_text)
     await ctx.send("部屋作成をやめました。次の募集をするときは !部屋作成 を使ってね")
 
 
@@ -647,6 +766,70 @@ async def dispatch_number_command(ctx, cmd_num: int):
 
 
 # =========================
+# ランキング
+# =========================
+@bot.command()
+async def ランキング(ctx):
+    try:
+        members = [member async for member in ctx.guild.fetch_members(limit=None)]
+    except Exception:
+        members = ctx.guild.members
+
+    human_members = [m for m in members if not m.bot]
+
+    ranking_data = []
+    for member in human_members:
+        rate = ratings.get(str(member.id), DEFAULT_RATING)
+        ranking_data.append((rate, member.display_name))
+
+    ranking_data.sort(key=lambda x: (-x[0], x[1].lower()))
+
+    if not ranking_data:
+        await ctx.send("ランキング対象のメンバーがいません")
+        return
+
+    lines = ["【レートランキング】"]
+    for i, (rate, name) in enumerate(ranking_data, start=1):
+        lines.append(f"#{i} {name} - {rate}")
+
+    # Discordの2000文字制限対策
+    message = ""
+    for line in lines:
+        if len(message) + len(line) + 1 > 1900:
+            await ctx.send(message)
+            message = line
+        else:
+            message += ("\n" if message else "") + line
+
+    if message:
+        await ctx.send(message)
+
+
+# =========================
+# 管理者専用レート編集
+# =========================
+@bot.command()
+async def setrate(ctx, member: discord.Member, new_rating: int):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("このコマンドは管理者専用です。")
+        return
+
+    if new_rating < 0:
+        await ctx.send("レートは0以上を指定してくれ")
+        return
+
+    user_id = str(member.id)
+    old_rating = ratings.get(user_id, DEFAULT_RATING)
+    ratings[user_id] = new_rating
+    save_ratings(ratings)
+
+    await ctx.send(
+        f"{member.display_name} のレートを変更しました\n"
+        f"{old_rating} → {new_rating}"
+    )
+
+
+# =========================
 # コマンド
 # =========================
 @bot.event
@@ -656,11 +839,13 @@ async def on_ready():
 
 @bot.command()
 async def 部屋作成(ctx):
-    global current_mode, game_state, last_match, recruit_message, last_rating_changes
+    global current_mode, game_state, current_match, prepared_match, recruit_message, last_rating_changes
 
     reset_players()
+    reset_room_tracking()
     current_mode = None
-    last_match = None
+    current_match = None
+    prepared_match = None
     recruit_message = None
     last_rating_changes = None
     game_state = "mode_select"
@@ -707,4 +892,5 @@ if __name__ == "__main__":
     if not TOKEN:
         raise ValueError("DISCORD_TOKEN が設定されていません")
     reset_players()
+    reset_room_tracking()
     bot.run(TOKEN)
