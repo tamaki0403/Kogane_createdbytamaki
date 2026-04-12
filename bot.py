@@ -14,7 +14,6 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 # =========================
 # 管理者設定
 # =========================
-# ここをあなたのDiscordユーザーIDに変更
 OWNER_ID = 1225788050894753865
 
 # =========================
@@ -64,6 +63,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # =========================
 VC_ALPHA_ID = 1492138431583752252
 VC_BRAVO_ID = 1492138468346957884
+VC_LOBBY_ID = 1492082738679910515
 
 # =========================
 # モード設定
@@ -338,6 +338,23 @@ async def move_members_to_vc(guild, team1, team2):
             await member.move_to(vc_bravo)
 
 
+async def move_members_to_lobby(guild):
+    lobby_vc = guild.get_channel(VC_LOBBY_ID)
+    if lobby_vc is None:
+        return
+
+    moved_ids = set()
+    for member in session_participants.values():
+        if member.id in moved_ids:
+            continue
+        if member.voice:
+            try:
+                await member.move_to(lobby_vc)
+                moved_ids.add(member.id)
+            except Exception:
+                pass
+
+
 # =========================
 # 募集ボタン
 # =========================
@@ -488,12 +505,10 @@ async def process_result(ctx, winner_num: int):
 
     s1, s2 = (1, 0) if winner_num == 1 else (0, 1)
 
-    # 先に現在の値を保存しておく（訂正用）
     last_rating_changes = {}
     for user in team1 + team2:
         last_rating_changes[str(user.id)] = ratings.get(str(user.id), DEFAULT_RATING)
 
-    # レート更新
     for user in team1:
         old = ratings.get(str(user.id), DEFAULT_RATING)
         new = elo_update(old, avg2, s1) + PARTICIPATION_BONUS
@@ -506,11 +521,9 @@ async def process_result(ctx, winner_num: int):
 
     save_ratings(ratings)
 
-    # 次試合を先に作る
     prepared_match = make_teams()
     next_team1, next_team2 = prepared_match
 
-    # 【レート更新】は次の試合順で表示
     result_lines = [
         "【レート更新】",
         f"全員に +{PARTICIPATION_BONUS} が追加されました",
@@ -569,23 +582,19 @@ async def handle_disconnect(ctx, member):
     for user in all_players:
         last_rating_changes[str(user.id)] = ratings.get(str(user.id), DEFAULT_RATING)
 
-    # まず全員に参加ボーナス +5
     for user in all_players:
         uid = str(user.id)
         ratings[uid] = ratings.get(uid, DEFAULT_RATING) + PARTICIPATION_BONUS
 
-    # 回線落ち本人にペナルティ
     member_id = str(member.id)
     ratings[member_id] -= penalty
 
-    # 他メンバーに分配
     for user in receivers:
         uid = str(user.id)
         ratings[uid] += reward_each
 
     save_ratings(ratings)
 
-    # 次試合を先に作る
     prepared_match = make_teams()
     next_team1, next_team2 = prepared_match
 
@@ -651,7 +660,6 @@ def create_room_summary_text():
         diff = end_rate - start_rate
         rows.append((diff, end_rate, member.display_name, start_rate))
 
-    # 増減が大きい順、同値なら最終レート順
     rows.sort(key=lambda x: (-x[0], -x[1], x[2]))
 
     lines = ["【今回の部屋のレート増減】"]
@@ -665,6 +673,8 @@ async def end_room(ctx):
     global current_mode, game_state, current_match, prepared_match, recruit_message, last_rating_changes
 
     summary_text = create_room_summary_text()
+
+    await move_members_to_lobby(ctx.guild)
 
     reset_players()
     reset_room_tracking()
@@ -792,7 +802,6 @@ async def ランキング(ctx):
     for i, (rate, name) in enumerate(ranking_data, start=1):
         lines.append(f"#{i} {name} - {rate}")
 
-    # Discordの2000文字制限対策
     message = ""
     for line in lines:
         if len(message) + len(line) + 1 > 1900:
