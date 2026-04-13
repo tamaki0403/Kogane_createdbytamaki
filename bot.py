@@ -1211,17 +1211,12 @@ async def command_three(ctx):
 
 @bot.command()
 async def ランキング(ctx):
-    if not await ensure_progress_channel(ctx):
-        return
     await post_ranking(ctx.guild)
     await ctx.send("ランキングを更新しました。")
 
 
 @bot.command()
 async def setrate(ctx, user_id: int, new_rating: int):
-    if not await ensure_progress_channel(ctx):
-        return
-
     if ctx.author.id != OWNER_ID:
         await ctx.send("このコマンドは管理者専用です。")
         return
@@ -1253,9 +1248,6 @@ async def setrate(ctx, user_id: int, new_rating: int):
 
 @bot.command()
 async def resetallrates(ctx):
-    if not await ensure_progress_channel(ctx):
-        return
-
     if ctx.author.id != OWNER_ID:
         await ctx.send("このコマンドは管理者専用です。")
         return
