@@ -9,6 +9,7 @@ from discord.ext import commands
 # =========================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RATINGS_FILE = os.path.join(BASE_DIR, "ratings.json")
+PLAYER_PROFILES_FILE = os.path.join(BASE_DIR, "player_profiles.json")
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 # =========================
@@ -21,6 +22,7 @@ OWNER_ID = 1225788050894753865
 # =========================
 PROGRESS_CHANNEL_ID = 1492082738679910512
 RANKING_CHANNEL_ID = 1492896273358127235
+PLAYER_REGISTER_CHANNEL_ID = 1493300698568462388
 
 # =========================
 # VC ID
@@ -33,7 +35,7 @@ VC_LOBBY_ID = 1492082738679910515
 # レート設定
 # =========================
 DEFAULT_RATING = 2500
-K_FACTOR = 140
+K_FACTOR = 90
 PARTICIPATION_BONUS = 5
 
 DISCONNECT_PENALTY = 50
@@ -67,6 +69,104 @@ def elo_update(rA, rB, scoreA, K=K_FACTOR):
 ratings = load_ratings()
 
 # =========================
+# プレイヤープロフィール関連
+# =========================
+def load_player_profiles():
+    try:
+        with open(PLAYER_PROFILES_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def save_player_profiles(data):
+    with open(PLAYER_PROFILES_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+player_profiles = load_player_profiles()
+
+
+def get_player_profile(user_id: int):
+    uid = str(user_id)
+    if uid not in player_profiles:
+        player_profiles[uid] = {
+            "weapon": None,
+            "xp": None,
+            "initial_applied": False,
+            "can_apply_initial_bonus": True,
+        }
+    return player_profiles[uid]
+
+
+def get_weapon_text(user_id: int):
+    profile = get_player_profile(user_id)
+    weapon = profile.get("weapon")
+    return weapon if weapon else "未登録"
+
+
+def get_xp_adjustment(xp: int):
+    if xp <= 1500:
+        return -500
+    if 1500 <= xp <= 1999:
+        return -400
+    if 2000 <= xp <= 2199:
+        return -300
+    if 2200 <= xp <= 2399:
+        return -200
+    if 2400 <= xp <= 2499:
+        return -100
+    if 2500 <= xp <= 2599:
+        return 0
+    if 2600 <= xp <= 2799:
+        return 100
+    if 2800 <= xp <= 2999:
+        return 150
+    if 3000 <= xp <= 3099:
+        return 200
+    if 3100 <= xp <= 3199:
+        return 250
+    if 3200 <= xp <= 3299:
+        return 300
+    if 3300 <= xp <= 3399:
+        return 350
+    if 3400 <= xp <= 3499:
+        return 400
+    if 3500 <= xp <= 3599:
+        return 450
+    if 3600 <= xp <= 3699:
+        return 500
+    return 700
+
+
+def get_display_name(user):
+    return user.display_name
+
+
+def get_display_name_with_weapon(user):
+    return f"{user.display_name}（{get_weapon_text(user.id)}）"
+
+
+def format_member_lines(members, include_weapon=False):
+    if not members:
+        return "なし"
+    if include_weapon:
+        return "\n".join(get_display_name_with_weapon(m) for m in members)
+    return "\n".join(get_display_name(m) for m in members)
+
+
+def mark_match_played_for_members(members):
+    changed = False
+    for member in members:
+        profile = get_player_profile(member.id)
+        if profile.get("can_apply_initial_bonus", True):
+            profile["can_apply_initial_bonus"] = False
+            changed = True
+    if changed:
+        save_player_profiles(player_profiles)
+
+
+# =========================
 # Discord設定
 # =========================
 intents = discord.Intents.default()
@@ -91,8 +191,8 @@ game_state = "idle"
 # disconnect_vote
 
 joined_players = []
-current_match = None        # (team_alpha, team_bravo)
-prepared_match = None       # (team_alpha, team_bravo)
+current_match = None
+prepared_match = None
 last_rating_changes = None
 
 recruit_message = None
@@ -105,8 +205,8 @@ session_start_ratings = {}
 session_participants = {}
 
 # チーム希望
-phase1_choices = {}         # user_id(str) -> "alpha" / "bravo" / "random"
-phase2_choices = {}         # user_id(str) -> "split" / "random"
+phase1_choices = {}
+phase2_choices = {}
 
 # 回線落ち投票
 disconnect_vote = None
@@ -147,16 +247,16 @@ def reset_room_state():
     disconnect_vote = None
 
 
-def display_name(user):
-    return user.display_name
-
-
 def get_progress_channel(guild):
     return guild.get_channel(PROGRESS_CHANNEL_ID)
 
 
 def get_ranking_channel(guild):
     return guild.get_channel(RANKING_CHANNEL_ID)
+
+
+def get_player_register_channel(guild):
+    return guild.get_channel(PLAYER_REGISTER_CHANNEL_ID)
 
 
 async def send_progress_message(guild, content, view=None):
@@ -179,10 +279,6 @@ def get_joined_user_ids():
 
 def is_joined(user):
     return user in joined_players
-
-
-def format_member_lines(members):
-    return "\n".join(display_name(m) for m in members) if members else "なし"
 
 
 def get_avg_rating(team):
@@ -228,7 +324,7 @@ def create_recruit_text():
         "【参加者募集】",
         f"{len(joined_players)}/{ROOM_CAPACITY}",
         "",
-        format_member_lines(joined_players),
+        format_member_lines(joined_players, include_weapon=False),
         "",
         "8人揃うとチーム希望選択に進みます。",
     ]
@@ -246,13 +342,13 @@ def create_phase1_text():
         "押し直しで上書きできます。",
         "",
         f"【アルファ（{len(alpha_users)}/{TEAM_SIZE}）】",
-        format_member_lines(alpha_users),
+        format_member_lines(alpha_users, include_weapon=True),
         "",
         f"【ブラボー（{len(bravo_users)}/{TEAM_SIZE}）】",
-        format_member_lines(bravo_users),
+        format_member_lines(bravo_users, include_weapon=True),
         "",
         f"【ランダム（{len(random_users)}）】",
-        format_member_lines(random_users),
+        format_member_lines(random_users, include_weapon=True),
     ]
     return "\n".join(lines)
 
@@ -267,10 +363,10 @@ def create_phase2_text():
         "分けを必要とする人はいますか？",
         "",
         f"【分ける（{len(split_users)}/2）】",
-        format_member_lines(split_users),
+        format_member_lines(split_users, include_weapon=True),
         "",
         "【ランダム】",
-        format_member_lines(normal_random_users),
+        format_member_lines(normal_random_users, include_weapon=True),
         "",
         "※ ランダムを選んだ人のみ対象です",
         "※ 2人揃った場合のみ、その2人を別チームに配置します",
@@ -290,16 +386,16 @@ def create_confirm_text():
         "この役割で決定でいいですか？",
         "",
         "【アルファ固定】",
-        format_member_lines(alpha_users),
+        format_member_lines(alpha_users, include_weapon=True),
         "",
         "【ブラボー固定】",
-        format_member_lines(bravo_users),
+        format_member_lines(bravo_users, include_weapon=True),
         "",
         "【ランダム】",
-        format_member_lines(random_users),
+        format_member_lines(random_users, include_weapon=True),
         "",
         "【分け対象（有効時のみ）】",
-        format_member_lines(split_targets),
+        format_member_lines(split_targets, include_weapon=True),
     ]
     return "\n".join(lines)
 
@@ -309,15 +405,15 @@ def create_result_prompt(team_alpha, team_bravo):
         lines = []
         for user in team:
             rate = ratings.get(str(user.id), DEFAULT_RATING)
-            lines.append(f"{display_name(user)} {rate}")
+            lines.append(f"{get_display_name_with_weapon(user)} {rate}")
         return "\n".join(lines)
 
     return (
         f"【アルファ】\n{fmt(team_alpha)}\n\n"
         f"【ブラボー】\n{fmt(team_bravo)}\n\n"
-        "!1 アルファ勝ち\n"
-        "!2 ブラボー勝ち\n"
-        "!3 @ユーザー 回線落ち"
+        f"!1 アルファ勝ち\n"
+        f"!2 ブラボー勝ち\n"
+        f"!3 @ユーザー 回線落ち"
     )
 
 
@@ -336,7 +432,7 @@ def create_disconnect_vote_text(target):
     return (
         "【領域展開「誅伏賜死」】\n\n"
         "<:Judgeman:1493076764816314508>\n"
-        f"{display_name(target)} は {now_str}\n"
+        f"{get_display_name(target)} は {now_str}\n"
         "試合途中にラグや回線落ちをした疑いがある。\n\n"
         "対象者本人は「自白」または「否認」\n"
         "試合参加者は「有罪」または「無罪」を選択してください。\n\n"
@@ -350,7 +446,7 @@ def create_disconnect_confess_text(target):
     return (
         "【回線落ち確定】\n\n"
         "<:Confession:1493076810521378866>\n"
-        f"{display_name(target)}「ああ俺の回線が悪かった、これは嘘でも否定でもない」"
+        f"{get_display_name(target)}「ああ俺の回線が悪かった、これは嘘でも否定でもない」"
     )
 
 
@@ -422,6 +518,106 @@ def create_room_summary_text():
         sign = "+" if diff >= 0 else ""
         lines.append(f"{name}: {start_rate} → {end_rate} ({sign}{diff})")
     return "\n".join(lines)
+
+
+# =========================
+# 武器登録 / XP登録
+# =========================
+class PlayerRegisterModal(discord.ui.Modal, title="プレイヤー登録"):
+    weapon_input = discord.ui.TextInput(
+        label="持ち武器",
+        placeholder="例：スシ、52、ハイドラ",
+        max_length=100,
+    )
+    xp_input = discord.ui.TextInput(
+        label="最高XP",
+        placeholder="500〜5000の整数を入力",
+        max_length=10,
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        user = interaction.user
+        profile = get_player_profile(user.id)
+
+        weapon = str(self.weapon_input).strip()
+        xp_text = str(self.xp_input).strip()
+
+        if not weapon:
+            await interaction.response.send_message("持ち武器を入力してくれ。", ephemeral=True)
+            return
+
+        if not xp_text.isdigit():
+            await interaction.response.send_message("最高XPは500〜5000の整数で入力してくれ。", ephemeral=True)
+            return
+
+        xp = int(xp_text)
+        if xp < 500 or xp > 5000:
+            await interaction.response.send_message("最高XPは500〜5000の範囲で入力してくれ。", ephemeral=True)
+            return
+
+        profile["weapon"] = weapon
+        profile["xp"] = xp
+
+        lines = [
+            f"持ち武器を登録したぞ！ → {weapon}",
+            f"最高XPを登録したぞ！ → {xp}",
+        ]
+
+        can_apply = profile.get("can_apply_initial_bonus", True)
+        already_applied = profile.get("initial_applied", False)
+
+        if can_apply and not already_applied:
+            adjustment = get_xp_adjustment(xp)
+            new_rating = DEFAULT_RATING + adjustment
+            old_rating = ratings.get(str(user.id), DEFAULT_RATING)
+            ratings[str(user.id)] = new_rating
+            save_ratings(ratings)
+
+            profile["initial_applied"] = True
+            lines.append(f"XP補正を反映したぞ！ {old_rating} → {new_rating}")
+        else:
+            if not can_apply:
+                lines.append("このプレイヤーは既に試合参加済みなので、XP補正はもう適用されない。")
+            else:
+                lines.append("XP情報は更新したが、レート補正は既に適用済みだ。")
+
+        save_player_profiles(player_profiles)
+        await interaction.response.send_message("\n".join(lines), ephemeral=True)
+
+
+class PlayerRegisterView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(
+        label="プレイヤー登録",
+        style=discord.ButtonStyle.primary,
+        custom_id="player_register_button"
+    )
+    async def register_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(PlayerRegisterModal())
+
+
+async def post_player_register_message(guild):
+    channel = get_player_register_channel(guild)
+    if channel is None:
+        return
+
+    async for msg in channel.history(limit=50):
+        if msg.author == bot.user and msg.content.startswith("【プレイヤー登録】"):
+            try:
+                await msg.delete()
+            except Exception:
+                pass
+
+    await channel.send(
+        "【プレイヤー登録】\n\n"
+        "武器登録と最高XP登録をしてください。\n"
+        "サーバー加入直後とシーズン開始時は、登録したXPに応じてレートが補正されます。\n"
+        "※ 一度でも試合に参加した後は、XP補正は適用されません。\n"
+        "※ ボタンを押した人にしか結果は表示されません。",
+        view=PlayerRegisterView()
+    )
 
 
 # =========================
@@ -866,6 +1062,7 @@ async def start_game(ctx):
     game_state = "playing"
 
     team_alpha, team_bravo = current_match
+    mark_match_played_for_members(team_alpha + team_bravo)
     await move_members_to_vc(ctx.guild, team_alpha, team_bravo)
     await ctx.send(create_result_prompt(team_alpha, team_bravo))
 
@@ -885,6 +1082,7 @@ async def next_game(ctx):
     game_state = "playing"
 
     team_alpha, team_bravo = current_match
+    mark_match_played_for_members(team_alpha + team_bravo)
     await move_members_to_vc(ctx.guild, team_alpha, team_bravo)
     await ctx.send(create_result_prompt(team_alpha, team_bravo))
 
@@ -906,7 +1104,7 @@ def build_rating_update_lines(next_team_alpha, next_team_bravo, title="【レー
         new = ratings[str(user.id)]
         diff = new - old
         sign = "+" if diff >= 0 else ""
-        lines.append(f"{display_name(user)}: {old} → {new} ({sign}{diff})")
+        lines.append(f"{get_display_name_with_weapon(user)}: {old} → {new} ({sign}{diff})")
 
     lines.extend(["", "【ブラボー】"])
     for user in next_team_bravo:
@@ -914,7 +1112,7 @@ def build_rating_update_lines(next_team_alpha, next_team_bravo, title="【レー
         new = ratings[str(user.id)]
         diff = new - old
         sign = "+" if diff >= 0 else ""
-        lines.append(f"{display_name(user)}: {old} → {new} ({sign}{diff})")
+        lines.append(f"{get_display_name_with_weapon(user)}: {old} → {new} ({sign}{diff})")
 
     return lines
 
@@ -1172,6 +1370,10 @@ async def ensure_progress_channel(ctx):
 @bot.event
 async def on_ready():
     print(f"ログインしたよ: {bot.user}")
+    bot.add_view(PlayerRegisterView())
+
+    for guild in bot.guilds:
+        await post_player_register_message(guild)
 
 
 @bot.command()
@@ -1261,10 +1463,23 @@ async def resetallrates(ctx):
 
     for member in human_members:
         ratings[str(member.id)] = DEFAULT_RATING
+        profile = get_player_profile(member.id)
+        profile["initial_applied"] = False
+        profile["can_apply_initial_bonus"] = True
 
     save_ratings(ratings)
+    save_player_profiles(player_profiles)
     await post_ranking(ctx.guild)
     await ctx.send(f"サーバー内の全プレイヤーのレートを {DEFAULT_RATING} にリセットしました。")
+    await post_player_register_message(ctx.guild)
+
+    register_channel = get_player_register_channel(ctx.guild)
+    if register_channel is not None:
+        await register_channel.send(
+            "【シーズン開始】\n"
+            "武器登録と最高XP登録をしてください。\n"
+            "XP補正を反映したい人は、プレイヤー登録ボタンからもう一度登録してくれ。"
+        )
 
 
 @bot.command()
