@@ -17,11 +17,31 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 OWNER_ID = 1225788050894753865
 
 # =========================
+# チャンネル設定
+# =========================
+PROGRESS_CHANNEL_ID = 1492082738679910512
+RANKING_CHANNEL_ID = 1492896273358127235
+
+# =========================
+# VC ID
+# =========================
+VC_ALPHA_ID = 1492138431583752252
+VC_BRAVO_ID = 1492138468346957884
+VC_LOBBY_ID = 1492082738679910515
+
+# =========================
 # レート設定
 # =========================
 DEFAULT_RATING = 2500
-K_FACTOR = 140          # 同格相手に勝つとだいたい +70
-PARTICIPATION_BONUS = 5 # 1試合ごとに全員 +5
+K_FACTOR = 140
+PARTICIPATION_BONUS = 5
+
+DISCONNECT_PENALTY = 50
+DISCONNECT_REWARD = 8
+DISCONNECT_GUILTY_THRESHOLD = 4
+
+ROOM_CAPACITY = 8
+TEAM_SIZE = 4
 
 # =========================
 # レート関連
@@ -34,9 +54,9 @@ def load_ratings():
         return {}
 
 
-def save_ratings(ratings):
+def save_ratings(ratings_data):
     with open(RATINGS_FILE, "w", encoding="utf-8") as f:
-        json.dump(ratings, f, indent=2, ensure_ascii=False)
+        json.dump(ratings_data, f, indent=2, ensure_ascii=False)
 
 
 def elo_update(rA, rB, scoreA, K=K_FACTOR):
@@ -49,8 +69,6 @@ ratings = load_ratings()
 # =========================
 # Discord設定
 # =========================
-# !ランキング でオフラインのメンバーも含めるため members intent を有効化
-# Discord Developer Portal 側でも Server Members Intent を ON にしておくこと
 intents = discord.Intents.default()
 intents.message_content = True
 intents.voice_states = True
@@ -59,118 +77,93 @@ intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # =========================
-# VC ID
-# =========================
-VC_ALPHA_ID = 1492138431583752252
-VC_BRAVO_ID = 1492138468346957884
-VC_LOBBY_ID = 1492082738679910515
-
-# =========================
-# モード設定
-# =========================
-MODE_CONFIGS = {
-    "a": {
-        "name": "後衛分け",
-        "display": "後衛2 / その他6",
-        "roles": [
-            {"key": "back", "label": "後衛", "cap": 2},
-            {"key": "other", "label": "その他", "cap": 6},
-        ],
-    },
-    "b": {
-        "name": "後衛塗り分け",
-        "display": "後衛2 / 塗り2 / その他4",
-        "roles": [
-            {"key": "back", "label": "後衛", "cap": 2},
-            {"key": "paint", "label": "塗り", "cap": 2},
-            {"key": "other", "label": "その他", "cap": 4},
-        ],
-    },
-    "c": {
-        "name": "ナワバリ",
-        "display": "エナスタ2 / ラクト2 / その他4",
-        "roles": [
-            {"key": "energy", "label": "エナスタ", "cap": 2},
-            {"key": "lact", "label": "ラクト", "cap": 2},
-            {"key": "other", "label": "その他", "cap": 4},
-        ],
-    },
-    "d": {
-        "name": "ランダム",
-        "display": "参加8",
-        "roles": [
-            {"key": "other", "label": "参加", "cap": 8},
-        ],
-    },
-}
-
-# =========================
 # 状態管理
 # =========================
-players = {}
-current_mode = None
 game_state = "idle"
-# idle         : 何もしていない
-# mode_select  : !部屋作成後のモード選択中
-# waiting      : 募集中
-# ready        : 初回チーム決定後、開始待ち
-# playing      : 試合中
-# finished     : レート更新後、次試合/終了/訂正待ち
+# idle
+# recruiting
+# pref1
+# pref2
+# confirm
+# ready
+# playing
+# finished
+# disconnect_vote
 
-current_match = None      # 今プレイした（またはプレイ中の）試合
-prepared_match = None     # 次に始める予定の試合
+joined_players = []
+current_match = None        # (team_alpha, team_bravo)
+prepared_match = None       # (team_alpha, team_bravo)
 last_rating_changes = None
+
 recruit_message = None
+selection_message = None
+confirm_message = None
+disconnect_vote_message = None
 
 # 部屋開始から終了までの増減確認用
-session_start_ratings = {}  # user_id(str) -> 最初に参加した時点のレート
-session_participants = {}   # user_id(str) -> Member
+session_start_ratings = {}
+session_participants = {}
+
+# チーム希望
+phase1_choices = {}         # user_id(str) -> "alpha" / "bravo" / "random"
+phase2_choices = {}         # user_id(str) -> "split" / "random"
+
+# 回線落ち投票
+disconnect_vote = None
+# {
+#   "target_id": str,
+#   "self_vote": None / "confess" / "deny",
+#   "jury_votes": {user_id(str): "guilty" / "innocent"},
+# }
 
 # =========================
 # 共通ユーティリティ
 # =========================
-def reset_players():
-    global players
-    players = {
-        "back": [],
-        "paint": [],
-        "energy": [],
-        "lact": [],
-        "other": [],
-    }
-
-
 def reset_room_tracking():
     global session_start_ratings, session_participants
     session_start_ratings = {}
     session_participants = {}
 
 
-def get_mode_config():
-    if current_mode is None:
+def reset_room_state():
+    global game_state
+    global joined_players, current_match, prepared_match, last_rating_changes
+    global recruit_message, selection_message, confirm_message, disconnect_vote_message
+    global phase1_choices, phase2_choices, disconnect_vote
+
+    game_state = "idle"
+    joined_players = []
+    current_match = None
+    prepared_match = None
+    last_rating_changes = None
+
+    recruit_message = None
+    selection_message = None
+    confirm_message = None
+    disconnect_vote_message = None
+
+    phase1_choices = {}
+    phase2_choices = {}
+    disconnect_vote = None
+
+
+def display_name(user):
+    return user.display_name
+
+
+def get_progress_channel(guild):
+    return guild.get_channel(PROGRESS_CHANNEL_ID)
+
+
+def get_ranking_channel(guild):
+    return guild.get_channel(RANKING_CHANNEL_ID)
+
+
+async def send_progress_message(guild, content, view=None):
+    channel = get_progress_channel(guild)
+    if channel is None:
         return None
-    return MODE_CONFIGS[current_mode]
-
-
-def get_role_config(role_key):
-    config = get_mode_config()
-    if not config:
-        return None
-    for role in config["roles"]:
-        if role["key"] == role_key:
-            return role
-    return None
-
-
-def get_all_joined_users():
-    users = []
-    for role_users in players.values():
-        users.extend(role_users)
-    return users
-
-
-def is_user_joined(user):
-    return user in get_all_joined_users()
+    return await channel.send(content, view=view)
 
 
 def ensure_session_player(user):
@@ -180,55 +173,138 @@ def ensure_session_player(user):
         session_start_ratings[user_id] = ratings.get(user_id, DEFAULT_RATING)
 
 
-def display_name(user):
-    return user.display_name
+def get_joined_user_ids():
+    return [str(u.id) for u in joined_players]
 
 
-def format_names(team):
-    return "\n".join([display_name(user) for user in team]) if team else "なし"
+def is_joined(user):
+    return user in joined_players
 
 
-def create_mode_select_text():
-    return (
-        "俺はコガネ！泳者と死滅回遊を繋ぐ窓口さ！\n"
-        "試合するモードを選んでくれ！\n\n"
-        "!1 後衛分け\n"
-        "!2 後衛塗り分け\n"
-        "!3 ナワバリ\n"
-        "!4 ランダム\n"
-        "!5 やっぱりやめる"
-    )
+def format_member_lines(members):
+    return "\n".join(display_name(m) for m in members) if members else "なし"
+
+
+def get_avg_rating(team):
+    if not team:
+        return DEFAULT_RATING
+    return sum(ratings.get(str(user.id), DEFAULT_RATING) for user in team) / len(team)
+
+
+def get_phase1_count(choice_name):
+    return sum(1 for uid in get_joined_user_ids() if phase1_choices.get(uid) == choice_name)
+
+
+def get_random_users():
+    return [u for u in joined_players if phase1_choices.get(str(u.id)) == "random"]
+
+
+def should_show_phase2():
+    random_users = get_random_users()
+    alpha_slots = TEAM_SIZE - get_phase1_count("alpha")
+    bravo_slots = TEAM_SIZE - get_phase1_count("bravo")
+    return len(random_users) >= 2 and alpha_slots >= 1 and bravo_slots >= 1
+
+
+def all_joined_selected_phase1():
+    return len(joined_players) == ROOM_CAPACITY and all(str(u.id) in phase1_choices for u in joined_players)
+
+
+def all_random_selected_phase2():
+    random_users = get_random_users()
+    return all(str(u.id) in phase2_choices for u in random_users)
+
+
+def get_effective_split_targets():
+    random_users = get_random_users()
+    targets = [u for u in random_users if phase2_choices.get(str(u.id)) == "split"]
+    if len(targets) == 2:
+        return targets
+    return []
 
 
 def create_recruit_text():
-    config = get_mode_config()
-    if not config:
-        return "モードが未選択です"
-
-    lines = [f"【{config['name']}】 {config['display']}", ""]
-    for role in config["roles"]:
-        role_users = players[role["key"]]
-        mentions = "\n".join([u.mention for u in role_users]) or "なし"
-        lines.append(f"【{role['label']}（{len(role_users)}/{role['cap']}）】")
-        lines.append(mentions)
-        lines.append("")
-    return "\n".join(lines).strip()
+    lines = [
+        "【参加者募集】",
+        f"{len(joined_players)}/{ROOM_CAPACITY}",
+        "",
+        format_member_lines(joined_players),
+        "",
+        "8人揃うとチーム希望選択に進みます。",
+    ]
+    return "\n".join(lines)
 
 
-def create_team_text(team1, team2, require_start=True):
-    suffix = "試合開始するなら !1 を送ってください" if require_start else "試合を開始します"
-    mode_name = get_mode_config()["name"] if get_mode_config() else "不明"
+def create_phase1_text():
+    alpha_users = [u for u in joined_players if phase1_choices.get(str(u.id)) == "alpha"]
+    bravo_users = [u for u in joined_players if phase1_choices.get(str(u.id)) == "bravo"]
+    random_users = [u for u in joined_players if phase1_choices.get(str(u.id)) == "random"]
 
-    return (
-        f"🔥チーム決定🔥\n"
-        f"モード：{mode_name}\n\n"
-        f"【アルファ】\n{format_names(team1)}\n\n"
-        f"【ブラボー】\n{format_names(team2)}\n\n"
-        f"{suffix}"
-    )
+    lines = [
+        "【第一選択】",
+        "希望するチームを選んでください。",
+        "押し直しで上書きできます。",
+        "",
+        f"【アルファ（{len(alpha_users)}/{TEAM_SIZE}）】",
+        format_member_lines(alpha_users),
+        "",
+        f"【ブラボー（{len(bravo_users)}/{TEAM_SIZE}）】",
+        format_member_lines(bravo_users),
+        "",
+        f"【ランダム（{len(random_users)}）】",
+        format_member_lines(random_users),
+    ]
+    return "\n".join(lines)
 
 
-def create_result_prompt(team1, team2):
+def create_phase2_text():
+    random_users = get_random_users()
+    split_users = [u for u in random_users if phase2_choices.get(str(u.id)) == "split"]
+    normal_random_users = [u for u in random_users if phase2_choices.get(str(u.id)) == "random"]
+
+    lines = [
+        "【第二選択】",
+        "分けを必要とする人はいますか？",
+        "",
+        f"【分ける（{len(split_users)}/2）】",
+        format_member_lines(split_users),
+        "",
+        "【ランダム】",
+        format_member_lines(normal_random_users),
+        "",
+        "※ ランダムを選んだ人のみ対象です",
+        "※ 2人揃った場合のみ、その2人を別チームに配置します",
+        "※ 1人のみの場合は無効です",
+    ]
+    return "\n".join(lines)
+
+
+def create_confirm_text():
+    alpha_users = [u for u in joined_players if phase1_choices.get(str(u.id)) == "alpha"]
+    bravo_users = [u for u in joined_players if phase1_choices.get(str(u.id)) == "bravo"]
+    random_users = [u for u in joined_players if phase1_choices.get(str(u.id)) == "random"]
+    split_targets = get_effective_split_targets()
+
+    lines = [
+        "【確認】",
+        "この役割で決定でいいですか？",
+        "",
+        "【アルファ固定】",
+        format_member_lines(alpha_users),
+        "",
+        "【ブラボー固定】",
+        format_member_lines(bravo_users),
+        "",
+        "【ランダム】",
+        format_member_lines(random_users),
+        "",
+        "【分け対象（有効時のみ）】",
+        format_member_lines(split_targets),
+    ]
+    return "\n".join(lines)
+
+
+def create_result_prompt(team_alpha, team_bravo):
     def fmt(team):
         lines = []
         for user in team:
@@ -237,11 +313,11 @@ def create_result_prompt(team1, team2):
         return "\n".join(lines)
 
     return (
-        f"【アルファ】\n{fmt(team1)}\n\n"
-        f"【ブラボー】\n{fmt(team2)}\n\n"
-        f"!1 アルファ勝ち\n"
-        f"!2 ブラボー勝ち\n"
-        f"!3 @ユーザー 回線落ち"
+        f"【アルファ】\n{fmt(team_alpha)}\n\n"
+        f"【ブラボー】\n{fmt(team_bravo)}\n\n"
+        "!1 アルファ勝ち\n"
+        "!2 ブラボー勝ち\n"
+        "!3 @ユーザー 回線落ち"
     )
 
 
@@ -254,88 +330,412 @@ def create_finished_prompt():
     )
 
 
-def is_mode_full():
-    config = get_mode_config()
-    if not config:
-        return False
+def create_disconnect_vote_text(target):
+    from datetime import datetime
+    now_str = datetime.now().strftime("%Y年%m月%d日")
+    return (
+        "【領域展開「誅伏賜死」】\n\n"
+        "<:Judgeman:1493076764816314508>\n"
+        f"{display_name(target)} は {now_str}\n"
+        "試合途中にラグや回線落ちをした疑いがある。\n\n"
+        "対象者本人は「自白」または「否認」\n"
+        "試合参加者は「有罪」または「無罪」を選択してください。\n\n"
+        "※ 投票は匿名です\n"
+        f"※ 有罪が{DISCONNECT_GUILTY_THRESHOLD}票以上で回線落ち処理を行います\n"
+        "※ 有罪が3票以下の場合は通常の試合結果入力に戻ります"
+    )
 
-    for role in config["roles"]:
-        if len(players[role["key"]]) != role["cap"]:
-            return False
-    return True
+
+def create_disconnect_confess_text(target):
+    return (
+        "【回線落ち確定】\n\n"
+        "<:Confession:1493076810521378866>\n"
+        f"{display_name(target)}「ああ俺の回線が悪かった、これは嘘でも否定でもない」"
+    )
 
 
-def get_avg_rating(team):
-    return sum([ratings.get(str(user.id), DEFAULT_RATING) for user in team]) / len(team)
+def create_disconnect_guilty_text():
+    return (
+        "【回線落ち確定】\n\n"
+        "<:Guilty:1493076857602445485>\n"
+        "**有罪**\n"
+        "**没収**"
+    )
+
+
+def create_disconnect_not_established_text():
+    return (
+        "【回線落ち不成立】\n"
+        "有罪票が規定数に達しなかったため、回線落ち処理は行いません。\n"
+        "通常の試合結果入力に戻ります。"
+    )
+
+
+def make_teams_from_choices():
+    alpha_fixed = [u for u in joined_players if phase1_choices.get(str(u.id)) == "alpha"]
+    bravo_fixed = [u for u in joined_players if phase1_choices.get(str(u.id)) == "bravo"]
+    random_users = [u for u in joined_players if phase1_choices.get(str(u.id)) == "random"]
+
+    team_alpha = alpha_fixed[:]
+    team_bravo = bravo_fixed[:]
+
+    split_targets = get_effective_split_targets()
+    if len(split_targets) == 2:
+        shuffled_split = split_targets[:]
+        random.shuffle(shuffled_split)
+        team_alpha.append(shuffled_split[0])
+        team_bravo.append(shuffled_split[1])
+
+    remaining_random = [u for u in random_users if u not in split_targets]
+    random.shuffle(remaining_random)
+
+    slot_labels = ["alpha"] * (TEAM_SIZE - len(team_alpha)) + ["bravo"] * (TEAM_SIZE - len(team_bravo))
+    random.shuffle(slot_labels)
+
+    for user, slot in zip(remaining_random, slot_labels):
+        if slot == "alpha":
+            team_alpha.append(user)
+        else:
+            team_bravo.append(user)
+
+    if len(team_alpha) != TEAM_SIZE or len(team_bravo) != TEAM_SIZE:
+        raise ValueError("チーム分けに失敗しました。希望人数の設定を確認してください。")
+
+    return team_alpha, team_bravo
+
+
+def create_room_summary_text():
+    if not session_participants:
+        return None
+
+    rows = []
+    for user_id, member in session_participants.items():
+        start_rate = session_start_ratings.get(user_id, DEFAULT_RATING)
+        end_rate = ratings.get(user_id, DEFAULT_RATING)
+        diff = end_rate - start_rate
+        rows.append((diff, end_rate, member.display_name, start_rate))
+
+    rows.sort(key=lambda x: (-x[0], -x[1], x[2].lower()))
+
+    lines = ["【今回の部屋のレート増減】"]
+    for diff, end_rate, name, start_rate in rows:
+        sign = "+" if diff >= 0 else ""
+        lines.append(f"{name}: {start_rate} → {end_rate} ({sign}{diff})")
+    return "\n".join(lines)
 
 
 # =========================
-# モード別チーム生成
+# メッセージ/ビュー制御
 # =========================
-def make_teams_mode_a():
-    random.shuffle(players["back"])
-    random.shuffle(players["other"])
-    team1 = [players["back"][0]] + players["other"][:3]
-    team2 = [players["back"][1]] + players["other"][3:6]
-    return team1, team2
+class BaseControlView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    def disable_all_buttons(self):
+        for child in self.children:
+            child.disabled = True
 
 
-def make_teams_mode_b():
-    random.shuffle(players["back"])
-    random.shuffle(players["paint"])
-    random.shuffle(players["other"])
-    team1 = [players["back"][0], players["paint"][0]] + players["other"][:2]
-    team2 = [players["back"][1], players["paint"][1]] + players["other"][2:4]
-    return team1, team2
+class RecruitView(BaseControlView):
+    @discord.ui.button(label="参加", style=discord.ButtonStyle.primary)
+    async def join_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        global game_state
+
+        user = interaction.user
+
+        if game_state != "recruiting":
+            await interaction.response.send_message("今は募集していません", ephemeral=True)
+            return
+
+        if is_joined(user):
+            await interaction.response.send_message("既に参加しています", ephemeral=True)
+            return
+
+        if len(joined_players) >= ROOM_CAPACITY:
+            await interaction.response.send_message("満員です", ephemeral=True)
+            return
+
+        joined_players.append(user)
+        ensure_session_player(user)
+
+        await interaction.response.edit_message(content=create_recruit_text(), view=self)
+
+        if len(joined_players) == ROOM_CAPACITY:
+            self.disable_all_buttons()
+            await interaction.message.edit(view=self)
+            await begin_phase1(interaction.guild)
+
+    @discord.ui.button(label="抜ける", style=discord.ButtonStyle.gray)
+    async def leave_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        user = interaction.user
+
+        if game_state != "recruiting":
+            await interaction.response.send_message("今は抜けられません", ephemeral=True)
+            return
+
+        if user not in joined_players:
+            await interaction.response.send_message("まだ参加していません", ephemeral=True)
+            return
+
+        joined_players.remove(user)
+        await interaction.response.edit_message(content=create_recruit_text(), view=self)
 
 
-def make_teams_mode_c():
-    random.shuffle(players["energy"])
-    random.shuffle(players["lact"])
-    random.shuffle(players["other"])
-    team1 = [players["energy"][0], players["lact"][0]] + players["other"][:2]
-    team2 = [players["energy"][1], players["lact"][1]] + players["other"][2:4]
-    return team1, team2
+class Phase1ChoiceView(BaseControlView):
+    async def handle_choice(self, interaction: discord.Interaction, choice_name: str):
+        global game_state
+
+        user = interaction.user
+        uid = str(user.id)
+
+        if game_state != "pref1":
+            await interaction.response.send_message("今は第一選択ではありません", ephemeral=True)
+            return
+
+        if user not in joined_players:
+            await interaction.response.send_message("この部屋の参加者ではありません", ephemeral=True)
+            return
+
+        current = phase1_choices.get(uid)
+
+        if choice_name == "alpha":
+            if current != "alpha" and get_phase1_count("alpha") >= TEAM_SIZE:
+                await interaction.response.send_message("アルファは満員です", ephemeral=True)
+                return
+
+        if choice_name == "bravo":
+            if current != "bravo" and get_phase1_count("bravo") >= TEAM_SIZE:
+                await interaction.response.send_message("ブラボーは満員です", ephemeral=True)
+                return
+
+        phase1_choices[uid] = choice_name
+        await interaction.response.edit_message(content=create_phase1_text(), view=self)
+
+        if all_joined_selected_phase1():
+            self.disable_all_buttons()
+            await interaction.message.edit(view=self)
+            if should_show_phase2():
+                await begin_phase2(interaction.guild)
+            else:
+                await begin_confirm(interaction.guild)
+
+    @discord.ui.button(label="アルファ", style=discord.ButtonStyle.primary)
+    async def alpha_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.handle_choice(interaction, "alpha")
+
+    @discord.ui.button(label="ブラボー", style=discord.ButtonStyle.primary)
+    async def bravo_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.handle_choice(interaction, "bravo")
+
+    @discord.ui.button(label="ランダム", style=discord.ButtonStyle.secondary)
+    async def random_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.handle_choice(interaction, "random")
 
 
-def make_teams_mode_d():
-    all_players = players["other"][:]
-    random.shuffle(all_players)
-    return all_players[:4], all_players[4:8]
+class Phase2ChoiceView(BaseControlView):
+    async def handle_choice(self, interaction: discord.Interaction, choice_name: str):
+        global game_state
+
+        user = interaction.user
+        uid = str(user.id)
+        random_users = get_random_users()
+
+        if game_state != "pref2":
+            await interaction.response.send_message("今は第二選択ではありません", ephemeral=True)
+            return
+
+        if user not in random_users:
+            await interaction.response.send_message("第二選択の対象者ではありません", ephemeral=True)
+            return
+
+        current = phase2_choices.get(uid)
+
+        if choice_name == "split":
+            split_count = sum(1 for u in random_users if phase2_choices.get(str(u.id)) == "split")
+            if current != "split" and split_count >= 2:
+                await interaction.response.send_message("「分ける」は2人までです", ephemeral=True)
+                return
+
+        phase2_choices[uid] = choice_name
+        await interaction.response.edit_message(content=create_phase2_text(), view=self)
+
+        if all_random_selected_phase2():
+            self.disable_all_buttons()
+            await interaction.message.edit(view=self)
+            await begin_confirm(interaction.guild)
+
+    @discord.ui.button(label="分ける", style=discord.ButtonStyle.primary)
+    async def split_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.handle_choice(interaction, "split")
+
+    @discord.ui.button(label="ランダム", style=discord.ButtonStyle.secondary)
+    async def random_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.handle_choice(interaction, "random")
 
 
-TEAM_BUILDERS = {
-    "a": make_teams_mode_a,
-    "b": make_teams_mode_b,
-    "c": make_teams_mode_c,
-    "d": make_teams_mode_d,
-}
+class ConfirmView(BaseControlView):
+    @discord.ui.button(label="決定", style=discord.ButtonStyle.success)
+    async def confirm_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        global game_state, prepared_match
+
+        user = interaction.user
+        if user not in joined_players:
+            await interaction.response.send_message("この部屋の参加者ではありません", ephemeral=True)
+            return
+
+        if game_state != "confirm":
+            await interaction.response.send_message("今は確認段階ではありません", ephemeral=True)
+            return
+
+        try:
+            prepared_match = make_teams_from_choices()
+        except Exception as e:
+            await interaction.response.send_message(f"チーム分けに失敗しました: {e}", ephemeral=True)
+            return
+
+        game_state = "ready"
+        self.disable_all_buttons()
+        await interaction.response.edit_message(content=create_confirm_text(), view=self)
+        await send_progress_message(interaction.guild, "試合開始するなら !1 を送ってください")
+
+    @discord.ui.button(label="やり直し", style=discord.ButtonStyle.danger)
+    async def redo_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        global game_state, phase1_choices, phase2_choices
+
+        user = interaction.user
+        if user not in joined_players:
+            await interaction.response.send_message("この部屋の参加者ではありません", ephemeral=True)
+            return
+
+        if game_state != "confirm":
+            await interaction.response.send_message("今は確認段階ではありません", ephemeral=True)
+            return
+
+        phase1_choices = {}
+        phase2_choices = {}
+        game_state = "pref1"
+        self.disable_all_buttons()
+        await interaction.response.edit_message(content=create_confirm_text(), view=self)
+        await begin_phase1(interaction.guild)
 
 
-def make_teams():
-    builder = TEAM_BUILDERS.get(current_mode)
-    if builder is None:
-        return [], []
-    return builder()
+class DisconnectVoteView(BaseControlView):
+    async def record_self_vote(self, interaction: discord.Interaction, vote_value: str):
+        global disconnect_vote
+
+        if game_state != "disconnect_vote" or disconnect_vote is None:
+            await interaction.response.send_message("今は投票中ではありません", ephemeral=True)
+            return
+
+        user = interaction.user
+        uid = str(user.id)
+        target_id = disconnect_vote["target_id"]
+
+        if uid != target_id:
+            await interaction.response.send_message("このボタンは対象者本人のみ押せます", ephemeral=True)
+            return
+
+        disconnect_vote["self_vote"] = vote_value
+        await interaction.response.send_message("投票を受け付けました", ephemeral=True)
+
+        if vote_value == "confess":
+            self.disable_all_buttons()
+            try:
+                await interaction.message.edit(view=self)
+            except Exception:
+                pass
+            target_member = session_participants.get(target_id)
+            if target_member:
+                await finalize_disconnect_vote(interaction.guild, target_member, forced_by_confession=True)
+
+    async def record_jury_vote(self, interaction: discord.Interaction, vote_value: str):
+        global disconnect_vote
+
+        if game_state != "disconnect_vote" or disconnect_vote is None:
+            await interaction.response.send_message("今は投票中ではありません", ephemeral=True)
+            return
+
+        user = interaction.user
+        uid = str(user.id)
+        target_id = disconnect_vote["target_id"]
+
+        if uid == target_id:
+            await interaction.response.send_message("対象者本人は有罪/無罪を押せません", ephemeral=True)
+            return
+
+        if current_match is None:
+            await interaction.response.send_message("試合情報がありません", ephemeral=True)
+            return
+
+        if user not in (current_match[0] + current_match[1]):
+            await interaction.response.send_message("今回の試合参加者ではありません", ephemeral=True)
+            return
+
+        disconnect_vote["jury_votes"][uid] = vote_value
+        await interaction.response.send_message("投票を受け付けました", ephemeral=True)
+
+        guilty_count = sum(1 for v in disconnect_vote["jury_votes"].values() if v == "guilty")
+        voters = [u for u in (current_match[0] + current_match[1]) if str(u.id) != target_id]
+
+        if guilty_count >= DISCONNECT_GUILTY_THRESHOLD:
+            self.disable_all_buttons()
+            try:
+                await interaction.message.edit(view=self)
+            except Exception:
+                pass
+            target_member = session_participants.get(target_id)
+            if target_member:
+                await finalize_disconnect_vote(interaction.guild, target_member, forced_by_confession=False)
+            return
+
+        if len(disconnect_vote["jury_votes"]) == len(voters):
+            self.disable_all_buttons()
+            try:
+                await interaction.message.edit(view=self)
+            except Exception:
+                pass
+            await resolve_disconnect_not_established(interaction.guild)
+
+    @discord.ui.button(label="自白", style=discord.ButtonStyle.danger)
+    async def confess_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.record_self_vote(interaction, "confess")
+
+    @discord.ui.button(label="否認", style=discord.ButtonStyle.secondary)
+    async def deny_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.record_self_vote(interaction, "deny")
+
+    @discord.ui.button(label="有罪", style=discord.ButtonStyle.primary)
+    async def guilty_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.record_jury_vote(interaction, "guilty")
+
+    @discord.ui.button(label="無罪", style=discord.ButtonStyle.success)
+    async def innocent_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.record_jury_vote(interaction, "innocent")
 
 
 # =========================
 # VC移動
 # =========================
-async def move_members_to_vc(guild, team1, team2):
+async def move_members_to_vc(guild, team_alpha, team_bravo):
     vc_alpha = guild.get_channel(VC_ALPHA_ID)
     vc_bravo = guild.get_channel(VC_BRAVO_ID)
 
     if vc_alpha is None or vc_bravo is None:
         return
 
-    for member in team1:
+    for member in team_alpha:
         if member.voice:
-            await member.move_to(vc_alpha)
+            try:
+                await member.move_to(vc_alpha)
+            except Exception:
+                pass
 
-    for member in team2:
+    for member in team_bravo:
         if member.voice:
-            await member.move_to(vc_bravo)
+            try:
+                await member.move_to(vc_bravo)
+            except Exception:
+                pass
 
 
 async def move_members_to_lobby(guild):
@@ -356,106 +756,102 @@ async def move_members_to_lobby(guild):
 
 
 # =========================
-# 募集ボタン
+# ランキング
 # =========================
-class RoleJoinButton(discord.ui.Button):
-    def __init__(self, role_key, label):
-        super().__init__(label=label, style=discord.ButtonStyle.primary)
-        self.role_key = role_key
+async def build_ranking_lines(guild):
+    try:
+        members = [member async for member in guild.fetch_members(limit=None)]
+    except Exception:
+        members = guild.members
 
-    async def callback(self, interaction: discord.Interaction):
-        global game_state
-        user = interaction.user
+    human_members = [m for m in members if not m.bot]
 
-        if game_state != "waiting":
-            await interaction.response.send_message("今は募集していません", ephemeral=True)
-            return
+    ranking_data = []
+    for member in human_members:
+        rate = ratings.get(str(member.id), DEFAULT_RATING)
+        ranking_data.append((rate, member.display_name))
 
-        if is_user_joined(user):
-            await interaction.response.send_message("既に参加しています", ephemeral=True)
-            return
+    ranking_data.sort(key=lambda x: (-x[0], x[1].lower()))
 
-        role = get_role_config(self.role_key)
-        if role is None:
-            await interaction.response.send_message("その役割は使えません", ephemeral=True)
-            return
+    if not ranking_data:
+        return ["【レートランキング】", "ランキング対象のメンバーがいません"]
 
-        if len(players[self.role_key]) >= role["cap"]:
-            await interaction.response.send_message(f"{role['label']}は満員！", ephemeral=True)
-            return
-
-        players[self.role_key].append(user)
-        ensure_session_player(user)
-
-        await interaction.response.edit_message(content=create_recruit_text(), view=self.view)
-        await check_full(interaction)
+    lines = ["【レートランキング】"]
+    for i, (rate, name) in enumerate(ranking_data, start=1):
+        lines.append(f"#{i} {name} - {rate}")
+    return lines
 
 
-class LeaveButton(discord.ui.Button):
-    def __init__(self):
-        super().__init__(label="抜ける", style=discord.ButtonStyle.gray)
-
-    async def callback(self, interaction: discord.Interaction):
-        global game_state
-        user = interaction.user
-
-        if game_state != "waiting":
-            await interaction.response.send_message("試合準備が進んでいるので今は抜けられません", ephemeral=True)
-            return
-
-        removed = False
-        for role_key in players:
-            if user in players[role_key]:
-                players[role_key].remove(user)
-                removed = True
-                break
-
-        if not removed:
-            await interaction.response.send_message("まだ参加していません", ephemeral=True)
-            return
-
-        await interaction.response.edit_message(content=create_recruit_text(), view=self.view)
-
-
-class JoinView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-        config = get_mode_config()
-        if config:
-            for role in config["roles"]:
-                self.add_item(RoleJoinButton(role["key"], role["label"]))
-        self.add_item(LeaveButton())
-
-    def disable_all_buttons(self):
-        for item in self.children:
-            item.disabled = True
-
-
-# =========================
-# 試合進行
-# =========================
-async def start_recruit(ctx):
-    global recruit_message
-    recruit_message = await ctx.send(create_recruit_text())
-    view = JoinView()
-    await recruit_message.edit(content=create_recruit_text(), view=view)
-
-
-async def check_full(interaction):
-    global prepared_match, game_state
-
-    if not is_mode_full():
+async def delete_old_ranking_messages(guild):
+    ranking_channel = get_ranking_channel(guild)
+    if ranking_channel is None:
         return
 
-    team1, team2 = make_teams()
-    prepared_match = (team1, team2)
-    game_state = "ready"
+    async for msg in ranking_channel.history(limit=100):
+        if msg.author == bot.user and msg.content.startswith("【レートランキング】"):
+            try:
+                await msg.delete()
+            except Exception:
+                pass
 
-    await interaction.followup.send(create_team_text(team1, team2, require_start=True))
 
-    view = JoinView()
-    view.disable_all_buttons()
-    await interaction.message.edit(view=view)
+async def post_ranking(guild):
+    ranking_channel = get_ranking_channel(guild)
+    if ranking_channel is None:
+        return
+
+    await delete_old_ranking_messages(guild)
+    lines = await build_ranking_lines(guild)
+
+    message = ""
+    for line in lines:
+        if len(message) + len(line) + 1 > 1900:
+            await ranking_channel.send(message)
+            message = line
+        else:
+            message += ("\n" if message else "") + line
+
+    if message:
+        await ranking_channel.send(message)
+
+
+# =========================
+# 進行制御
+# =========================
+async def begin_recruit(guild):
+    global game_state, recruit_message
+
+    game_state = "recruiting"
+    view = RecruitView()
+    recruit_message = await send_progress_message(guild, create_recruit_text(), view=view)
+
+
+async def begin_phase1(guild):
+    global game_state, selection_message
+
+    game_state = "pref1"
+    view = Phase1ChoiceView()
+    selection_message = await send_progress_message(guild, create_phase1_text(), view=view)
+
+
+async def begin_phase2(guild):
+    global game_state, selection_message
+
+    game_state = "pref2"
+    random_users = get_random_users()
+    for user in random_users:
+        phase2_choices.pop(str(user.id), None)
+
+    view = Phase2ChoiceView()
+    selection_message = await send_progress_message(guild, create_phase2_text(), view=view)
+
+
+async def begin_confirm(guild):
+    global game_state, confirm_message
+
+    game_state = "confirm"
+    view = ConfirmView()
+    confirm_message = await send_progress_message(guild, create_confirm_text(), view=view)
 
 
 async def start_game(ctx):
@@ -469,27 +865,58 @@ async def start_game(ctx):
     prepared_match = None
     game_state = "playing"
 
-    team1, team2 = current_match
-    await ctx.send("試合を開始します")
-    await move_members_to_vc(ctx.guild, team1, team2)
-    await ctx.send(create_result_prompt(team1, team2))
+    team_alpha, team_bravo = current_match
+    await move_members_to_vc(ctx.guild, team_alpha, team_bravo)
+    await ctx.send(create_result_prompt(team_alpha, team_bravo))
 
 
 async def next_game(ctx):
     global game_state, current_match, prepared_match
 
     if not prepared_match:
-        await ctx.send("次の試合情報がありません")
-        return
+        try:
+            prepared_match = make_teams_from_choices()
+        except Exception as e:
+            await ctx.send(f"次の試合情報を作れませんでした: {e}")
+            return
 
     current_match = prepared_match
     prepared_match = None
     game_state = "playing"
 
-    team1, team2 = current_match
-    await ctx.send("試合を開始します")
-    await move_members_to_vc(ctx.guild, team1, team2)
-    await ctx.send(create_result_prompt(team1, team2))
+    team_alpha, team_bravo = current_match
+    await move_members_to_vc(ctx.guild, team_alpha, team_bravo)
+    await ctx.send(create_result_prompt(team_alpha, team_bravo))
+
+
+def build_rating_update_lines(next_team_alpha, next_team_bravo, title="【レート更新】", bonus_text=None):
+    lines = [title]
+    if bonus_text:
+        lines.append(bonus_text)
+
+    lines.extend([
+        "",
+        "※ 以下は次回のチーム分けです",
+        "",
+        "【アルファ】"
+    ])
+
+    for user in next_team_alpha:
+        old = last_rating_changes[str(user.id)]
+        new = ratings[str(user.id)]
+        diff = new - old
+        sign = "+" if diff >= 0 else ""
+        lines.append(f"{display_name(user)}: {old} → {new} ({sign}{diff})")
+
+    lines.extend(["", "【ブラボー】"])
+    for user in next_team_bravo:
+        old = last_rating_changes[str(user.id)]
+        new = ratings[str(user.id)]
+        diff = new - old
+        sign = "+" if diff >= 0 else ""
+        lines.append(f"{display_name(user)}: {old} → {new} ({sign}{diff})")
+
+    return lines
 
 
 async def process_result(ctx, winner_num: int):
@@ -499,84 +926,73 @@ async def process_result(ctx, winner_num: int):
         await ctx.send("試合がないよ")
         return
 
-    team1, team2 = current_match
-    avg1 = get_avg_rating(team1)
-    avg2 = get_avg_rating(team2)
+    team_alpha, team_bravo = current_match
+    avg_alpha = get_avg_rating(team_alpha)
+    avg_bravo = get_avg_rating(team_bravo)
 
-    s1, s2 = (1, 0) if winner_num == 1 else (0, 1)
+    s_alpha, s_bravo = (1, 0) if winner_num == 1 else (0, 1)
 
     last_rating_changes = {}
-    for user in team1 + team2:
+    for user in team_alpha + team_bravo:
         last_rating_changes[str(user.id)] = ratings.get(str(user.id), DEFAULT_RATING)
 
-    for user in team1:
+    for user in team_alpha:
         old = ratings.get(str(user.id), DEFAULT_RATING)
-        new = elo_update(old, avg2, s1) + PARTICIPATION_BONUS
+        new = elo_update(old, avg_bravo, s_alpha) + PARTICIPATION_BONUS
         ratings[str(user.id)] = new
 
-    for user in team2:
+    for user in team_bravo:
         old = ratings.get(str(user.id), DEFAULT_RATING)
-        new = elo_update(old, avg1, s2) + PARTICIPATION_BONUS
+        new = elo_update(old, avg_alpha, s_bravo) + PARTICIPATION_BONUS
         ratings[str(user.id)] = new
 
     save_ratings(ratings)
 
-    prepared_match = make_teams()
-    next_team1, next_team2 = prepared_match
+    prepared_match = make_teams_from_choices()
+    next_team_alpha, next_team_bravo = prepared_match
 
-    result_lines = [
-        "【レート更新】",
-        f"全員に +{PARTICIPATION_BONUS} が追加されました",
-        "",
-        "【アルファ】",
-    ]
-    for user in next_team1:
-        old = last_rating_changes[str(user.id)]
-        new = ratings[str(user.id)]
-        diff = new - old
-        sign = "+" if diff >= 0 else ""
-        result_lines.append(f"{display_name(user)}: {old} → {new} ({sign}{diff})")
-
-    result_lines += ["", "【ブラボー】"]
-    for user in next_team2:
-        old = last_rating_changes[str(user.id)]
-        new = ratings[str(user.id)]
-        diff = new - old
-        sign = "+" if diff >= 0 else ""
-        result_lines.append(f"{display_name(user)}: {old} → {new} ({sign}{diff})")
+    lines = build_rating_update_lines(
+        next_team_alpha,
+        next_team_bravo,
+        title="【レート更新】",
+        bonus_text=f"全員に +{PARTICIPATION_BONUS} が追加されました",
+    )
 
     game_state = "finished"
 
-    await ctx.send("\n".join(result_lines))
+    await ctx.send("\n".join(lines))
+    await post_ranking(ctx.guild)
     await ctx.send(create_finished_prompt())
 
 
-async def handle_disconnect(ctx, member):
-    global ratings, game_state, last_rating_changes, current_match, prepared_match
+async def start_disconnect_vote(ctx, member):
+    global game_state, disconnect_vote, disconnect_vote_message
 
     if not current_match:
         await ctx.send("試合情報がないよ")
         return
 
-    team1, team2 = current_match
-    all_players = team1 + team2
-
+    all_players = current_match[0] + current_match[1]
     if member not in all_players:
         await ctx.send("そのユーザーは今回の試合に参加していません")
         return
 
-    penalty = 21
-    receivers = [user for user in all_players if user != member]
+    disconnect_vote = {
+        "target_id": str(member.id),
+        "self_vote": None,
+        "jury_votes": {},
+    }
+    game_state = "disconnect_vote"
 
-    if len(receivers) == 0:
-        await ctx.send("分配先がいません")
-        return
+    view = DisconnectVoteView()
+    disconnect_vote_message = await ctx.send(create_disconnect_vote_text(member), view=view)
 
-    if penalty % len(receivers) != 0:
-        await ctx.send("均等配分できない設定になっています")
-        return
 
-    reward_each = penalty // len(receivers)
+async def apply_disconnect_rating_change(ctx, member):
+    global ratings, game_state, last_rating_changes, prepared_match
+
+    team_alpha, team_bravo = current_match
+    all_players = team_alpha + team_bravo
 
     last_rating_changes = {}
     for user in all_players:
@@ -584,48 +1000,61 @@ async def handle_disconnect(ctx, member):
 
     for user in all_players:
         uid = str(user.id)
-        ratings[uid] = ratings.get(uid, DEFAULT_RATING) + PARTICIPATION_BONUS
-
-    member_id = str(member.id)
-    ratings[member_id] -= penalty
-
-    for user in receivers:
-        uid = str(user.id)
-        ratings[uid] += reward_each
+        if user.id == member.id:
+            ratings[uid] = ratings.get(uid, DEFAULT_RATING) - DISCONNECT_PENALTY
+        else:
+            ratings[uid] = ratings.get(uid, DEFAULT_RATING) + DISCONNECT_REWARD
 
     save_ratings(ratings)
 
-    prepared_match = make_teams()
-    next_team1, next_team2 = prepared_match
+    prepared_match = make_teams_from_choices()
+    next_team_alpha, next_team_bravo = prepared_match
 
-    result_lines = [
-        "【回線落ち処理】",
-        f"全員に +{PARTICIPATION_BONUS}",
-        "「有罪（ギルティ）」",
-        "「没収（コンフィスケイション）」",
-        "",
-        "【アルファ】",
-    ]
-
-    for user in next_team1:
-        old = last_rating_changes[str(user.id)]
-        new = ratings[str(user.id)]
-        diff = new - old
-        sign = "+" if diff >= 0 else ""
-        result_lines.append(f"{display_name(user)}: {old} → {new} ({sign}{diff})")
-
-    result_lines += ["", "【ブラボー】"]
-    for user in next_team2:
-        old = last_rating_changes[str(user.id)]
-        new = ratings[str(user.id)]
-        diff = new - old
-        sign = "+" if diff >= 0 else ""
-        result_lines.append(f"{display_name(user)}: {old} → {new} ({sign}{diff})")
+    lines = build_rating_update_lines(
+        next_team_alpha,
+        next_team_bravo,
+        title="【レート更新】",
+        bonus_text=f"回線落ち: -{DISCONNECT_PENALTY} / その他: +{DISCONNECT_REWARD}",
+    )
 
     game_state = "finished"
 
-    await ctx.send("\n".join(result_lines))
+    await ctx.send("\n".join(lines))
+    await post_ranking(ctx.guild)
     await ctx.send(create_finished_prompt())
+
+
+async def finalize_disconnect_vote(guild, member, forced_by_confession: bool):
+    global disconnect_vote
+
+    progress_channel = get_progress_channel(guild)
+    if progress_channel is None:
+        return
+
+    if forced_by_confession:
+        await progress_channel.send(create_disconnect_confess_text(member))
+    else:
+        await progress_channel.send(create_disconnect_guilty_text())
+
+    fake_ctx = type("Ctx", (), {"guild": guild, "send": progress_channel.send})()
+    await apply_disconnect_rating_change(fake_ctx, member)
+    disconnect_vote = None
+
+
+async def resolve_disconnect_not_established(guild):
+    global game_state, disconnect_vote
+
+    progress_channel = get_progress_channel(guild)
+    if progress_channel is None:
+        return
+
+    game_state = "playing"
+    disconnect_vote = None
+
+    await progress_channel.send(create_disconnect_not_established_text())
+    if current_match:
+        team_alpha, team_bravo = current_match
+        await progress_channel.send(create_result_prompt(team_alpha, team_bravo))
 
 
 async def undo_result(ctx):
@@ -645,45 +1074,17 @@ async def undo_result(ctx):
 
     await ctx.send("試合結果を訂正しました")
     if current_match:
-        team1, team2 = current_match
-        await ctx.send(create_result_prompt(team1, team2))
-
-
-def create_room_summary_text():
-    if not session_participants:
-        return None
-
-    rows = []
-    for user_id, member in session_participants.items():
-        start_rate = session_start_ratings.get(user_id, DEFAULT_RATING)
-        end_rate = ratings.get(user_id, DEFAULT_RATING)
-        diff = end_rate - start_rate
-        rows.append((diff, end_rate, member.display_name, start_rate))
-
-    rows.sort(key=lambda x: (-x[0], -x[1], x[2]))
-
-    lines = ["【今回の部屋のレート増減】"]
-    for diff, end_rate, name, start_rate in rows:
-        sign = "+" if diff >= 0 else ""
-        lines.append(f"{name}: {start_rate} → {end_rate} ({sign}{diff})")
-    return "\n".join(lines)
+        team_alpha, team_bravo = current_match
+        await ctx.send(create_result_prompt(team_alpha, team_bravo))
 
 
 async def end_room(ctx):
-    global current_mode, game_state, current_match, prepared_match, recruit_message, last_rating_changes
-
     summary_text = create_room_summary_text()
 
     await move_members_to_lobby(ctx.guild)
 
-    reset_players()
+    reset_room_state()
     reset_room_tracking()
-    current_mode = None
-    current_match = None
-    prepared_match = None
-    recruit_message = None
-    last_rating_changes = None
-    game_state = "idle"
 
     if summary_text:
         await ctx.send(summary_text)
@@ -693,30 +1094,6 @@ async def end_room(ctx):
 # =========================
 # 状態別コマンド処理
 # =========================
-async def handle_mode_select(ctx, cmd_num: int):
-    global current_mode, game_state
-
-    mode_map = {
-        1: "a",
-        2: "b",
-        3: "c",
-        4: "d",
-    }
-
-    if cmd_num == 5:
-        await end_room(ctx)
-        return
-
-    selected_mode = mode_map.get(cmd_num)
-    if selected_mode is None:
-        await ctx.send("モード選択は !1〜!5")
-        return
-
-    current_mode = selected_mode
-    game_state = "waiting"
-    await start_recruit(ctx)
-
-
 async def handle_ready(ctx, cmd_num: int):
     if cmd_num == 1:
         await start_game(ctx)
@@ -735,7 +1112,7 @@ async def handle_playing(ctx, cmd_num: int):
 
     if cmd_num == 3:
         if ctx.message.mentions:
-            await handle_disconnect(ctx, ctx.message.mentions[0])
+            await start_disconnect_vote(ctx, ctx.message.mentions[0])
         else:
             await ctx.send("回線落ちは !3 @ユーザー で送ってくれ")
         return
@@ -759,11 +1136,15 @@ async def handle_finished(ctx, cmd_num: int):
     await ctx.send("今は !1 !2 !3 を使ってくれ")
 
 
+async def handle_disconnect_vote_state(ctx, cmd_num: int):
+    await ctx.send("今は投票中です。ボタンで投票してください。")
+
+
 STATE_HANDLERS = {
-    "mode_select": handle_mode_select,
     "ready": handle_ready,
     "playing": handle_playing,
     "finished": handle_finished,
+    "disconnect_vote": handle_disconnect_vote_state,
 }
 
 
@@ -776,49 +1157,71 @@ async def dispatch_number_command(ctx, cmd_num: int):
 
 
 # =========================
-# ランキング
+# チャンネル制限
 # =========================
+async def ensure_progress_channel(ctx):
+    if ctx.channel.id != PROGRESS_CHANNEL_ID:
+        await ctx.send("このコマンドは試合進行チャンネルで使ってください。")
+        return False
+    return True
+
+
+# =========================
+# コマンド
+# =========================
+@bot.event
+async def on_ready():
+    print(f"ログインしたよ: {bot.user}")
+
+
 @bot.command()
-async def ランキング(ctx):
-    try:
-        members = [member async for member in ctx.guild.fetch_members(limit=None)]
-    except Exception:
-        members = ctx.guild.members
-
-    human_members = [m for m in members if not m.bot]
-
-    ranking_data = []
-    for member in human_members:
-        rate = ratings.get(str(member.id), DEFAULT_RATING)
-        ranking_data.append((rate, member.display_name))
-
-    ranking_data.sort(key=lambda x: (-x[0], x[1].lower()))
-
-    if not ranking_data:
-        await ctx.send("ランキング対象のメンバーがいません")
+async def 部屋作成(ctx):
+    if not await ensure_progress_channel(ctx):
         return
 
-    lines = ["【レートランキング】"]
-    for i, (rate, name) in enumerate(ranking_data, start=1):
-        lines.append(f"#{i} {name} - {rate}")
+    if game_state != "idle":
+        await ctx.send("すでに部屋進行中です")
+        return
 
-    message = ""
-    for line in lines:
-        if len(message) + len(line) + 1 > 1900:
-            await ctx.send(message)
-            message = line
-        else:
-            message += ("\n" if message else "") + line
-
-    if message:
-        await ctx.send(message)
+    reset_room_state()
+    reset_room_tracking()
+    await begin_recruit(ctx.guild)
 
 
-# =========================
-# 管理者専用レート編集
-# =========================
+@bot.command(name="1")
+async def command_one(ctx):
+    if not await ensure_progress_channel(ctx):
+        return
+    await dispatch_number_command(ctx, 1)
+
+
+@bot.command(name="2")
+async def command_two(ctx):
+    if not await ensure_progress_channel(ctx):
+        return
+    await dispatch_number_command(ctx, 2)
+
+
+@bot.command(name="3")
+async def command_three(ctx):
+    if not await ensure_progress_channel(ctx):
+        return
+    await dispatch_number_command(ctx, 3)
+
+
+@bot.command()
+async def ランキング(ctx):
+    if not await ensure_progress_channel(ctx):
+        return
+    await post_ranking(ctx.guild)
+    await ctx.send("ランキングを更新しました。")
+
+
 @bot.command()
 async def setrate(ctx, user_id: int, new_rating: int):
+    if not await ensure_progress_channel(ctx):
+        return
+
     if ctx.author.id != OWNER_ID:
         await ctx.send("このコマンドは管理者専用です。")
         return
@@ -845,59 +1248,42 @@ async def setrate(ctx, user_id: int, new_rating: int):
         f"{name} のレートを変更しました\n"
         f"{old_rating} → {new_rating}"
     )
-
-
-# =========================
-# コマンド
-# =========================
-@bot.event
-async def on_ready():
-    print(f"ログインしたよ: {bot.user}")
+    await post_ranking(ctx.guild)
 
 
 @bot.command()
-async def 部屋作成(ctx):
-    global current_mode, game_state, current_match, prepared_match, recruit_message, last_rating_changes
+async def resetallrates(ctx):
+    if not await ensure_progress_channel(ctx):
+        return
 
-    reset_players()
-    reset_room_tracking()
-    current_mode = None
-    current_match = None
-    prepared_match = None
-    recruit_message = None
-    last_rating_changes = None
-    game_state = "mode_select"
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("このコマンドは管理者専用です。")
+        return
 
-    await ctx.send(create_mode_select_text())
+    try:
+        members = [member async for member in ctx.guild.fetch_members(limit=None)]
+    except Exception:
+        members = ctx.guild.members
 
+    human_members = [m for m in members if not m.bot]
 
-@bot.command(name="1")
-async def command_one(ctx):
-    await dispatch_number_command(ctx, 1)
+    for member in human_members:
+        ratings[str(member.id)] = DEFAULT_RATING
 
-
-@bot.command(name="2")
-async def command_two(ctx):
-    await dispatch_number_command(ctx, 2)
-
-
-@bot.command(name="3")
-async def command_three(ctx):
-    await dispatch_number_command(ctx, 3)
-
-
-@bot.command(name="4")
-async def command_four(ctx):
-    await dispatch_number_command(ctx, 4)
-
-
-@bot.command(name="5")
-async def command_five(ctx):
-    await dispatch_number_command(ctx, 5)
+    save_ratings(ratings)
+    await post_ranking(ctx.guild)
+    await ctx.send(f"サーバー内の全プレイヤーのレートを {DEFAULT_RATING} にリセットしました。")
 
 
 @bot.command()
 async def result(ctx, num: int):
+    if not await ensure_progress_channel(ctx):
+        return
+
+    if game_state != "playing":
+        await ctx.send("今は result を使える状態ではありません")
+        return
+
     if num == 1:
         await process_result(ctx, 1)
     elif num == 2:
@@ -909,6 +1295,6 @@ async def result(ctx, num: int):
 if __name__ == "__main__":
     if not TOKEN:
         raise ValueError("DISCORD_TOKEN が設定されていません")
-    reset_players()
+    reset_room_state()
     reset_room_tracking()
     bot.run(TOKEN)
