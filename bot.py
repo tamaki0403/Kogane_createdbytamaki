@@ -221,11 +221,10 @@ phase2_choices = {}
 
 # 回線落ち投票
 disconnect_vote = None
-# {
-#   "target_id": str,
-#   "self_vote": None / "confess" / "deny",
-#   "jury_votes": {user_id(str): "guilty" / "innocent"},
-# }
+
+# レート一括変更モード
+bulk_rate_change_waiting = {}
+# {guild_id: user_id}
 
 # =========================
 # 共通ユーティリティ
@@ -313,7 +312,7 @@ def get_bravo_fixed_count():
 def get_match_k_factor():
     alpha = get_alpha_fixed_count()
     beta = get_bravo_fixed_count()
-    return K_TABLE[(alpha, beta)]
+    return K_TABLE.get((alpha, beta), K_FACTOR)
 
 
 def get_random_users():
@@ -342,6 +341,16 @@ def get_effective_split_targets():
     if len(targets) == 2:
         return targets
     return []
+
+
+async def get_member_display_name_by_id(guild, user_id: int):
+    member = guild.get_member(user_id)
+    if member is None:
+        try:
+            member = await guild.fetch_member(user_id)
+        except Exception:
+            member = None
+    return member.display_name if member else f"ユーザーID:{user_id}"
 
 
 def create_recruit_text():
@@ -1415,6 +1424,103 @@ def revoke_initial_bonus_permission(user_id: int):
 
 
 # =========================
+# レート一括変更モード
+# =========================
+async def process_bulk_rate_change_message(message: discord.Message):
+    guild = message.guild
+    if guild is None:
+        return False
+
+    waiting_user_id = bulk_rate_change_waiting.get(guild.id)
+    if waiting_user_id != message.author.id:
+        return False
+
+    content = message.content.strip()
+    if not content:
+        bulk_rate_change_waiting.pop(guild.id, None)
+        await message.channel.send("入力が空だったのでレート値変更モードを終了しました。")
+        return True
+
+    if content in ("キャンセル", "中止", "!キャンセル", "!中止"):
+        bulk_rate_change_waiting.pop(guild.id, None)
+        await message.channel.send("レート値変更モードを終了しました。")
+        return True
+
+    success_lines = []
+    error_lines = []
+    changed_any = False
+
+    for line_no, raw_line in enumerate(content.splitlines(), start=1):
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        parts = line.split()
+        if len(parts) != 2:
+            error_lines.append(f"{line_no}行目: 形式が違います -> {line}")
+            continue
+
+        user_id_text, new_rating_text = parts
+
+        if not user_id_text.isdigit():
+            error_lines.append(f"{line_no}行目: ユーザーIDが数字ではありません -> {line}")
+            continue
+
+        if not new_rating_text.lstrip("-").isdigit():
+            error_lines.append(f"{line_no}行目: レート値が整数ではありません -> {line}")
+            continue
+
+        user_id = int(user_id_text)
+        new_rating = int(new_rating_text)
+
+        if new_rating < 0:
+            error_lines.append(f"{line_no}行目: レートは0以上にしてください -> {line}")
+            continue
+
+        old_rating = ratings.get(str(user_id), DEFAULT_RATING)
+        ratings[str(user_id)] = new_rating
+        name = await get_member_display_name_by_id(guild, user_id)
+        success_lines.append(f"{name}: {old_rating} → {new_rating}")
+        changed_any = True
+
+    if changed_any:
+        save_ratings(ratings)
+
+    bulk_rate_change_waiting.pop(guild.id, None)
+
+    lines = ["【レート値変更結果】"]
+    if success_lines:
+        lines.append("")
+        lines.append("【成功】")
+        lines.extend(success_lines)
+
+    if error_lines:
+        lines.append("")
+        lines.append("【失敗】")
+        lines.extend(error_lines)
+
+    if not success_lines and not error_lines:
+        lines.append("有効な入力がありませんでした。")
+
+    text = "\n".join(lines)
+
+    if len(text) <= 1900:
+        await message.channel.send(text)
+    else:
+        chunk = ""
+        for line in lines:
+            if len(chunk) + len(line) + 1 > 1900:
+                await message.channel.send(chunk)
+                chunk = line
+            else:
+                chunk += ("\n" if chunk else "") + line
+        if chunk:
+            await message.channel.send(chunk)
+
+    return True
+
+
+# =========================
 # コマンド
 # =========================
 @bot.event
@@ -1424,6 +1530,18 @@ async def on_ready():
 
     for guild in bot.guilds:
         await post_player_register_message(guild)
+
+
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    handled = await process_bulk_rate_change_message(message)
+    if handled:
+        return
+
+    await bot.process_commands(message)
 
 
 @bot.command()
@@ -1482,20 +1600,31 @@ async def change_rate(ctx, user_id: int, new_rating: int):
     ratings[user_id_str] = new_rating
     save_ratings(ratings)
 
-    member = ctx.guild.get_member(user_id)
-    if member is None:
-        try:
-            member = await ctx.guild.fetch_member(user_id)
-        except Exception:
-            member = None
-
-    name = member.display_name if member else f"ユーザーID:{user_id}"
+    name = await get_member_display_name_by_id(ctx.guild, user_id)
 
     await ctx.send(
         f"{name} のレートを変更しました\n"
         f"{old_rating} → {new_rating}"
     )
-    await post_ranking(ctx.guild)
+
+
+@bot.command(name="レート値変更")
+async def bulk_change_rate_mode(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("このコマンドは管理者専用です。")
+        return
+
+    bulk_rate_change_waiting[ctx.guild.id] = ctx.author.id
+    await ctx.send(
+        "レート値変更モードに入りました。\n"
+        "次の1メッセージで、1行に1人ずつ\n"
+        "ユーザーID レート値\n"
+        "の形式で送ってください。\n\n"
+        "例:\n"
+        "123456789012345678 2500\n"
+        "987654321098765432 2637\n\n"
+        "やめるときは キャンセル と送ってください。"
+    )
 
 
 @bot.command(name="全員レートリセット")
@@ -1533,15 +1662,25 @@ async def grant_all_initial_bonus_permission(ctx):
         await ctx.send("管理者専用です")
         return
 
-    for member in ctx.guild.members:
-        if member.bot:
-            continue
+    members = [m for m in ctx.guild.members if not m.bot]
+    if not members:
+        await ctx.send("対象のプレイヤーがいません")
+        return
+
+    names = []
+    for member in members:
         profile = get_player_profile(member.id)
         profile["can_apply_initial_bonus"] = True
         profile["initial_applied"] = False
+        names.append(member.display_name)
 
     save_player_profiles(player_profiles)
-    await ctx.send("全員に初期補正権を付与しました")
+
+    text = "全員に初期補正権を付与しました\n" + "\n".join(names)
+    if len(text) <= 1900:
+        await ctx.send(text)
+    else:
+        await ctx.send(f"全員に初期補正権を付与しました\n対象: {len(names)}人")
 
 
 @bot.command(name="全員初期補正権剥奪")
@@ -1550,14 +1689,24 @@ async def revoke_all_initial_bonus_permission(ctx):
         await ctx.send("管理者専用です")
         return
 
-    for member in ctx.guild.members:
-        if member.bot:
-            continue
+    members = [m for m in ctx.guild.members if not m.bot]
+    if not members:
+        await ctx.send("対象のプレイヤーがいません")
+        return
+
+    names = []
+    for member in members:
         profile = get_player_profile(member.id)
         profile["can_apply_initial_bonus"] = False
+        names.append(member.display_name)
 
     save_player_profiles(player_profiles)
-    await ctx.send("全員の初期補正権を剥奪しました")
+
+    text = "全員の初期補正権を剥奪しました\n" + "\n".join(names)
+    if len(text) <= 1900:
+        await ctx.send(text)
+    else:
+        await ctx.send(f"全員の初期補正権を剥奪しました\n対象: {len(names)}人")
 
 
 @bot.command(name="初期補正権付与")
@@ -1569,9 +1718,10 @@ async def grant_initial_bonus_permission_command(ctx, user_id: int):
     profile = get_player_profile(user_id)
     profile["can_apply_initial_bonus"] = True
     profile["initial_applied"] = False
-
     save_player_profiles(player_profiles)
-    await ctx.send(f"{user_id} に初期補正権を付与しました")
+
+    name = await get_member_display_name_by_id(ctx.guild, user_id)
+    await ctx.send(f"{name} に初期補正権を付与しました")
 
 
 @bot.command(name="初期補正権剥奪")
@@ -1582,9 +1732,10 @@ async def revoke_initial_bonus_permission_command(ctx, user_id: int):
 
     profile = get_player_profile(user_id)
     profile["can_apply_initial_bonus"] = False
-
     save_player_profiles(player_profiles)
-    await ctx.send(f"{user_id} の初期補正権を剥奪しました")
+
+    name = await get_member_display_name_by_id(ctx.guild, user_id)
+    await ctx.send(f"{name} の初期補正権を剥奪しました")
 
 
 # =========================
