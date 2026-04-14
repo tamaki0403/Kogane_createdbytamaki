@@ -45,6 +45,9 @@ DISCONNECT_GUILTY_THRESHOLD = 4
 ROOM_CAPACITY = 8
 TEAM_SIZE = 4
 
+# =========================
+# 固定人数ごとのKテーブル
+# =========================
 K_TABLE = {
     (0, 0): 70, (0, 1): 50, (0, 2): 34, (0, 3): 24, (0, 4): 20,
     (1, 0): 50, (1, 1): 38, (1, 2): 29, (1, 3): 23, (1, 4): 20,
@@ -299,6 +302,20 @@ def get_phase1_count(choice_name):
     return sum(1 for uid in get_joined_user_ids() if phase1_choices.get(uid) == choice_name)
 
 
+def get_alpha_fixed_count():
+    return get_phase1_count("alpha")
+
+
+def get_bravo_fixed_count():
+    return get_phase1_count("bravo")
+
+
+def get_match_k_factor():
+    alpha = get_alpha_fixed_count()
+    beta = get_bravo_fixed_count()
+    return K_TABLE[(alpha, beta)]
+
+
 def get_random_users():
     return [u for u in joined_players if phase1_choices.get(str(u.id)) == "random"]
 
@@ -325,17 +342,6 @@ def get_effective_split_targets():
     if len(targets) == 2:
         return targets
     return []
-
-
-def get_fixed_counts():
-    alpha = get_phase1_count("alpha")
-    bravo = get_phase1_count("bravo")
-    return alpha, bravo
-
-
-def get_current_match_k():
-    alpha, bravo = get_fixed_counts()
-    return K_TABLE.get((alpha, bravo), K_FACTOR)
 
 
 def create_recruit_text():
@@ -1149,7 +1155,8 @@ async def process_result(ctx, winner_num: int):
     avg_bravo = get_avg_rating(team_bravo)
 
     s_alpha, s_bravo = (1, 0) if winner_num == 1 else (0, 1)
-    current_k = get_current_match_k()
+
+    match_k = get_match_k_factor()
 
     last_rating_changes = {}
     for user in team_alpha + team_bravo:
@@ -1157,12 +1164,12 @@ async def process_result(ctx, winner_num: int):
 
     for user in team_alpha:
         old = ratings.get(str(user.id), DEFAULT_RATING)
-        new = elo_update(old, avg_bravo, s_alpha, K=current_k) + PARTICIPATION_BONUS
+        new = elo_update(old, avg_bravo, s_alpha, K=match_k) + PARTICIPATION_BONUS
         ratings[str(user.id)] = new
 
     for user in team_bravo:
         old = ratings.get(str(user.id), DEFAULT_RATING)
-        new = elo_update(old, avg_alpha, s_bravo, K=current_k) + PARTICIPATION_BONUS
+        new = elo_update(old, avg_alpha, s_bravo, K=match_k) + PARTICIPATION_BONUS
         ratings[str(user.id)] = new
 
     save_ratings(ratings)
@@ -1170,12 +1177,11 @@ async def process_result(ctx, winner_num: int):
     prepared_match = make_teams_from_choices()
     next_team_alpha, next_team_bravo = prepared_match
 
-    alpha_fixed, bravo_fixed = get_fixed_counts()
     lines = build_rating_update_lines(
         next_team_alpha,
         next_team_bravo,
         title="【レート更新】",
-        bonus_text=f"今回のK値: {current_k}（アルファ固定 {alpha_fixed}人 / ブラボー固定 {bravo_fixed}人）\n全員に +{PARTICIPATION_BONUS} が追加されました",
+        bonus_text=f"全員に +{PARTICIPATION_BONUS} が追加されました（K={match_k}）",
     )
 
     game_state = "finished"
@@ -1524,87 +1530,67 @@ async def reset_all_rates(ctx):
 @bot.command(name="全員初期補正権付与")
 async def grant_all_initial_bonus_permission(ctx):
     if ctx.author.id != OWNER_ID:
-        await ctx.send("このコマンドは管理者専用です。")
+        await ctx.send("管理者専用です")
         return
 
-    members = await get_human_members(ctx.guild)
-
-    count = 0
-    for member in members:
-        grant_initial_bonus_permission(member.id)
-        count += 1
+    for member in ctx.guild.members:
+        if member.bot:
+            continue
+        profile = get_player_profile(member.id)
+        profile["can_apply_initial_bonus"] = True
+        profile["initial_applied"] = False
 
     save_player_profiles(player_profiles)
-    await ctx.send(
-        f"サーバー内の全プレイヤーに初期補正権を付与しました。\n"
-        f"対象: {count}人\n"
-        "※ 次回XP登録時に初期補正が適用されます。"
-    )
+    await ctx.send("全員に初期補正権を付与しました")
 
 
 @bot.command(name="全員初期補正権剥奪")
 async def revoke_all_initial_bonus_permission(ctx):
     if ctx.author.id != OWNER_ID:
-        await ctx.send("このコマンドは管理者専用です。")
+        await ctx.send("管理者専用です")
         return
 
-    members = await get_human_members(ctx.guild)
-
-    count = 0
-    for member in members:
-        revoke_initial_bonus_permission(member.id)
-        count += 1
+    for member in ctx.guild.members:
+        if member.bot:
+            continue
+        profile = get_player_profile(member.id)
+        profile["can_apply_initial_bonus"] = False
 
     save_player_profiles(player_profiles)
-    await ctx.send(
-        f"サーバー内の全プレイヤーから初期補正権を剥奪しました。\n"
-        f"対象: {count}人\n"
-        "※ 次回XP登録しても初期補正は適用されません。"
-    )
+    await ctx.send("全員の初期補正権を剥奪しました")
 
 
 @bot.command(name="初期補正権付与")
 async def grant_initial_bonus_permission_command(ctx, user_id: int):
     if ctx.author.id != OWNER_ID:
-        await ctx.send("このコマンドは管理者専用です。")
+        await ctx.send("管理者専用です")
         return
 
-    grant_initial_bonus_permission(user_id)
+    profile = get_player_profile(user_id)
+    profile["can_apply_initial_bonus"] = True
+    profile["initial_applied"] = False
+
     save_player_profiles(player_profiles)
-
-    member = ctx.guild.get_member(user_id)
-    if member is None:
-        try:
-            member = await ctx.guild.fetch_member(user_id)
-        except Exception:
-            member = None
-
-    name = member.display_name if member else f"ユーザーID:{user_id}"
-
-    await ctx.send(
-        f"{name} に初期補正権を付与しました。\n"
-        "※ 次回XP登録時に初期補正が適用されます。"
-    )
+    await ctx.send(f"{user_id} に初期補正権を付与しました")
 
 
 @bot.command(name="初期補正権剥奪")
 async def revoke_initial_bonus_permission_command(ctx, user_id: int):
     if ctx.author.id != OWNER_ID:
-        await ctx.send("このコマンドは管理者専用です。")
+        await ctx.send("管理者専用です")
         return
 
-    revoke_initial_bonus_permission(user_id)
+    profile = get_player_profile(user_id)
+    profile["can_apply_initial_bonus"] = False
+
     save_player_profiles(player_profiles)
+    await ctx.send(f"{user_id} の初期補正権を剥奪しました")
 
-    member = ctx.guild.get_member(user_id)
-    if member is None:
-        try:
-            member = await ctx.guild.fetch_member(user_id)
-        except Exception:
-            member = None
 
-    name = member.display_name if member else f"ユーザーID:{user_id}"
+# =========================
+# 起動
+# =========================
+if not TOKEN:
+    raise ValueError("DISCORD_TOKEN が設定されていません。")
 
-    await ctx.send(
-        f"{name} から初期補正権を剥奪しました。\n"
-        "※ 次回XP登録しても初期補
+bot.run(TOKEN)
