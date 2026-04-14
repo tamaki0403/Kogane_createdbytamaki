@@ -1049,7 +1049,7 @@ async def build_ranking_lines(guild):
     ranking_data = []
     for member in human_members:
         rate = ratings.get(str(member.id), DEFAULT_RATING)
-        ranking_data.append((rate, member.display_name))
+        ranking_data.append((rate, get_display_name(member)))
 
     ranking_data.sort(key=lambda x: (-x[0], x[1].lower()))
 
