@@ -13,6 +13,24 @@ PLAYER_PROFILES_FILE = os.path.join(BASE_DIR, "player_profiles.json")
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 # =========================
+# Bot状態（追加）
+# =========================
+BOT_STATE_FILE = os.path.join(BASE_DIR, "bot_state.json")
+
+def load_bot_state():
+    try:
+        with open(BOT_STATE_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def save_bot_state(data):
+    with open(BOT_STATE_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+bot_state = load_bot_state()
+
+# =========================
 # 管理者設定
 # =========================
 OWNER_ID = 1225788050894753865
@@ -78,6 +96,12 @@ def elo_update(rA, rB, scoreA, K=K_FACTOR):
 
 
 ratings = load_ratings()
+
+def get_top_player_id():
+    if not ratings:
+        return None
+
+    return max(ratings.items(), key=lambda x: x[1])[0]
 
 # =========================
 # プレイヤープロフィール関連
@@ -151,11 +175,23 @@ def get_xp_adjustment(xp: int):
 
 
 def get_display_name(user):
-    return user.display_name
+    name = user.display_name
+    top_id = get_top_player_id()
+
+    if top_id and str(user.id) == top_id:
+        return f"👑{name}"
+    return name
 
 
 def get_display_name_with_weapon(user):
-    return f"{user.display_name}（{get_weapon_text(user.id)}）"
+    name = user.display_name
+    weapon = get_weapon_text(user.id)
+    top_id = get_top_player_id()
+
+    if top_id and str(user.id) == top_id:
+        return f"👑{name}（{weapon}）"
+
+    return f"{name}（{weapon}）"
 
 
 def format_member_lines(members, include_weapon=False):
@@ -631,29 +667,42 @@ class PlayerRegisterView(discord.ui.View):
     async def register_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(PlayerRegisterModal())
 
-
 async def post_player_register_message(guild):
     channel = get_player_register_channel(guild)
     if channel is None:
-        return
+        return None
 
-    async for msg in channel.history(limit=50):
-        if msg.author == bot.user and msg.content.startswith("【プレイヤー登録】"):
-            try:
-                await msg.delete()
-            except Exception:
-                pass
-
-    await channel.send(
+    content = (
         "【プレイヤー登録】\n\n"
         "武器登録と最高XP登録をしてください。\n"
         "サーバー加入直後とシーズン開始時は、登録したXPに応じてレートが補正されます。\n"
         "※ 初期補正権がある場合のみ、XP補正が適用されます。\n"
         "※ 一度でも試合に参加した後は、初期補正権を失います。\n"
-        "※ ボタンを押した人にしか結果は表示されません。",
-        view=PlayerRegisterView()
+        "※ ボタンを押した人にしか結果は表示されません。"
     )
 
+    guild_key = str(guild.id)
+
+    saved_ids = bot_state.get("player_register_message_ids", {})
+    saved_message_id = saved_ids.get(guild_key)
+
+    if saved_message_id:
+        try:
+            msg = await channel.fetch_message(saved_message_id)
+            await msg.edit(content=content, view=PlayerRegisterView())
+            return msg
+        except Exception:
+            pass
+
+    msg = await channel.send(content, view=PlayerRegisterView())
+
+    if "player_register_message_ids" not in bot_state:
+        bot_state["player_register_message_ids"] = {}
+
+    bot_state["player_register_message_ids"][guild_key] = msg.id
+    save_bot_state(bot_state)
+
+    return msg
 
 # =========================
 # メッセージ/ビュー制御
@@ -1121,9 +1170,9 @@ async def next_game(ctx):
     await move_members_to_vc(ctx.guild, team_alpha, team_bravo)
     await ctx.send(create_result_prompt(team_alpha, team_bravo))
 
-
 def build_rating_update_lines(next_team_alpha, next_team_bravo, title="【レート更新】", bonus_text=None):
     lines = [title]
+
     if bonus_text:
         lines.append(bonus_text)
 
@@ -1135,22 +1184,25 @@ def build_rating_update_lines(next_team_alpha, next_team_bravo, title="【レー
     ])
 
     for user in next_team_alpha:
-        old = last_rating_changes[str(user.id)]
-        new = ratings[str(user.id)]
+        old = last_rating_changes.get(str(user.id), ratings.get(str(user.id), DEFAULT_RATING))
+        new = ratings.get(str(user.id), DEFAULT_RATING)
         diff = new - old
         sign = "+" if diff >= 0 else ""
         lines.append(f"{get_display_name_with_weapon(user)}: {old} → {new} ({sign}{diff})")
 
-    lines.extend(["", "【ブラボー】"])
+    lines.extend([
+        "",
+        "【ブラボー】"
+    ])
+
     for user in next_team_bravo:
-        old = last_rating_changes[str(user.id)]
-        new = ratings[str(user.id)]
+        old = last_rating_changes.get(str(user.id), ratings.get(str(user.id), DEFAULT_RATING))
+        new = ratings.get(str(user.id), DEFAULT_RATING)
         diff = new - old
         sign = "+" if diff >= 0 else ""
         lines.append(f"{get_display_name_with_weapon(user)}: {old} → {new} ({sign}{diff})")
 
     return lines
-
 
 async def process_result(ctx, winner_num: int):
     global current_match, prepared_match, ratings, game_state, last_rating_changes
@@ -1528,10 +1580,6 @@ async def on_ready():
     print(f"ログインしたよ: {bot.user}")
     bot.add_view(PlayerRegisterView())
 
-    for guild in bot.guilds:
-        await post_player_register_message(guild)
-
-
 @bot.event
 async def on_message(message):
     if message.author.bot:
@@ -1736,6 +1784,16 @@ async def revoke_initial_bonus_permission_command(ctx, user_id: int):
 
     name = await get_member_display_name_by_id(ctx.guild, user_id)
     await ctx.send(f"{name} の初期補正権を剥奪しました")
+
+
+@bot.command(name="登録メッセージ更新")
+async def update_register_message(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+
+    await post_player_register_message(ctx.guild)
+    await ctx.send("プレイヤー登録メッセージを更新しました")
 
 
 # =========================
