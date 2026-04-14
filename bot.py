@@ -45,6 +45,14 @@ DISCONNECT_GUILTY_THRESHOLD = 4
 ROOM_CAPACITY = 8
 TEAM_SIZE = 4
 
+K_TABLE = {
+    (0, 0): 70, (0, 1): 50, (0, 2): 34, (0, 3): 24, (0, 4): 20,
+    (1, 0): 50, (1, 1): 38, (1, 2): 29, (1, 3): 23, (1, 4): 20,
+    (2, 0): 34, (2, 1): 29, (2, 2): 25, (2, 3): 22, (2, 4): 20,
+    (3, 0): 24, (3, 1): 23, (3, 2): 22, (3, 3): 21, (3, 4): 20,
+    (4, 0): 20, (4, 1): 20, (4, 2): 20, (4, 3): 20, (4, 4): 20,
+}
+
 # =========================
 # レート関連
 # =========================
@@ -319,6 +327,17 @@ def get_effective_split_targets():
     return []
 
 
+def get_fixed_counts():
+    alpha = get_phase1_count("alpha")
+    bravo = get_phase1_count("bravo")
+    return alpha, bravo
+
+
+def get_current_match_k():
+    alpha, bravo = get_fixed_counts()
+    return K_TABLE.get((alpha, bravo), K_FACTOR)
+
+
 def create_recruit_text():
     lines = [
         "【参加者募集】",
@@ -577,7 +596,7 @@ class PlayerRegisterModal(discord.ui.Modal, title="プレイヤー登録"):
             lines.append(f"XP補正を反映したぞ！ {old_rating} → {new_rating}")
         else:
             if not can_apply:
-                lines.append("このプレイヤーは既に試合参加済みなので、XP補正はもう適用されない。")
+                lines.append("このプレイヤーは初期補正権がないため、XP補正は適用されない。")
             else:
                 lines.append("XP情報は更新したが、レート補正は既に適用済みだ。")
 
@@ -614,7 +633,8 @@ async def post_player_register_message(guild):
         "【プレイヤー登録】\n\n"
         "武器登録と最高XP登録をしてください。\n"
         "サーバー加入直後とシーズン開始時は、登録したXPに応じてレートが補正されます。\n"
-        "※ 一度でも試合に参加した後は、XP補正は適用されません。\n"
+        "※ 初期補正権がある場合のみ、XP補正が適用されます。\n"
+        "※ 一度でも試合に参加した後は、初期補正権を失います。\n"
         "※ ボタンを押した人にしか結果は表示されません。",
         view=PlayerRegisterView()
     )
@@ -1129,6 +1149,7 @@ async def process_result(ctx, winner_num: int):
     avg_bravo = get_avg_rating(team_bravo)
 
     s_alpha, s_bravo = (1, 0) if winner_num == 1 else (0, 1)
+    current_k = get_current_match_k()
 
     last_rating_changes = {}
     for user in team_alpha + team_bravo:
@@ -1136,12 +1157,12 @@ async def process_result(ctx, winner_num: int):
 
     for user in team_alpha:
         old = ratings.get(str(user.id), DEFAULT_RATING)
-        new = elo_update(old, avg_bravo, s_alpha) + PARTICIPATION_BONUS
+        new = elo_update(old, avg_bravo, s_alpha, K=current_k) + PARTICIPATION_BONUS
         ratings[str(user.id)] = new
 
     for user in team_bravo:
         old = ratings.get(str(user.id), DEFAULT_RATING)
-        new = elo_update(old, avg_alpha, s_bravo) + PARTICIPATION_BONUS
+        new = elo_update(old, avg_alpha, s_bravo, K=current_k) + PARTICIPATION_BONUS
         ratings[str(user.id)] = new
 
     save_ratings(ratings)
@@ -1149,11 +1170,12 @@ async def process_result(ctx, winner_num: int):
     prepared_match = make_teams_from_choices()
     next_team_alpha, next_team_bravo = prepared_match
 
+    alpha_fixed, bravo_fixed = get_fixed_counts()
     lines = build_rating_update_lines(
         next_team_alpha,
         next_team_bravo,
         title="【レート更新】",
-        bonus_text=f"全員に +{PARTICIPATION_BONUS} が追加されました",
+        bonus_text=f"今回のK値: {current_k}（アルファ固定 {alpha_fixed}人 / ブラボー固定 {bravo_fixed}人）\n全員に +{PARTICIPATION_BONUS} が追加されました",
     )
 
     game_state = "finished"
@@ -1365,6 +1387,28 @@ async def ensure_progress_channel(ctx):
 
 
 # =========================
+# 初期補正権 管理
+# =========================
+async def get_human_members(guild):
+    try:
+        members = [member async for member in guild.fetch_members(limit=None)]
+    except Exception:
+        members = guild.members
+    return [m for m in members if not m.bot]
+
+
+def grant_initial_bonus_permission(user_id: int):
+    profile = get_player_profile(user_id)
+    profile["can_apply_initial_bonus"] = True
+    profile["initial_applied"] = False
+
+
+def revoke_initial_bonus_permission(user_id: int):
+    profile = get_player_profile(user_id)
+    profile["can_apply_initial_bonus"] = False
+
+
+# =========================
 # コマンド
 # =========================
 @bot.event
@@ -1417,8 +1461,8 @@ async def ランキング(ctx):
     await ctx.send("ランキングを更新しました。")
 
 
-@bot.command()
-async def setrate(ctx, user_id: int, new_rating: int):
+@bot.command(name="レート変更")
+async def change_rate(ctx, user_id: int, new_rating: int):
     if ctx.author.id != OWNER_ID:
         await ctx.send("このコマンドは管理者専用です。")
         return
@@ -1448,20 +1492,15 @@ async def setrate(ctx, user_id: int, new_rating: int):
     await post_ranking(ctx.guild)
 
 
-@bot.command()
-async def resetallrates(ctx):
+@bot.command(name="全員レートリセット")
+async def reset_all_rates(ctx):
     if ctx.author.id != OWNER_ID:
         await ctx.send("このコマンドは管理者専用です。")
         return
 
-    try:
-        members = [member async for member in ctx.guild.fetch_members(limit=None)]
-    except Exception:
-        members = ctx.guild.members
+    members = await get_human_members(ctx.guild)
 
-    human_members = [m for m in members if not m.bot]
-
-    for member in human_members:
+    for member in members:
         ratings[str(member.id)] = DEFAULT_RATING
         profile = get_player_profile(member.id)
         profile["initial_applied"] = False
@@ -1482,26 +1521,90 @@ async def resetallrates(ctx):
         )
 
 
-@bot.command()
-async def result(ctx, num: int):
-    if not await ensure_progress_channel(ctx):
+@bot.command(name="全員初期補正権付与")
+async def grant_all_initial_bonus_permission(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("このコマンドは管理者専用です。")
         return
 
-    if game_state != "playing":
-        await ctx.send("今は result を使える状態ではありません")
+    members = await get_human_members(ctx.guild)
+
+    count = 0
+    for member in members:
+        grant_initial_bonus_permission(member.id)
+        count += 1
+
+    save_player_profiles(player_profiles)
+    await ctx.send(
+        f"サーバー内の全プレイヤーに初期補正権を付与しました。\n"
+        f"対象: {count}人\n"
+        "※ 次回XP登録時に初期補正が適用されます。"
+    )
+
+
+@bot.command(name="全員初期補正権剥奪")
+async def revoke_all_initial_bonus_permission(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("このコマンドは管理者専用です。")
         return
 
-    if num == 1:
-        await process_result(ctx, 1)
-    elif num == 2:
-        await process_result(ctx, 2)
-    else:
-        await ctx.send("今は !result 1 か !result 2 だけ使えます")
+    members = await get_human_members(ctx.guild)
+
+    count = 0
+    for member in members:
+        revoke_initial_bonus_permission(member.id)
+        count += 1
+
+    save_player_profiles(player_profiles)
+    await ctx.send(
+        f"サーバー内の全プレイヤーから初期補正権を剥奪しました。\n"
+        f"対象: {count}人\n"
+        "※ 次回XP登録しても初期補正は適用されません。"
+    )
 
 
-if __name__ == "__main__":
-    if not TOKEN:
-        raise ValueError("DISCORD_TOKEN が設定されていません")
-    reset_room_state()
-    reset_room_tracking()
-    bot.run(TOKEN)
+@bot.command(name="初期補正権付与")
+async def grant_initial_bonus_permission_command(ctx, user_id: int):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("このコマンドは管理者専用です。")
+        return
+
+    grant_initial_bonus_permission(user_id)
+    save_player_profiles(player_profiles)
+
+    member = ctx.guild.get_member(user_id)
+    if member is None:
+        try:
+            member = await ctx.guild.fetch_member(user_id)
+        except Exception:
+            member = None
+
+    name = member.display_name if member else f"ユーザーID:{user_id}"
+
+    await ctx.send(
+        f"{name} に初期補正権を付与しました。\n"
+        "※ 次回XP登録時に初期補正が適用されます。"
+    )
+
+
+@bot.command(name="初期補正権剥奪")
+async def revoke_initial_bonus_permission_command(ctx, user_id: int):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("このコマンドは管理者専用です。")
+        return
+
+    revoke_initial_bonus_permission(user_id)
+    save_player_profiles(player_profiles)
+
+    member = ctx.guild.get_member(user_id)
+    if member is None:
+        try:
+            member = await ctx.guild.fetch_member(user_id)
+        except Exception:
+            member = None
+
+    name = member.display_name if member else f"ユーザーID:{user_id}"
+
+    await ctx.send(
+        f"{name} から初期補正権を剥奪しました。\n"
+        "※ 次回XP登録しても初期補
