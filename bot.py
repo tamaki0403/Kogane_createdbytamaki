@@ -2376,6 +2376,43 @@ async def update_register_message(ctx):
     await post_player_register_message(ctx.guild)
     await ctx.send("プレイヤー登録メッセージを更新しました")
 
+@bot.command(name="ユーザーID一覧")
+async def user_id_list(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+
+    try:
+        members = [member async for member in ctx.guild.fetch_members(limit=None)]
+    except Exception:
+        members = ctx.guild.members
+
+    human_members = [m for m in members if not m.bot]
+
+    if not human_members:
+        await ctx.send("プレイヤーがいません")
+        return
+
+    human_members.sort(key=lambda m: m.display_name.lower())
+
+    lines = ["【ユーザーID一覧】"]
+    for member in human_members:
+        lines.append(f"{member.display_name} {member.id}")
+
+    text = "\n".join(lines)
+
+    if len(text) <= 1900:
+        await ctx.send(text)
+    else:
+        chunk = ""
+        for line in lines:
+            if len(chunk) + len(line) + 1 > 1900:
+                await ctx.send(chunk)
+                chunk = line
+            else:
+                chunk += ("\n" if chunk else "") + line
+        if chunk:
+            await ctx.send(chunk)
 
 # =========================
 # 起動
