@@ -142,14 +142,26 @@ def get_sorted_rating_user_ids():
 
 
 def get_user_rank(user_id: int):
-    sorted_ids = get_sorted_rating_user_ids()
     target_id = str(user_id)
 
-    try:
-        return sorted_ids.index(target_id) + 1
-    except ValueError:
-        return None
+    sorted_items = sorted(
+        ratings.items(),
+        key=lambda x: (-x[1], x[0])
+    )
 
+    rank = 1
+    prev_rate = None
+
+    for i, (uid, rate) in enumerate(sorted_items):
+        if prev_rate is not None and rate < prev_rate:
+            rank = i + 1
+
+        if uid == target_id:
+            return rank
+
+        prev_rate = rate
+
+    return None
 
 def get_top_player_id():
     sorted_ids = get_sorted_rating_user_ids()
