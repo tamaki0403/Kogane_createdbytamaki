@@ -124,7 +124,7 @@ def elo_update(rA, rB, scoreA, K=K_FACTOR):
 
 ratings = load_ratings()
 
-FIRST_PLACE_CLASS = "<:1st:1493778641367072868>"
+FIRST_PLACE_CLASS = "<:1st:1494005979594100877>"
 SECOND_THIRD_CLASS = "👑"
 
 
