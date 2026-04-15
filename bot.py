@@ -38,9 +38,11 @@ OWNER_ID = 1225788050894753865
 # =========================
 # チャンネル設定
 # =========================
+
 PROGRESS_CHANNEL_ID = 1492082738679910512
 RANKING_CHANNEL_ID = 1492896273358127235
 PLAYER_REGISTER_CHANNEL_ID = 1493300698568462388
+ADMIN_CHANNEL_ID = 1492883720082952302
 
 # =========================
 # VC ID
@@ -52,9 +54,34 @@ VC_LOBBY_ID = 1492082738679910515
 # =========================
 # レート設定
 # =========================
+
 DEFAULT_RATING = 2500
+
+# =========================
+# バッジ定義（ここだけ編集）
+# =========================
+# ▼▼▼ BADGE AREA START ▼▼▼
+BADGE_DEFINITIONS = {
+    # フォーマット:
+    # "badge_id": {"label": "表示名", "emoji": "絵文字"},
+
+    "ishigouri": {
+        "label": "石狩",
+        "emoji": "<:Ishigouri:1494024739591819465>"
+    },
+    "yuta": {
+        "label": "悠太",
+        "emoji": "<:Yuta:1494025087257673768>"
+    },
+    "rika": {
+        "label": "里香",
+        "emoji": "<:Rika:1494025347115516085>"
+    },
+}
+# ▲▲▲ BADGE AREA END ▲▲▲
+
 K_FACTOR = 90
-PARTICIPATION_BONUS = 5
+PARTICIPATION_BONUS = 1
 
 DISCONNECT_PENALTY = 50
 DISCONNECT_REWARD = 8
@@ -63,14 +90,14 @@ DISCONNECT_GUILTY_THRESHOLD = 4
 ROOM_CAPACITY = 8
 TEAM_SIZE = 4
 
-# =========================
+## =========================
 # 固定人数ごとのKテーブル
 # =========================
 K_TABLE = {
-    (0, 0): 70, (0, 1): 50, (0, 2): 34, (0, 3): 24, (0, 4): 20,
-    (1, 0): 50, (1, 1): 38, (1, 2): 29, (1, 3): 23, (1, 4): 20,
-    (2, 0): 34, (2, 1): 29, (2, 2): 25, (2, 3): 22, (2, 4): 20,
-    (3, 0): 24, (3, 1): 23, (3, 2): 22, (3, 3): 21, (3, 4): 20,
+    (0, 0): 70, (0, 1): 70, (0, 2): 58, (0, 3): 45, (0, 4): 20,
+    (1, 0): 70, (1, 1): 62, (1, 2): 53, (1, 3): 43, (1, 4): 20,
+    (2, 0): 58, (2, 1): 53, (2, 2): 47, (2, 3): 39, (2, 4): 20,
+    (3, 0): 45, (3, 1): 43, (3, 2): 39, (3, 3): 34, (3, 4): 20,
     (4, 0): 20, (4, 1): 20, (4, 2): 20, (4, 3): 20, (4, 4): 20,
 }
 
@@ -97,11 +124,38 @@ def elo_update(rA, rB, scoreA, K=K_FACTOR):
 
 ratings = load_ratings()
 
-def get_top_player_id():
+FIRST_PLACE_CLASS = "<:1st:1493778641367072868>"
+SECOND_THIRD_CLASS = "👑"
+
+
+def get_sorted_rating_user_ids():
     if not ratings:
+        return []
+
+    return [
+        user_id
+        for user_id, _ in sorted(
+            ratings.items(),
+            key=lambda x: (-x[1], x[0])
+        )
+    ]
+
+
+def get_user_rank(user_id: int):
+    sorted_ids = get_sorted_rating_user_ids()
+    target_id = str(user_id)
+
+    try:
+        return sorted_ids.index(target_id) + 1
+    except ValueError:
         return None
 
-    return max(ratings.items(), key=lambda x: x[1])[0]
+
+def get_top_player_id():
+    sorted_ids = get_sorted_rating_user_ids()
+    if not sorted_ids:
+        return None
+    return sorted_ids[0]
 
 # =========================
 # プレイヤープロフィール関連
@@ -125,14 +179,31 @@ player_profiles = load_player_profiles()
 def get_player_profile(user_id: int):
     uid = str(user_id)
     if uid not in player_profiles:
-        player_profiles[uid] = {
-            "weapon": None,
-            "xp": None,
-            "initial_applied": False,
-            "can_apply_initial_bonus": True,
-        }
-    return player_profiles[uid]
+        player_profiles[uid] = {}
 
+    profile = player_profiles[uid]
+
+    if "weapon" not in profile:
+        profile["weapon"] = None
+    if "xp" not in profile:
+        profile["xp"] = None
+    if "initial_applied" not in profile:
+        profile["initial_applied"] = False
+    if "can_apply_initial_bonus" not in profile:
+        profile["can_apply_initial_bonus"] = True
+    if "owned_badges" not in profile:
+        profile["owned_badges"] = []
+    if "selected_badge" not in profile:
+        profile["selected_badge"] = None
+
+    if profile["selected_badge"] and profile["selected_badge"] not in profile["owned_badges"]:
+        profile["selected_badge"] = None
+
+    return profile
+
+
+for uid in list(player_profiles.keys()):
+    get_player_profile(int(uid))
 
 def get_weapon_text(user_id: int):
     profile = get_player_profile(user_id)
@@ -174,32 +245,104 @@ def get_xp_adjustment(xp: int):
     return 700
 
 
-def get_display_name(user):
-    name = user.display_name
-    top_id = get_top_player_id()
+def get_current_class_text(user):
+    rank = get_user_rank(user.id)
 
-    if top_id and str(user.id) == top_id:
-        return f"👑{name}"
-    return name
+    if rank == 1:
+        return FIRST_PLACE_CLASS
+    if rank in (2, 3):
+        return SECOND_THIRD_CLASS
+    return ""
+
+def get_current_badge_text(user):
+    profile = get_player_profile(user.id)
+    selected_badge = profile.get("selected_badge")
+    owned_badges = profile.get("owned_badges", [])
+
+    if not selected_badge:
+        return ""
+
+    if selected_badge not in owned_badges:
+        profile["selected_badge"] = None
+        save_player_profiles(player_profiles)
+        return ""
+
+    badge_data = BADGE_DEFINITIONS.get(selected_badge)
+    if not badge_data:
+        return ""
+
+    return badge_data.get("emoji", "")
 
 
-def get_display_name_with_weapon(user):
-    name = user.display_name
-    weapon = get_weapon_text(user.id)
-    top_id = get_top_player_id()
-
-    if top_id and str(user.id) == top_id:
-        return f"👑{name}（{weapon}）"
-
-    return f"{name}（{weapon}）"
+def get_base_name(user, mention=False):
+    return user.mention if mention else user.display_name
 
 
-def format_member_lines(members, include_weapon=False):
+def build_player_display(
+    user,
+    *,
+    mention=False,
+    include_weapon=False,
+    include_badge=False,
+    include_rating=False,
+    include_rate_change=False,
+    old_rating=None,
+    new_rating=None,
+):
+    class_text = get_current_class_text(user)
+    badge_text = get_current_badge_text(user)
+    name_text = get_base_name(user, mention=mention)
+
+    line = name_text
+
+    if class_text:
+        line = f"{class_text} {line}"
+
+    if include_weapon:
+        weapon = get_weapon_text(user.id)
+        line += f"（{weapon}）"
+
+    if include_badge and badge_text:
+        line += f" {badge_text}"
+
+    if include_rating:
+        current_rating = ratings.get(str(user.id), DEFAULT_RATING)
+        line += f" {current_rating}"
+
+    if include_rate_change:
+        if old_rating is None:
+            old_rating = ratings.get(str(user.id), DEFAULT_RATING)
+        if new_rating is None:
+            new_rating = ratings.get(str(user.id), DEFAULT_RATING)
+
+        diff = new_rating - old_rating
+        sign = "+" if diff >= 0 else ""
+        line += f": {old_rating} → {new_rating} ({sign}{diff})"
+
+    return line
+
+
+def format_member_lines(
+    members,
+    *,
+    mention=False,
+    include_weapon=False,
+    include_badge=False,
+    include_rating=False,
+):
     if not members:
         return "なし"
-    if include_weapon:
-        return "\n".join(get_display_name_with_weapon(m) for m in members)
-    return "\n".join(get_display_name(m) for m in members)
+
+    return "\n".join(
+        build_player_display(
+            m,
+            mention=mention,
+            include_weapon=include_weapon,
+            include_badge=include_badge,
+            include_rating=include_rating,
+        )
+        for m in members
+    )
 
 
 def mark_match_played_for_members(members):
@@ -227,6 +370,9 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # 状態管理
 # =========================
 game_state = "idle"
+
+badge_bulk_waiting = {}
+# {guild_id: {mode, badge_id, user_id}}
 # idle
 # recruiting
 # pref1
@@ -303,6 +449,10 @@ def get_ranking_channel(guild):
 
 def get_player_register_channel(guild):
     return guild.get_channel(PLAYER_REGISTER_CHANNEL_ID)
+
+
+def get_admin_channel(guild):
+    return guild.get_channel(ADMIN_CHANNEL_ID)
 
 
 async def send_progress_message(guild, content, view=None):
@@ -394,7 +544,13 @@ def create_recruit_text():
         "【参加者募集】",
         f"{len(joined_players)}/{ROOM_CAPACITY}",
         "",
-        format_member_lines(joined_players, include_weapon=False),
+        format_member_lines(
+            joined_players,
+            mention=True,
+            include_weapon=True,
+            include_badge=False,
+            include_rating=False,
+        ),
         "",
         "8人揃うとチーム希望選択に進みます。",
     ]
@@ -412,13 +568,31 @@ def create_phase1_text():
         "押し直しで上書きできます。",
         "",
         f"【アルファ（{len(alpha_users)}/{TEAM_SIZE}）】",
-        format_member_lines(alpha_users, include_weapon=True),
+        format_member_lines(
+            alpha_users,
+            mention=False,
+            include_weapon=True,
+            include_badge=False,
+            include_rating=False,
+        ),
         "",
         f"【ブラボー（{len(bravo_users)}/{TEAM_SIZE}）】",
-        format_member_lines(bravo_users, include_weapon=True),
+        format_member_lines(
+            bravo_users,
+            mention=False,
+            include_weapon=True,
+            include_badge=False,
+            include_rating=False,
+        ),
         "",
         f"【ランダム（{len(random_users)}）】",
-        format_member_lines(random_users, include_weapon=True),
+        format_member_lines(
+            random_users,
+            mention=False,
+            include_weapon=True,
+            include_badge=False,
+            include_rating=False,
+        ),
     ]
     return "\n".join(lines)
 
@@ -433,10 +607,22 @@ def create_phase2_text():
         "分けを必要とする人はいますか？",
         "",
         f"【分ける（{len(split_users)}/2）】",
-        format_member_lines(split_users, include_weapon=True),
+        format_member_lines(
+            split_users,
+            mention=False,
+            include_weapon=True,
+            include_badge=False,
+            include_rating=False,
+        ),
         "",
         "【ランダム】",
-        format_member_lines(normal_random_users, include_weapon=True),
+        format_member_lines(
+            normal_random_users,
+            mention=False,
+            include_weapon=True,
+            include_badge=False,
+            include_rating=False,
+        ),
         "",
         "※ ランダムを選んだ人のみ対象です",
         "※ 2人揃った場合のみ、その2人を別チームに配置します",
@@ -456,16 +642,40 @@ def create_confirm_text():
         "この役割で決定でいいですか？",
         "",
         "【アルファ固定】",
-        format_member_lines(alpha_users, include_weapon=True),
+        format_member_lines(
+            alpha_users,
+            mention=False,
+            include_weapon=True,
+            include_badge=False,
+            include_rating=False,
+        ),
         "",
         "【ブラボー固定】",
-        format_member_lines(bravo_users, include_weapon=True),
+        format_member_lines(
+            bravo_users,
+            mention=False,
+            include_weapon=True,
+            include_badge=False,
+            include_rating=False,
+        ),
         "",
         "【ランダム】",
-        format_member_lines(random_users, include_weapon=True),
+        format_member_lines(
+            random_users,
+            mention=False,
+            include_weapon=True,
+            include_badge=False,
+            include_rating=False,
+        ),
         "",
         "【分け対象（有効時のみ）】",
-        format_member_lines(split_targets, include_weapon=True),
+        format_member_lines(
+            split_targets,
+            mention=False,
+            include_weapon=True,
+            include_badge=False,
+            include_rating=False,
+        ),
     ]
     return "\n".join(lines)
 
@@ -474,8 +684,15 @@ def create_result_prompt(team_alpha, team_bravo):
     def fmt(team):
         lines = []
         for user in team:
-            rate = ratings.get(str(user.id), DEFAULT_RATING)
-            lines.append(f"{get_display_name_with_weapon(user)} {rate}")
+            lines.append(
+                build_player_display(
+                    user,
+                    mention=False,
+                    include_weapon=False,
+                    include_badge=True,
+                    include_rating=True,
+                )
+            )
         return "\n".join(lines)
 
     return (
@@ -499,10 +716,19 @@ def create_finished_prompt():
 def create_disconnect_vote_text(target):
     from datetime import datetime
     now_str = datetime.now().strftime("%Y年%m月%d日")
+
+    target_text = build_player_display(
+        target,
+        mention=False,
+        include_weapon=False,
+        include_badge=False,
+        include_rating=False,
+    )
+
     return (
         "【領域展開「誅伏賜死」】\n\n"
         "<:Judgeman:1493076764816314508>\n"
-        f"{get_display_name(target)} は {now_str}\n"
+        f"{target_text} は {now_str}\n"
         "試合途中にラグや回線落ちをした疑いがある。\n\n"
         "対象者本人は「自白」または「否認」\n"
         "試合参加者は「有罪」または「無罪」を選択してください。\n\n"
@@ -513,10 +739,18 @@ def create_disconnect_vote_text(target):
 
 
 def create_disconnect_confess_text(target):
+    target_text = build_player_display(
+        target,
+        mention=False,
+        include_weapon=False,
+        include_badge=False,
+        include_rating=False,
+    )
+
     return (
         "【回線落ち確定】\n\n"
         "<:Confession:1493076810521378866>\n"
-        f"{get_display_name(target)}「ああ俺の回線が悪かった、これは嘘でも否定でもない」"
+        f"{target_text}「ああ俺の回線が悪かった、これは嘘でも否定でもない」"
     )
 
 
@@ -579,14 +813,25 @@ def create_room_summary_text():
         start_rate = session_start_ratings.get(user_id, DEFAULT_RATING)
         end_rate = ratings.get(user_id, DEFAULT_RATING)
         diff = end_rate - start_rate
-        rows.append((diff, end_rate, member.display_name, start_rate))
-
-    rows.sort(key=lambda x: (-x[0], -x[1], x[2].lower()))
+        rows.append((diff, end_rate, member, start_rate))
+    rows.sort(key=lambda x: (-x[0], -x[1], x[2].display_name.lower()))
 
     lines = ["【今回の部屋のレート増減】"]
-    for diff, end_rate, name, start_rate in rows:
-        sign = "+" if diff >= 0 else ""
-        lines.append(f"{name}: {start_rate} → {end_rate} ({sign}{diff})")
+
+    for diff, end_rate, member, start_rate in rows:
+        lines.append(
+            build_player_display(
+                member,
+                mention=False,
+                include_weapon=False,
+                include_badge=True,
+                include_rating=False,
+                include_rate_change=True,
+                old_rating=start_rate,
+                new_rating=end_rate,
+            )
+        )
+
     return "\n".join(lines)
 
 
@@ -645,6 +890,7 @@ class PlayerRegisterModal(discord.ui.Modal, title="プレイヤー登録"):
 
             profile["initial_applied"] = True
             lines.append(f"XP補正を反映したぞ！ {old_rating} → {new_rating}")
+
         else:
             if not can_apply:
                 lines.append("このプレイヤーは初期補正権がないため、XP補正は適用されない。")
@@ -652,7 +898,85 @@ class PlayerRegisterModal(discord.ui.Modal, title="プレイヤー登録"):
                 lines.append("XP情報は更新したが、レート補正は既に適用済みだ。")
 
         save_player_profiles(player_profiles)
+
         await interaction.response.send_message("\n".join(lines), ephemeral=True)
+
+        admin_channel = get_admin_channel(interaction.guild)
+        if admin_channel:
+            user = interaction.user
+            profile = get_player_profile(user.id)
+
+            weapon = profile.get("weapon", "未登録")
+            xp = profile.get("xp", "未登録")
+            rate = ratings.get(str(user.id), DEFAULT_RATING)
+
+            display_name = build_player_display(
+                user,
+                mention=False,
+                include_weapon=False,
+                include_badge=True,
+                include_rating=False,
+            )
+
+            await admin_channel.send(
+                "【登録通知】\n"
+                f"{display_name} が登録を完了しました\n"
+                f"武器: {weapon}\n"
+                f"最高XP: {xp}\n"
+                f"現在レート: {rate}"
+            )
+
+
+class BadgeSelectView(discord.ui.View):
+    def __init__(self, user):
+        super().__init__(timeout=60)
+        self.user = user
+
+        profile = get_player_profile(user.id)
+        owned = profile.get("owned_badges", [])
+
+        options = []
+        for badge_id in owned:
+            badge_data = BADGE_DEFINITIONS.get(badge_id, {})
+            label = badge_data.get("label", badge_id)
+            emoji = badge_data.get("emoji")
+
+            if emoji:
+                options.append(discord.SelectOption(label=label, value=badge_id, emoji=emoji))
+            else:
+                options.append(discord.SelectOption(label=label, value=badge_id))
+
+        if not options:
+            self.add_item(discord.ui.Select(
+                placeholder="選べるバッジがありません",
+                options=[discord.SelectOption(label="なし", value="none")],
+                disabled=True
+            ))
+        else:
+            select = discord.ui.Select(
+                placeholder="表示するバッジを選択",
+                options=options,
+                min_values=1,
+                max_values=1
+            )
+
+            async def select_callback(interaction: discord.Interaction):
+                if interaction.user.id != self.user.id:
+                    await interaction.response.send_message("自分のバッジだけ変更できます", ephemeral=True)
+                    return
+
+                selected = select.values[0]
+                profile = get_player_profile(self.user.id)
+                profile["selected_badge"] = selected
+                save_player_profiles(player_profiles)
+
+                badge_data = BADGE_DEFINITIONS.get(selected, {})
+                badge_label = badge_data.get("label", selected)
+
+                await interaction.response.send_message(f"バッジを変更しました: {badge_label}", ephemeral=True)
+
+            select.callback = select_callback
+            self.add_item(select)
 
 
 class PlayerRegisterView(discord.ui.View):
@@ -666,6 +990,25 @@ class PlayerRegisterView(discord.ui.View):
     )
     async def register_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(PlayerRegisterModal())
+
+    @discord.ui.button(
+        label="バッジ設定",
+        style=discord.ButtonStyle.secondary,
+        custom_id="badge_select_button"
+    )
+    async def badge_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        profile = get_player_profile(interaction.user.id)
+        owned = profile.get("owned_badges", [])
+
+        if not owned:
+            await interaction.response.send_message("選べるバッジがありません", ephemeral=True)
+            return
+
+        await interaction.response.send_message(
+            "表示するバッジを選択してください",
+            view=BadgeSelectView(interaction.user),
+            ephemeral=True
+        )
 
 async def post_player_register_message(guild):
     channel = get_player_register_channel(guild)
@@ -740,7 +1083,11 @@ class RecruitView(BaseControlView):
 
         await interaction.response.edit_message(content=create_recruit_text(), view=self)
 
-        if len(joined_players) == ROOM_CAPACITY:
+if len(joined_players) == ROOM_CAPACITY:
+    host_id = str(interaction.user.id)
+    ratings[host_id] = ratings.get(host_id, DEFAULT_RATING) + 5
+    save_ratings(ratings)
+
             self.disable_all_buttons()
             await interaction.message.edit(view=self)
             await begin_phase1(interaction.guild)
@@ -1038,6 +1385,7 @@ async def move_members_to_lobby(guild):
 # =========================
 # ランキング
 # =========================
+
 async def build_ranking_lines(guild):
     try:
         members = [member async for member in guild.fetch_members(limit=None)]
@@ -1049,16 +1397,23 @@ async def build_ranking_lines(guild):
     ranking_data = []
     for member in human_members:
         rate = ratings.get(str(member.id), DEFAULT_RATING)
-        ranking_data.append((rate, get_display_name(member)))
+        display_text = build_player_display(
+            member,
+            mention=False,
+            include_weapon=False,
+            include_badge=True,
+            include_rating=False,
+        )
+        ranking_data.append((rate, member.display_name.lower(), display_text))
 
-    ranking_data.sort(key=lambda x: (-x[0], x[1].lower()))
+    ranking_data.sort(key=lambda x: (-x[0], x[1]))
 
     if not ranking_data:
         return ["【レートランキング】", "ランキング対象のメンバーがいません"]
 
     lines = ["【レートランキング】"]
-    for i, (rate, name) in enumerate(ranking_data, start=1):
-        lines.append(f"#{i} {name} - {rate}")
+    for i, (rate, _, display_text) in enumerate(ranking_data, start=1):
+        lines.append(f"#{i} {display_text} - {rate}")
     return lines
 
 
@@ -1093,6 +1448,25 @@ async def post_ranking(guild):
 
     if message:
         await ranking_channel.send(message)
+
+
+async def post_secret_ranking(guild):
+    admin_channel = get_admin_channel(guild)
+    if admin_channel is None:
+        return
+
+    lines = await build_ranking_lines(guild)
+
+    message = ""
+    for line in lines:
+        if len(message) + len(line) + 1 > 1900:
+            await admin_channel.send(message)
+            message = line
+        else:
+            message += ("\n" if message else "") + line
+
+    if message:
+        await admin_channel.send(message)
 
 
 # =========================
@@ -1186,9 +1560,19 @@ def build_rating_update_lines(next_team_alpha, next_team_bravo, title="【レー
     for user in next_team_alpha:
         old = last_rating_changes.get(str(user.id), ratings.get(str(user.id), DEFAULT_RATING))
         new = ratings.get(str(user.id), DEFAULT_RATING)
-        diff = new - old
-        sign = "+" if diff >= 0 else ""
-        lines.append(f"{get_display_name_with_weapon(user)}: {old} → {new} ({sign}{diff})")
+
+        lines.append(
+            build_player_display(
+                user,
+                mention=False,
+                include_weapon=False,
+                include_badge=True,
+                include_rating=False,
+                include_rate_change=True,
+                old_rating=old,
+                new_rating=new,
+            )
+        )
 
     lines.extend([
         "",
@@ -1198,9 +1582,19 @@ def build_rating_update_lines(next_team_alpha, next_team_bravo, title="【レー
     for user in next_team_bravo:
         old = last_rating_changes.get(str(user.id), ratings.get(str(user.id), DEFAULT_RATING))
         new = ratings.get(str(user.id), DEFAULT_RATING)
-        diff = new - old
-        sign = "+" if diff >= 0 else ""
-        lines.append(f"{get_display_name_with_weapon(user)}: {old} → {new} ({sign}{diff})")
+
+        lines.append(
+            build_player_display(
+                user,
+                mention=False,
+                include_weapon=False,
+                include_badge=True,
+                include_rating=False,
+                include_rate_change=True,
+                old_rating=old,
+                new_rating=new,
+            )
+        )
 
     return lines
 
@@ -1248,7 +1642,6 @@ async def process_result(ctx, winner_num: int):
     game_state = "finished"
 
     await ctx.send("\n".join(lines))
-    await post_ranking(ctx.guild)
     await ctx.send(create_finished_prompt())
 
 
@@ -1307,9 +1700,7 @@ async def apply_disconnect_rating_change(ctx, member):
     game_state = "finished"
 
     await ctx.send("\n".join(lines))
-    await post_ranking(ctx.guild)
     await ctx.send(create_finished_prompt())
-
 
 async def finalize_disconnect_vote(guild, member, forced_by_confession: bool):
     global disconnect_vote
@@ -1369,6 +1760,7 @@ async def end_room(ctx):
     summary_text = create_room_summary_text()
 
     await move_members_to_lobby(ctx.guild)
+    await post_ranking(ctx.guild)
 
     reset_room_state()
     reset_room_tracking()
@@ -1376,7 +1768,6 @@ async def end_room(ctx):
     if summary_text:
         await ctx.send(summary_text)
     await ctx.send("部屋作成をやめました。次の募集をするときは !部屋作成 を使ってね")
-
 
 # =========================
 # 状態別コマンド処理
@@ -1446,12 +1837,19 @@ async def dispatch_number_command(ctx, cmd_num: int):
 # =========================
 # チャンネル制限
 # =========================
+
 async def ensure_progress_channel(ctx):
     if ctx.channel.id != PROGRESS_CHANNEL_ID:
         await ctx.send("このコマンドは試合進行チャンネルで使ってください。")
         return False
     return True
 
+
+async def ensure_admin_channel(ctx):
+    if ctx.channel.id != ADMIN_CHANNEL_ID:
+        await ctx.send("このコマンドは運営チャンネルで使ってください")
+        return False
+    return True
 
 # =========================
 # 初期補正権 管理
@@ -1478,8 +1876,84 @@ def revoke_initial_bonus_permission(user_id: int):
 # =========================
 # レート一括変更モード
 # =========================
+
+async def process_badge_bulk_message(message: discord.Message):
+    guild = message.guild
+    if guild is None:
+        return False
+
+    state = badge_bulk_waiting.get(guild.id)
+    if not state:
+        return False
+
+    if state["user_id"] != message.author.id:
+        return False
+
+    content = message.content.strip()
+
+    if not content:
+        badge_bulk_waiting.pop(guild.id, None)
+        await message.channel.send("入力が空だったので終了しました")
+        return True
+
+    if content in ("キャンセル", "中止", "!キャンセル"):
+        badge_bulk_waiting.pop(guild.id, None)
+        await message.channel.send("バッジ操作を終了しました")
+        return True
+
+    mode = state["mode"]
+    badge_id = state["badge_id"]
+
+    success = []
+    errors = []
+
+    for line_no, raw in enumerate(content.splitlines(), start=1):
+        line = raw.strip()
+        if not line:
+            continue
+
+        if not line.isdigit():
+            errors.append(f"{line_no}行目: IDが不正 -> {line}")
+            continue
+
+        uid = int(line)
+        profile = get_player_profile(uid)
+
+        if mode == "grant":
+            if badge_id not in profile["owned_badges"]:
+                profile["owned_badges"].append(badge_id)
+                success.append(f"{uid}")
+            else:
+                errors.append(f"{line_no}行目: 既に所持 -> {uid}")
+
+        elif mode == "remove":
+            if badge_id in profile["owned_badges"]:
+                profile["owned_badges"].remove(badge_id)
+                if profile.get("selected_badge") == badge_id:
+                    profile["selected_badge"] = None
+                success.append(f"{uid}")
+            else:
+                errors.append(f"{line_no}行目: 未所持 -> {uid}")
+
+    save_player_profiles(player_profiles)
+    badge_bulk_waiting.pop(guild.id, None)
+
+    lines = ["【バッジ一括処理結果】"]
+
+    if success:
+        lines.append("\n【成功】")
+        lines.extend(success)
+
+    if errors:
+        lines.append("\n【失敗】")
+        lines.extend(errors)
+
+    await message.channel.send("\n".join(lines))
+    return True
+
 async def process_bulk_rate_change_message(message: discord.Message):
     guild = message.guild
+
     if guild is None:
         return False
 
@@ -1585,6 +2059,10 @@ async def on_message(message):
     if message.author.bot:
         return
 
+    handled = await process_badge_bulk_message(message)
+    if handled:
+        return
+
     handled = await process_bulk_rate_change_message(message)
     if handled:
         return
@@ -1627,33 +2105,136 @@ async def command_three(ctx):
     await dispatch_number_command(ctx, 3)
 
 
-@bot.command()
+@bot.command(name="ランキング")
 async def ランキング(ctx):
     await post_ranking(ctx.guild)
     await ctx.send("ランキングを更新しました。")
 
 
-@bot.command(name="レート変更")
-async def change_rate(ctx, user_id: int, new_rating: int):
+@bot.command(name="秘匿ランキング")
+async def secret_ranking(ctx):
     if ctx.author.id != OWNER_ID:
-        await ctx.send("このコマンドは管理者専用です。")
+        await ctx.send("管理者専用です")
+        return
+    if not await ensure_admin_channel(ctx):
         return
 
-    if new_rating < 0:
-        await ctx.send("レートは0以上を指定してくれ")
+    await post_secret_ranking(ctx.guild)
+    await ctx.send("秘匿ランキングを送信しました。")
+
+
+@bot.command(name="バッジ付与")
+async def grant_badge(ctx, badge_id: str):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if not await ensure_admin_channel(ctx):
         return
 
-    user_id_str = str(user_id)
-    old_rating = ratings.get(user_id_str, DEFAULT_RATING)
-    ratings[user_id_str] = new_rating
-    save_ratings(ratings)
+    if badge_id not in BADGE_DEFINITIONS:
+        await ctx.send("そのバッジIDは存在しません")
+        return
+
+    badge_bulk_waiting[ctx.guild.id] = {
+        "mode": "grant",
+        "badge_id": badge_id,
+        "user_id": ctx.author.id,
+    }
+
+    await ctx.send(
+        f"バッジ付与モードに入りました（{badge_id}）\n"
+        "次の1メッセージでユーザーIDを1行ずつ送ってください。\n"
+        "キャンセルで終了できます。"
+    )
+
+@bot.command(name="バッジ削除")
+async def remove_badge(ctx, badge_id: str):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if not await ensure_admin_channel(ctx):
+        return
+
+    if badge_id not in BADGE_DEFINITIONS:
+        await ctx.send("そのバッジIDは存在しません")
+        return
+
+    badge_bulk_waiting[ctx.guild.id] = {
+        "mode": "remove",
+        "badge_id": badge_id,
+        "user_id": ctx.author.id,
+    }
+
+    await ctx.send(
+        f"バッジ削除モードに入りました（{badge_id}）\n"
+        "次の1メッセージでユーザーIDを1行ずつ送ってください。\n"
+        "キャンセルで終了できます。"
+    )
+
+
+@bot.command(name="所持バッジ一覧")
+async def list_user_badges(ctx, user_id: int):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if not await ensure_admin_channel(ctx):
+        return
+
+    profile = get_player_profile(user_id)
+    badges = profile.get("owned_badges", [])
 
     name = await get_member_display_name_by_id(ctx.guild, user_id)
 
-    await ctx.send(
-        f"{name} のレートを変更しました\n"
-        f"{old_rating} → {new_rating}"
-    )
+    if not badges:
+        await ctx.send(f"{name} はバッジを持っていません")
+        return
+
+    lines = [f"{name} の所持バッジ:"]
+    for b in badges:
+        badge_data = BADGE_DEFINITIONS.get(b, {})
+        label = badge_data.get("label", b)
+        emoji = badge_data.get("emoji", "")
+        if emoji:
+            lines.append(f"- {emoji} {label} ({b})")
+        else:
+            lines.append(f"- {label} ({b})")
+
+    await ctx.send("\n".join(lines))
+
+
+@bot.command(name="バッジ所持者一覧")
+async def list_badge_owners(ctx, badge_id: str):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if not await ensure_admin_channel(ctx):
+        return
+
+    if badge_id not in BADGE_DEFINITIONS:
+        await ctx.send("そのバッジIDは存在しません")
+        return
+
+    result = []
+    for uid, profile in player_profiles.items():
+        if badge_id in profile.get("owned_badges", []):
+            name = await get_member_display_name_by_id(ctx.guild, int(uid))
+            result.append(name)
+
+    if not result:
+        await ctx.send("所持者はいません")
+        return
+
+    badge_data = BADGE_DEFINITIONS.get(badge_id, {})
+    label = badge_data.get("label", badge_id)
+    emoji = badge_data.get("emoji", "")
+
+    title = f"{emoji} {label} ({badge_id}) の所持者:" if emoji else f"{label} ({badge_id}) の所持者:"
+    await ctx.send(title + "\n" + "\n".join(result))
+
+
+
+
+
 
 
 @bot.command(name="レート値変更")
