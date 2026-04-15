@@ -1088,9 +1088,9 @@ if len(joined_players) == ROOM_CAPACITY:
     ratings[host_id] = ratings.get(host_id, DEFAULT_RATING) + 5
     save_ratings(ratings)
 
-            self.disable_all_buttons()
-            await interaction.message.edit(view=self)
-            await begin_phase1(interaction.guild)
+    self.disable_all_buttons()
+    await interaction.message.edit(view=self)
+    await begin_phase1(interaction.guild)
 
     @discord.ui.button(label="抜ける", style=discord.ButtonStyle.gray)
     async def leave_button(self, interaction: discord.Interaction, button: discord.ui.Button):
