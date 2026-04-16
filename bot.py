@@ -35,6 +35,9 @@ bot_state = load_bot_state()
 # =========================
 OWNER_ID = 1225788050894753865
 
+# 中断用フラグ（なくてもOKだが安全）
+CANCELABLE_STATES = ["mode_select", "recruiting", "ready"]
+
 # =========================
 # チャンネル設定
 # =========================
@@ -402,6 +405,21 @@ intents.voice_states = True
 intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+def reset_room():
+    global game_state
+    global joined_players
+    global fixed_alpha
+    global fixed_bravo
+    global prepared_match
+    global current_match
+
+    game_state = "idle"
+    joined_players = []
+    fixed_alpha = []
+    fixed_bravo = []
+    prepared_match = None
+    current_match = None
 
 # =========================
 # 状態管理
@@ -2895,21 +2913,16 @@ async def user_id_list(ctx):
         if chunk:
             await ctx.send(chunk)
 
-@bot.command(name="全員バッジリセット")
-async def reset_all_badges(ctx):
-    if ctx.author.id != OWNER_ID:
-        await ctx.send("管理者専用です")
+@bot.command(name="やめる")
+async def cancel_room(ctx):
+    global game_state
+
+    if game_state == "idle":
+        await ctx.send("今は中断する部屋がありません")
         return
 
-    count = 0
-
-    for uid, profile in player_profiles.items():
-        profile["selected_badge"] = None
-        count += 1
-
-    save_player_profiles(player_profiles)
-
-    await ctx.send(f"全員の表示バッジをリセットしました（{count}人）")
+    reset_room()
+    await ctx.send("部屋作成を中断しました")
     
 # =========================
 # 起動
