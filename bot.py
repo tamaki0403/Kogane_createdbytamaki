@@ -2019,7 +2019,6 @@ def revoke_initial_bonus_permission(user_id: int):
 # =========================
 # レート一括変更モード
 # =========================
-
 async def process_badge_bulk_message(message: discord.Message):
     guild = message.guild
     if guild is None:
@@ -2050,55 +2049,55 @@ async def process_badge_bulk_message(message: discord.Message):
     success = []
     errors = []
 
-for line_no, raw in enumerate(content.splitlines(), start=1):
-    line = raw.strip()
-    if not line:
-        continue
+    for line_no, raw in enumerate(content.splitlines(), start=1):
+        line = raw.strip()
+        if not line:
+            continue
 
-    if not line.isdigit():
-        errors.append(f"{line_no}行目: IDが不正 -> {line}")
-        continue
+        if not line.isdigit():
+            errors.append(f"{line_no}行目: IDが不正 -> {line}")
+            continue
 
-    uid = int(line)
-    profile = get_player_profile(uid)
+        uid = int(line)
+        profile = get_player_profile(uid)
 
-    if mode == "grant":
-        if badge_id not in profile["owned_badges"]:
-            profile["owned_badges"].append(badge_id)
+        if mode == "grant":
+            if badge_id not in profile["owned_badges"]:
+                profile["owned_badges"].append(badge_id)
+                success.append(f"{uid}")
+            else:
+                errors.append(f"{line_no}行目: 既に所持 -> {uid}")
+
+        elif mode == "force_grant":
+            if badge_id not in profile["owned_badges"]:
+                profile["owned_badges"].append(badge_id)
+            profile["selected_badge"] = badge_id
             success.append(f"{uid}")
-        else:
-            errors.append(f"{line_no}行目: 既に所持 -> {uid}")
 
-    elif mode == "force_grant":
-        if badge_id not in profile["owned_badges"]:
-            profile["owned_badges"].append(badge_id)
-        profile["selected_badge"] = badge_id
-        success.append(f"{uid}")
+        elif mode == "remove":
+            if badge_id in profile["owned_badges"]:
+                profile["owned_badges"].remove(badge_id)
+                if profile.get("selected_badge") == badge_id:
+                    profile["selected_badge"] = None
+                success.append(f"{uid}")
+            else:
+                errors.append(f"{line_no}行目: 未所持 -> {uid}")
 
-    elif mode == "remove":
-        if badge_id in profile["owned_badges"]:
-            profile["owned_badges"].remove(badge_id)
-            if profile.get("selected_badge") == badge_id:
-                profile["selected_badge"] = None
-            success.append(f"{uid}")
-        else:
-            errors.append(f"{line_no}行目: 未所持 -> {uid}")
+    save_player_profiles(player_profiles)
+    badge_bulk_waiting.pop(guild.id, None)
 
-save_player_profiles(player_profiles)
-badge_bulk_waiting.pop(guild.id, None)
+    lines = ["【バッジ一括処理結果】"]
 
-lines = ["【バッジ一括処理結果】"]
+    if success:
+        lines.append("\n【成功】")
+        lines.extend(success)
 
-if success:
-    lines.append("\n【成功】")
-    lines.extend(success)
+    if errors:
+        lines.append("\n【失敗】")
+        lines.extend(errors)
 
-if errors:
-    lines.append("\n【失敗】")
-    lines.extend(errors)
-
-await message.channel.send("\n".join(lines))
-return True
+    await message.channel.send("\n".join(lines))
+    return True
 
 async def process_bulk_rate_change_message(message: discord.Message):
     guild = message.guild
