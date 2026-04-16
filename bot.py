@@ -2895,6 +2895,22 @@ async def user_id_list(ctx):
         if chunk:
             await ctx.send(chunk)
 
+@bot.command(name="全員バッジリセット")
+async def reset_all_badges(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+
+    count = 0
+
+    for uid, profile in player_profiles.items():
+        profile["selected_badge"] = None
+        count += 1
+
+    save_player_profiles(player_profiles)
+
+    await ctx.send(f"全員の表示バッジをリセットしました（{count}人）")
+    
 # =========================
 # 起動
 # =========================
