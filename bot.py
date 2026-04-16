@@ -2050,7 +2050,7 @@ async def process_badge_bulk_message(message: discord.Message):
     success = []
     errors = []
 
-   for line_no, raw in enumerate(content.splitlines(), start=1):
+for line_no, raw in enumerate(content.splitlines(), start=1):
     line = raw.strip()
     if not line:
         continue
