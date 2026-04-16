@@ -2574,30 +2574,6 @@ async def bulk_clear_weapon(ctx):
     )
 
 
-@bot.command(name="一括武器設定")
-async def bulk_set_weapon(ctx):
-    if ctx.author.id != OWNER_ID:
-        await ctx.send("管理者専用です")
-        return
-    if not await ensure_admin_channel(ctx):
-        return
-
-    bulk_profile_edit_waiting[ctx.guild.id] = {
-        "user_id": ctx.author.id,
-        "field": "weapon",
-        "mode": "set",
-    }
-
-    await ctx.send(
-        "武器一括設定モードに入りました。\n"
-        "次の1メッセージで、1行に1人ずつ\n"
-        "ユーザーID 武器名\n"
-        "の形式で送ってください。\n\n"
-        "例:\n"
-        "123456789012345678 スシ\n"
-        "987654321098765432 52ガロン\n\n"
-        "やめるときは キャンセル と送ってください。"
-    )
 
 
 @bot.command(name="一括武器削除")
