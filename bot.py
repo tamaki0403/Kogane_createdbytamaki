@@ -10,7 +10,8 @@ from discord.ext import commands
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RATINGS_FILE = os.path.join(BASE_DIR, "ratings.json")
 PLAYER_PROFILES_FILE = os.path.join(BASE_DIR, "player_profiles.json")
-TOKEN = os.getenv("DISCORD_TOKEN")
+TOKEN = os.getenv("DISCORD_TOKEN"
+        )
 
 # =========================
 # Bot状態（追加）
