@@ -2050,39 +2050,39 @@ async def process_badge_bulk_message(message: discord.Message):
     success = []
     errors = []
 
-    for line_no, raw in enumerate(content.splitlines(), start=1):
-        line = raw.strip()
-        if not line:
-            continue
+   for line_no, raw in enumerate(content.splitlines(), start=1):
+    line = raw.strip()
+    if not line:
+        continue
 
-        if not line.isdigit():
-            errors.append(f"{line_no}行目: IDが不正 -> {line}")
-            continue
+    if not line.isdigit():
+        errors.append(f"{line_no}行目: IDが不正 -> {line}")
+        continue
 
-        uid = int(line)
-        profile = get_player_profile(uid)
+    uid = int(line)
+    profile = get_player_profile(uid)
 
-                if mode == "grant":
-            if badge_id not in profile["owned_badges"]:
-                profile["owned_badges"].append(badge_id)
-                success.append(f"{uid}")
-            else:
-                errors.append(f"{line_no}行目: 既に所持 -> {uid}")
-
-        elif mode == "force_grant":
-            if badge_id not in profile["owned_badges"]:
-                profile["owned_badges"].append(badge_id)
-            profile["selected_badge"] = badge_id
+    if mode == "grant":
+        if badge_id not in profile["owned_badges"]:
+            profile["owned_badges"].append(badge_id)
             success.append(f"{uid}")
+        else:
+            errors.append(f"{line_no}行目: 既に所持 -> {uid}")
 
-        elif mode == "remove":
-            if badge_id in profile["owned_badges"]:
-                profile["owned_badges"].remove(badge_id)
-                if profile.get("selected_badge") == badge_id:
-                    profile["selected_badge"] = None
-                success.append(f"{uid}")
-            else:
-                errors.append(f"{line_no}行目: 未所持 -> {uid}")
+    elif mode == "force_grant":
+        if badge_id not in profile["owned_badges"]:
+            profile["owned_badges"].append(badge_id)
+        profile["selected_badge"] = badge_id
+        success.append(f"{uid}")
+
+    elif mode == "remove":
+        if badge_id in profile["owned_badges"]:
+            profile["owned_badges"].remove(badge_id)
+            if profile.get("selected_badge") == badge_id:
+                profile["selected_badge"] = None
+            success.append(f"{uid}")
+        else:
+            errors.append(f"{line_no}行目: 未所持 -> {uid}")
 
     save_player_profiles(player_profiles)
     badge_bulk_waiting.pop(guild.id, None)
