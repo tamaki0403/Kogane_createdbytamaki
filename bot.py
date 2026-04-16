@@ -406,20 +406,6 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-def reset_room():
-    global game_state
-    global joined_players
-    global fixed_alpha
-    global fixed_bravo
-    global prepared_match
-    global current_match
-
-    game_state = "idle"
-    joined_players = []
-    fixed_alpha = []
-    fixed_bravo = []
-    prepared_match = None
-    current_match = None
 
 # =========================
 # 状態管理
@@ -521,6 +507,24 @@ async def send_progress_message(guild, room_key, content, view=None):
     if channel is None:
         return None
     return await channel.send(content, view=view)
+
+
+async def disable_room_messages(room_state):
+    targets = [
+        room_state.get("recruit_message"),
+        room_state.get("selection_message"),
+        room_state.get("confirm_message"),
+        room_state.get("disconnect_vote_message"),
+    ]
+
+    for msg in targets:
+        if msg is None:
+            continue
+        try:
+            if msg.components:
+                await msg.edit(view=None)
+        except Exception:
+            pass
 
 
 async def move_members_to_vc(guild, room_key, team_alpha, team_bravo):
@@ -1682,20 +1686,21 @@ async def next_game(ctx, room_key):
 
 def build_rating_update_lines(room_state, next_team_alpha, next_team_bravo, title="【レート更新】", bonus_text=None):
     if bonus_text:
-        bonus_text = bonus_text.split("（")[0]
+        bonus_text = bonus_text.split("（")[0].strip()
         lines = [f"{title}{bonus_text}"]
     else:
         lines = [title]
 
     lines.append("")
 
-    if room_state["current_match"]:
-        team_alpha, team_bravo = room_state["current_match"]
+    current_match = room_state.get("current_match")
+    if current_match:
+        team_alpha, team_bravo = current_match
         ordered_players = team_alpha + team_bravo
     else:
         ordered_players = next_team_alpha + next_team_bravo
 
-    last_rating_changes = room_state["last_rating_changes"] or {}
+    last_rating_changes = room_state.get("last_rating_changes") or {}
 
     for user in ordered_players:
         old = last_rating_changes.get(str(user.id), ratings.get(str(user.id), DEFAULT_RATING))
@@ -1717,7 +1722,7 @@ def build_rating_update_lines(room_state, next_team_alpha, next_team_bravo, titl
     lines.append("")
     lines.append("次回のチーム分け")
 
-    alpha_names = " ".join([
+    alpha_names = " ".join(
         build_player_display(
             u,
             mention=False,
@@ -1727,9 +1732,9 @@ def build_rating_update_lines(room_state, next_team_alpha, next_team_bravo, titl
             include_rate_change=False,
         )
         for u in next_team_alpha
-    ])
+    )
 
-    bravo_names = " ".join([
+    bravo_names = " ".join(
         build_player_display(
             u,
             mention=False,
@@ -1739,7 +1744,7 @@ def build_rating_update_lines(room_state, next_team_alpha, next_team_bravo, titl
             include_rate_change=False,
         )
         for u in next_team_bravo
-    ])
+    )
 
     lines.append(f"アルファ: {alpha_names}")
     lines.append(f"ブラボー: {bravo_names}")
@@ -1799,6 +1804,7 @@ async def end_room(ctx, room_key):
     room_state = room_states[room_key]
     summary_text = create_room_summary_text(room_state)
 
+    await disable_room_messages(room_state)
     await move_members_to_lobby(ctx.guild, room_key, room_state)
     await post_ranking(ctx.guild)
 
@@ -2915,15 +2921,25 @@ async def user_id_list(ctx):
 
 @bot.command(name="やめる")
 async def cancel_room(ctx):
-    global game_state
+    room_key = get_room_key_by_channel_id(ctx.channel.id)
+    if room_key is None:
+        await ctx.send("このコマンドは試合進行チャンネルで使ってください。")
+        return
 
-    if game_state == "idle":
+    room_state = room_states[room_key]
+
+    if room_state["game_state"] == "idle":
         await ctx.send("今は中断する部屋がありません")
         return
 
-    reset_room()
-    await ctx.send("部屋作成を中断しました")
-    
+    await disable_room_messages(room_state)
+    await move_members_to_lobby(ctx.guild, room_key, room_state)
+
+    reset_room_state(room_state)
+    reset_room_tracking(room_state)
+
+    await ctx.send(f"{room_key}部屋の部屋作成を中断しました")
+
 # =========================
 # 起動
 # =========================
