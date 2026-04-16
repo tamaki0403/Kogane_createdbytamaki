@@ -2084,21 +2084,21 @@ for line_no, raw in enumerate(content.splitlines(), start=1):
         else:
             errors.append(f"{line_no}行目: 未所持 -> {uid}")
 
-    save_player_profiles(player_profiles)
-    badge_bulk_waiting.pop(guild.id, None)
+save_player_profiles(player_profiles)
+badge_bulk_waiting.pop(guild.id, None)
 
-    lines = ["【バッジ一括処理結果】"]
+lines = ["【バッジ一括処理結果】"]
 
-    if success:
-        lines.append("\n【成功】")
-        lines.extend(success)
+if success:
+    lines.append("\n【成功】")
+    lines.extend(success)
 
-    if errors:
-        lines.append("\n【失敗】")
-        lines.extend(errors)
+if errors:
+    lines.append("\n【失敗】")
+    lines.extend(errors)
 
-    await message.channel.send("\n".join(lines))
-    return True
+await message.channel.send("\n".join(lines))
+return True
 
 async def process_bulk_rate_change_message(message: discord.Message):
     guild = message.guild
