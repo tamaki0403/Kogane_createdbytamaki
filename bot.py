@@ -10,7 +10,7 @@ from discord.ext import commands
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RATINGS_FILE = os.path.join(BASE_DIR, "ratings.json")
 PLAYER_PROFILES_FILE = os.path.join(BASE_DIR, "player_profiles.json")
-TOKEN = os.getenv("DISCORD_TOKEN"
+TOKEN = os.getenv("DISCORD_TOKEN")
 
 # =========================
 # Bot状態（追加）
@@ -406,13 +406,14 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # =========================
 # 状態管理
 # =========================
-backup_restore_buffer = {}
-
 badge_bulk_waiting = {}
 # {guild_id: {mode, badge_id, user_id}}
 
 bulk_rate_change_waiting = {}
 # {guild_id: user_id}
+
+bulk_profile_edit_waiting = {}
+# {guild_id: {"user_id": int, "field": str, "mode": str}}
 
 ROOM_KEYS = ("A", "B")
 
@@ -1482,6 +1483,70 @@ class DisconnectVoteView(BaseControlView):
 # ランキング
 # =========================
 
+@bot.command(name="武器一覧")
+async def weapon_list(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+
+    try:
+        members = [member async for member in ctx.guild.fetch_members(limit=None)]
+    except Exception:
+        members = ctx.guild.members
+
+    human_members = [m for m in members if not m.bot]
+
+    if not human_members:
+        await ctx.send("プレイヤーがいません")
+        return
+
+    human_members.sort(key=lambda m: m.display_name.lower())
+
+    lines = ["【武器一覧】"]
+
+    for member in human_members:
+        profile = get_player_profile(member.id)
+        weapon = profile.get("weapon")
+
+        if not weapon:
+            weapon = "未登録"
+
+        lines.append(f"{member.id} {weapon}")
+
+    await ctx.send("\n".join(lines))
+
+@bot.command(name="XP一覧")
+async def xp_list(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+
+    try:
+        members = [member async for member in ctx.guild.fetch_members(limit=None)]
+    except Exception:
+        members = ctx.guild.members
+
+    human_members = [m for m in members if not m.bot]
+
+    if not human_members:
+        await ctx.send("プレイヤーがいません")
+        return
+
+    human_members.sort(key=lambda m: m.display_name.lower())
+
+    lines = ["【XP一覧】"]
+
+    for member in human_members:
+        profile = get_player_profile(member.id)
+        xp = profile.get("xp")
+
+        if xp is None:
+            xp = "未登録"
+
+        lines.append(f"{member.id} {xp}")
+
+    await ctx.send("\n".join(lines))
+    
 async def build_ranking_lines(guild):
     try:
         members = [member async for member in guild.fetch_members(limit=None)]
@@ -2188,6 +2253,159 @@ async def process_bulk_rate_change_message(message: discord.Message):
     return True
 
 
+async def process_bulk_profile_edit_message(message: discord.Message):
+    guild = message.guild
+    if guild is None:
+        return False
+
+    state = bulk_profile_edit_waiting.get(guild.id)
+    if not state:
+        return False
+
+    if state["user_id"] != message.author.id:
+        return False
+
+    content = message.content.strip()
+
+    if not content:
+        bulk_profile_edit_waiting.pop(guild.id, None)
+        await message.channel.send("入力が空だったのでプロフィール一括編集モードを終了しました。")
+        return True
+
+    if content in ("キャンセル", "中止", "!キャンセル", "!中止"):
+        bulk_profile_edit_waiting.pop(guild.id, None)
+        await message.channel.send("プロフィール一括編集モードを終了しました。")
+        return True
+
+    field = state["field"]
+    mode = state["mode"]
+
+    success_lines = []
+    error_lines = []
+    changed_any = False
+
+    for line_no, raw_line in enumerate(content.splitlines(), start=1):
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        parts = line.split(maxsplit=1)
+
+        if mode == "clear":
+            user_id_text = line
+            value_text = None
+        else:
+            if len(parts) != 2:
+                error_lines.append(f"{line_no}行目: 形式が違います -> {line}")
+                continue
+            user_id_text, value_text = parts
+
+        if not user_id_text.isdigit():
+            error_lines.append(f"{line_no}行目: ユーザーIDが数字ではありません -> {line}")
+            continue
+
+        user_id = int(user_id_text)
+        profile = get_player_profile(user_id)
+        name = await get_member_display_name_by_id(guild, user_id)
+
+        if field == "weapon":
+            old_value = profile.get("weapon")
+            if mode == "clear":
+                profile["weapon"] = None
+                success_lines.append(f"{name}: {old_value} → None")
+                changed_any = True
+            else:
+                profile["weapon"] = value_text
+                success_lines.append(f"{name}: {old_value} → {value_text}")
+                changed_any = True
+
+        elif field == "xp":
+            old_value = profile.get("xp")
+            if mode == "clear":
+                profile["xp"] = None
+                success_lines.append(f"{name}: {old_value} → None")
+                changed_any = True
+            else:
+                if not value_text.isdigit():
+                    error_lines.append(f"{line_no}行目: XPが整数ではありません -> {line}")
+                    continue
+                xp = int(value_text)
+                profile["xp"] = xp
+                success_lines.append(f"{name}: {old_value} → {xp}")
+                changed_any = True
+
+        elif field == "initial_applied":
+            old_value = profile.get("initial_applied")
+            new_value = (mode == "set_true")
+            profile["initial_applied"] = new_value
+            success_lines.append(f"{name}: {old_value} → {new_value}")
+            changed_any = True
+
+        elif field == "can_apply_initial_bonus":
+            old_value = profile.get("can_apply_initial_bonus")
+            new_value = (mode == "set_true")
+            profile["can_apply_initial_bonus"] = new_value
+            success_lines.append(f"{name}: {old_value} → {new_value}")
+            changed_any = True
+
+        elif field == "selected_badge":
+            old_value = profile.get("selected_badge")
+            if mode == "clear":
+                profile["selected_badge"] = None
+                success_lines.append(f"{name}: {old_value} → None")
+                changed_any = True
+            else:
+                if value_text not in BADGE_DEFINITIONS:
+                    error_lines.append(f"{line_no}行目: 存在しないバッジIDです -> {line}")
+                    continue
+                if value_text not in profile.get("owned_badges", []):
+                    error_lines.append(f"{line_no}行目: そのユーザーはそのバッジを未所持です -> {line}")
+                    continue
+                profile["selected_badge"] = value_text
+                success_lines.append(f"{name}: {old_value} → {value_text}")
+                changed_any = True
+
+        else:
+            error_lines.append(f"{line_no}行目: 未対応フィールドです -> {field}")
+
+    if changed_any:
+        save_player_profiles(player_profiles)
+
+    bulk_profile_edit_waiting.pop(guild.id, None)
+
+    lines = [f"【{field} 一括編集結果】"]
+
+    if success_lines:
+        lines.append("")
+        lines.append("【成功】")
+        lines.extend(success_lines)
+
+    if error_lines:
+        lines.append("")
+        lines.append("【失敗】")
+        lines.extend(error_lines)
+
+    if not success_lines and not error_lines:
+        lines.append("有効な入力がありませんでした。")
+
+    text = "\n".join(lines)
+
+    if len(text) <= 1900:
+        await message.channel.send(text)
+    else:
+        chunk = ""
+        for line in lines:
+            if len(chunk) + len(line) + 1 > 1900:
+                await message.channel.send(chunk)
+                chunk = line
+            else:
+                chunk += ("\n" if chunk else "") + line
+        if chunk:
+            await message.channel.send(chunk)
+
+    return True
+
+
 # =========================
 # コマンド
 # =========================
@@ -2201,34 +2419,15 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    if message.author.id in backup_restore_buffer:
-        if message.content.strip() == "完了":
-            try:
-                full_text = "".join(backup_restore_buffer[message.author.id])
-                data = json.loads(full_text)
-
-                global ratings, player_profiles
-                ratings = data["ratings"]
-                player_profiles = data["profiles"]
-
-                save_ratings(ratings)
-                save_player_profiles(player_profiles)
-
-                del backup_restore_buffer[message.author.id]
-                await message.channel.send("復元完了")
-            except Exception as e:
-                await message.channel.send(f"復元失敗: {e}")
-            return
-        else:
-            backup_restore_buffer[message.author.id].append(message.content)
-            await message.add_reaction("✅")
-            return
-
     handled = await process_badge_bulk_message(message)
     if handled:
         return
 
     handled = await process_bulk_rate_change_message(message)
+    if handled:
+        return
+
+    handled = await process_bulk_profile_edit_message(message)
     if handled:
         return
 
@@ -2285,29 +2484,95 @@ async def ランキング(ctx):
     await post_ranking(ctx.guild)
     await ctx.send("ランキングを更新しました。")
 
-
-@bot.command(name="バックアップ保存")
-async def backup_save(ctx):
+@bot.command(name="武器一覧")
+async def weapon_list(ctx):
     if ctx.author.id != OWNER_ID:
         await ctx.send("管理者専用です")
         return
 
-    data = {
-        "ratings": ratings,
-        "profiles": player_profiles
-    }
+    try:
+        members = [member async for member in ctx.guild.fetch_members(limit=None)]
+    except Exception:
+        members = ctx.guild.members
 
-    text = json.dumps(data, ensure_ascii=False)
+    human_members = [m for m in members if not m.bot]
 
-    chunks = [text[i:i+1800] for i in range(0, len(text), 1800)]
+    if not human_members:
+        await ctx.send("プレイヤーがいません")
+        return
 
-    await ctx.send(f"【バックアップ開始】全{len(chunks)}件")
+    human_members.sort(key=lambda m: m.display_name.lower())
 
-    for i, chunk in enumerate(chunks, start=1):
-        await ctx.send(f"{i}/{len(chunks)}\n{chunk}")
+    lines = ["【武器一覧】"]
 
-    await ctx.send("【バックアップ終了】")
+    for member in human_members:
+        profile = get_player_profile(member.id)
+        weapon = profile.get("weapon")
 
+        if not weapon:
+            weapon = "未登録"
+
+        lines.append(f"{member.id} {weapon}")
+
+    text = "\n".join(lines)
+
+    if len(text) <= 1900:
+        await ctx.send(text)
+    else:
+        chunk = ""
+        for line in lines:
+            if len(chunk) + len(line) + 1 > 1900:
+                await ctx.send(chunk)
+                chunk = line
+            else:
+                chunk += ("\n" if chunk else "") + line
+        if chunk:
+            await ctx.send(chunk)
+
+@bot.command(name="XP一覧")
+async def xp_list(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+
+    try:
+        members = [member async for member in ctx.guild.fetch_members(limit=None)]
+    except Exception:
+        members = ctx.guild.members
+
+    human_members = [m for m in members if not m.bot]
+
+    if not human_members:
+        await ctx.send("プレイヤーがいません")
+        return
+
+    human_members.sort(key=lambda m: m.display_name.lower())
+
+    lines = ["【XP一覧】"]
+
+    for member in human_members:
+        profile = get_player_profile(member.id)
+        xp = profile.get("xp")
+
+        if xp is None:
+            xp = "未登録"
+
+        lines.append(f"{member.id} {xp}")
+
+    text = "\n".join(lines)
+
+    if len(text) <= 1900:
+        await ctx.send(text)
+    else:
+        chunk = ""
+        for line in lines:
+            if len(chunk) + len(line) + 1 > 1900:
+                await ctx.send(chunk)
+                chunk = line
+            else:
+                chunk += ("\n" if chunk else "") + line
+        if chunk:
+            await ctx.send(chunk)
 
 @bot.command(name="秘匿ランキング")
 async def secret_ranking(ctx):
@@ -2321,16 +2586,109 @@ async def secret_ranking(ctx):
     await ctx.send("秘匿ランキングを送信しました。")
 
 
-@bot.command(name="バックアップ復元")
-async def backup_load(ctx):
+@bot.command(name="一括武器設定")
+async def bulk_set_weapon(ctx):
     if ctx.author.id != OWNER_ID:
         await ctx.send("管理者専用です")
         return
     if not await ensure_admin_channel(ctx):
         return
 
-    backup_restore_buffer[ctx.author.id] = []
-    await ctx.send("バックアップ復元モード開始。JSONをそのまま貼って、最後に『完了』と送信してください。")
+    bulk_profile_edit_waiting[ctx.guild.id] = {
+        "user_id": ctx.author.id,
+        "field": "weapon",
+        "mode": "set",
+    }
+
+    await ctx.send(
+        "武器一括設定モードに入りました。\n"
+        "次の1メッセージで、1行に1人ずつ\n"
+        "ユーザーID 武器名\n"
+        "の形式で送ってください。\n\n"
+        "例:\n"
+        "123456789012345678 スシ\n"
+        "987654321098765432 52ガロン\n\n"
+        "やめるときは キャンセル と送ってください。"
+    )
+
+
+@bot.command(name="一括武器削除")
+async def bulk_clear_weapon(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if not await ensure_admin_channel(ctx):
+        return
+
+    bulk_profile_edit_waiting[ctx.guild.id] = {
+        "user_id": ctx.author.id,
+        "field": "weapon",
+        "mode": "clear",
+    }
+
+    await ctx.send(
+        "武器一括削除モードに入りました。\n"
+        "次の1メッセージで、1行に1人ずつ\n"
+        "ユーザーID\n"
+        "の形式で送ってください。\n\n"
+        "例:\n"
+        "123456789012345678\n"
+        "987654321098765432\n\n"
+        "やめるときは キャンセル と送ってください。"
+    )
+
+
+@bot.command(name="一括武器設定")
+async def bulk_set_weapon(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if not await ensure_admin_channel(ctx):
+        return
+
+    bulk_profile_edit_waiting[ctx.guild.id] = {
+        "user_id": ctx.author.id,
+        "field": "weapon",
+        "mode": "set",
+    }
+
+    await ctx.send(
+        "武器一括設定モードに入りました。\n"
+        "次の1メッセージで、1行に1人ずつ\n"
+        "ユーザーID 武器名\n"
+        "の形式で送ってください。\n\n"
+        "例:\n"
+        "123456789012345678 スシ\n"
+        "987654321098765432 52ガロン\n\n"
+        "やめるときは キャンセル と送ってください。"
+    )
+
+
+@bot.command(name="一括武器削除")
+async def bulk_clear_weapon(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if not await ensure_admin_channel(ctx):
+        return
+
+    bulk_profile_edit_waiting[ctx.guild.id] = {
+        "user_id": ctx.author.id,
+        "field": "weapon",
+        "mode": "clear",
+    }
+
+    await ctx.send(
+        "武器一括削除モードに入りました。\n"
+        "次の1メッセージで、1行に1人ずつ\n"
+        "ユーザーID\n"
+        "の形式で送ってください。\n\n"
+        "例:\n"
+        "123456789012345678\n"
+        "987654321098765432\n\n"
+        "やめるときは キャンセル と送ってください。"
+    )
+
 
 
 @bot.command(name="バッジ付与")
