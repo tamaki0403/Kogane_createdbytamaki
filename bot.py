@@ -2573,36 +2573,6 @@ async def bulk_clear_weapon(ctx):
         "やめるときは キャンセル と送ってください。"
     )
 
-
-
-
-@bot.command(name="一括武器削除")
-async def bulk_clear_weapon(ctx):
-    if ctx.author.id != OWNER_ID:
-        await ctx.send("管理者専用です")
-        return
-    if not await ensure_admin_channel(ctx):
-        return
-
-    bulk_profile_edit_waiting[ctx.guild.id] = {
-        "user_id": ctx.author.id,
-        "field": "weapon",
-        "mode": "clear",
-    }
-
-    await ctx.send(
-        "武器一括削除モードに入りました。\n"
-        "次の1メッセージで、1行に1人ずつ\n"
-        "ユーザーID\n"
-        "の形式で送ってください。\n\n"
-        "例:\n"
-        "123456789012345678\n"
-        "987654321098765432\n\n"
-        "やめるときは キャンセル と送ってください。"
-    )
-
-
-
 @bot.command(name="バッジ付与")
 async def grant_badge(ctx, badge_id: str):
     if ctx.author.id != OWNER_ID:
