@@ -2062,12 +2062,18 @@ async def process_badge_bulk_message(message: discord.Message):
         uid = int(line)
         profile = get_player_profile(uid)
 
-        if mode == "grant":
+                if mode == "grant":
             if badge_id not in profile["owned_badges"]:
                 profile["owned_badges"].append(badge_id)
                 success.append(f"{uid}")
             else:
                 errors.append(f"{line_no}行目: 既に所持 -> {uid}")
+
+        elif mode == "force_grant":
+            if badge_id not in profile["owned_badges"]:
+                profile["owned_badges"].append(badge_id)
+            profile["selected_badge"] = badge_id
+            success.append(f"{uid}")
 
         elif mode == "remove":
             if badge_id in profile["owned_badges"]:
@@ -2618,6 +2624,32 @@ async def remove_badge(ctx, badge_id: str):
     await ctx.send(
         f"バッジ削除モードに入りました（{badge_id}）\n"
         "次の1メッセージでユーザーIDを1行ずつ送ってください。\n"
+        "キャンセルで終了できます。"
+    )
+
+
+@bot.command(name="バッジ強制付与")
+async def force_grant_badge(ctx, badge_id: str):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if not await ensure_admin_channel(ctx):
+        return
+
+    if badge_id not in BADGE_DEFINITIONS:
+        await ctx.send("そのバッジIDは存在しません")
+        return
+
+    badge_bulk_waiting[ctx.guild.id] = {
+        "mode": "force_grant",
+        "badge_id": badge_id,
+        "user_id": ctx.author.id,
+    }
+
+    await ctx.send(
+        f"バッジ強制付与モードに入りました（{badge_id}）\n"
+        "次の1メッセージでユーザーIDを1行ずつ送ってください。\n"
+        "所持していなければ付与し、表示バッジもこのバッジに変更します。\n"
         "キャンセルで終了できます。"
     )
 
