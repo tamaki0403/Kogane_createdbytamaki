@@ -235,6 +235,16 @@ def get_player_profile(user_id: int):
         profile["owned_badges"] = []
     if "selected_badge" not in profile:
         profile["selected_badge"] = None
+    if "coins" not in profile:
+        profile["coins"] = 0
+    if "tickets" not in profile:
+        profile["tickets"] = []
+    if "active_effect" not in profile:
+        profile["active_effect"] = None
+    if "next_coin_at" not in profile:
+        profile["next_coin_at"] = None
+    if "win_streak" not in profile:
+        profile["win_streak"] = 0
 
     if profile["selected_badge"] and profile["selected_badge"] not in profile["owned_badges"]:
         profile["selected_badge"] = None
@@ -294,6 +304,53 @@ def get_current_class_text(user):
         return SECOND_THIRD_CLASS
     return ""
 
+def add_coin(user_id: int, amount: int):
+    profile = get_player_profile(user_id)
+    profile["coins"] = min(COIN_LIMIT, profile.get("coins", 0) + amount)
+
+
+def remove_coin(user_id: int, amount: int):
+    profile = get_player_profile(user_id)
+    profile["coins"] = max(0, profile.get("coins", 0) - amount)
+
+
+def roll_next_coin_seconds():
+    return int(random.triangular(8 * 3600, 16 * 3600, 12 * 3600))
+
+
+def set_next_coin_time(user_id: int):
+    from datetime import datetime, timedelta
+
+    profile = get_player_profile(user_id)
+    next_dt = datetime.utcnow() + timedelta(seconds=roll_next_coin_seconds())
+    profile["next_coin_at"] = next_dt.isoformat()
+
+
+def try_claim_passive_coin(user_id: int):
+    from datetime import datetime
+
+    profile = get_player_profile(user_id)
+    now = datetime.utcnow()
+
+    next_coin_at = profile.get("next_coin_at")
+    if not next_coin_at:
+        set_next_coin_time(user_id)
+        return False
+
+    try:
+        next_dt = datetime.fromisoformat(next_coin_at)
+    except Exception:
+        set_next_coin_time(user_id)
+        return False
+
+    if now >= next_dt:
+        if profile.get("coins", 0) < COIN_LIMIT:
+            add_coin(user_id, 1)
+        set_next_coin_time(user_id)
+        return True
+
+    return False
+    
 def get_current_badge_text(user):
     profile = get_player_profile(user.id)
     selected_badge = profile.get("selected_badge")
@@ -397,6 +454,198 @@ def mark_match_played_for_members(members):
 
 
 # =========================
+# チケット定義
+# =========================
+TICKET_LIMIT = 3
+
+TICKET_DEFINITIONS = {
+    "rate_x1_1_10": {
+        "label": "10試合 レート変動率 1.1倍",
+        "type": "rate_multiplier",
+        "multiplier": 1.1,
+        "remaining_matches": 10,
+    },
+    "rate_x1_2_10": {
+        "label": "10試合 レート変動率 1.2倍",
+        "type": "rate_multiplier",
+        "multiplier": 1.2,
+        "remaining_matches": 10,
+    },
+    "rate_x1_3_10": {
+        "label": "10試合 レート変動率 1.3倍",
+        "type": "rate_multiplier",
+        "multiplier": 1.3,
+        "remaining_matches": 10,
+    },
+    "rate_x1_5_5": {
+        "label": "5試合 レート変動率 1.5倍",
+        "type": "rate_multiplier",
+        "multiplier": 1.5,
+        "remaining_matches": 5,
+    },
+    "win_bonus_1_15": {
+        "label": "15試合 連勝ごとにボーナス +1",
+        "type": "win_streak_bonus",
+        "bonus_per_streak": 1,
+        "remaining_matches": 15,
+    },
+    "win_bonus_2_15": {
+        "label": "15試合 連勝ごとにボーナス +2",
+        "type": "win_streak_bonus",
+        "bonus_per_streak": 2,
+        "remaining_matches": 15,
+    },
+    "streak_5_win_20": {
+        "label": "15試合中 5連勝で +20",
+        "type": "streak_reward",
+        "target_streak": 5,
+        "reward": 20,
+        "remaining_matches": 15,
+    },
+    "streak_7_win_50": {
+        "label": "15試合中 7連勝で +50",
+        "type": "streak_reward",
+        "target_streak": 7,
+        "reward": 50,
+        "remaining_matches": 15,
+    },
+}
+
+GACHA_ITEMS = [
+    {"kind": "nothing", "value": None, "label": "何も起こらなかった", "weight": 35.0},
+    {"kind": "rating", "value": 1, "label": "レート +1", "weight": 20.0},
+    {"kind": "rating", "value": 5, "label": "レート +5", "weight": 15.0},
+    {"kind": "rating", "value": 10, "label": "レート +10", "weight": 8.0},
+    {"kind": "ticket", "value": "rate_x1_1_10", "label": "10試合 レート変動率 1.1倍", "weight": 7.0},
+    {"kind": "ticket", "value": "rate_x1_2_10", "label": "10試合 レート変動率 1.2倍", "weight": 5.0},
+    {"kind": "ticket", "value": "rate_x1_3_10", "label": "10試合 レート変動率 1.3倍", "weight": 4.0},
+    {"kind": "ticket", "value": "win_bonus_1_15", "label": "15試合 連勝ごとにボーナス +1", "weight": 3.0},
+    {"kind": "ticket", "value": "streak_5_win_20", "label": "15試合中 5連勝で +20", "weight": 2.0},
+    {"kind": "ticket", "value": "rate_x1_5_5", "label": "5試合 レート変動率 1.5倍", "weight": 0.8},
+    {"kind": "ticket", "value": "win_bonus_2_15", "label": "15試合 連勝ごとにボーナス +2", "weight": 0.7},
+    {"kind": "ticket", "value": "streak_7_win_50", "label": "15試合中 7連勝で +50", "weight": 0.4},
+    {"kind": "all_rating", "value": 10, "label": "自分+ランダム3人にレート +10", "weight": 0.1},
+]
+
+COIN_LIMIT = 5
+GACHA_COST = 1
+
+
+def build_ticket_instance(ticket_id: str):
+    data = TICKET_DEFINITIONS[ticket_id]
+    return {
+        "ticket_id": ticket_id,
+        "label": data["label"],
+        "type": data["type"],
+        "remaining_matches": data["remaining_matches"],
+        "multiplier": data.get("multiplier"),
+        "bonus_per_streak": data.get("bonus_per_streak"),
+        "target_streak": data.get("target_streak"),
+        "reward": data.get("reward"),
+    }
+
+
+def get_active_effect_text(user_id: int):
+    profile = get_player_profile(user_id)
+    active_effect = profile.get("active_effect")
+
+    if not active_effect:
+        return "現在有効な効果はありません"
+
+    label = active_effect.get("label", active_effect.get("ticket_id", "不明"))
+    remaining = active_effect.get("remaining_matches")
+
+    if remaining is None:
+        return f"現在有効な効果:\n・{label}"
+
+    return f"現在有効な効果:\n・{label}（残り{remaining}試合）"
+
+def draw_gacha_item():
+    weights = [item["weight"] for item in GACHA_ITEMS]
+    return random.choices(GACHA_ITEMS, weights=weights, k=1)[0]
+
+
+async def apply_gacha_result(guild, user_id: int, item):
+    if item["kind"] == "rating":
+        uid = str(user_id)
+        ratings[uid] = ratings.get(uid, DEFAULT_RATING) + item["value"]
+        save_ratings(ratings)
+
+    elif item["kind"] == "ticket":
+        profile = get_player_profile(user_id)
+        tickets = profile.get("tickets", [])
+
+        if len(tickets) >= TICKET_LIMIT:
+            tickets.pop(0)
+
+        tickets.append(build_ticket_instance(item["value"]))
+        profile["tickets"] = tickets
+        save_player_profiles(player_profiles)
+
+    elif item["kind"] == "all_rating":
+        try:
+            members = [m async for m in guild.fetch_members(limit=None)]
+        except Exception:
+            members = guild.members
+
+        human_members = [m for m in members if not m.bot]
+
+        drawer = guild.get_member(user_id)
+        if drawer is None:
+            try:
+                drawer = await guild.fetch_member(user_id)
+            except Exception:
+                return
+
+        others = [m for m in human_members if m.id != user_id]
+        if others:
+            selected = random.sample(others, min(3, len(others)))
+        else:
+            selected = []
+
+        targets = [drawer] + selected
+
+        for member in targets:
+            uid = str(member.id)
+            ratings[uid] = ratings.get(uid, DEFAULT_RATING) + item["value"]
+
+        save_ratings(ratings)
+
+        drawer_name = drawer.display_name
+        bonus_count = len(selected)
+        target_lines = "\n".join([f"・{member.display_name}" for member in targets])
+
+        text = f"""# 【領域展開「坐殺博徒」】
+
+{drawer_name} ……！
+正に……豪運……！！
+
+# <:Tobuze:1494883064806113430>「漲る呪力（ボーナス）でトぶぜ」
+
+レート +10
+
+ランダムで{bonus_count}人にも同じ効果
+
+▼対象
+{target_lines}"""
+
+        register_channel = get_player_register_channel(guild)
+        if register_channel:
+            try:
+                await register_channel.send(text, delete_after=20)
+            except Exception:
+                pass
+
+        for room_key, cfg in ROOM_CHANNELS.items():
+            channel = guild.get_channel(cfg["progress"])
+            if channel:
+                try:
+                    await channel.send(text)
+                except Exception:
+                    pass
+                
+
+# =========================
 # Discord設定
 # =========================
 intents = discord.Intents.default()
@@ -419,6 +668,9 @@ bulk_rate_change_waiting = {}
 bulk_profile_edit_waiting = {}
 # {guild_id: {"user_id": int, "field": str, "mode": str}}
 
+bulk_admin_waiting = {}
+# {guild_id: user_id}
+
 ROOM_KEYS = ("A", "B")
 
 def create_room_state():
@@ -428,6 +680,8 @@ def create_room_state():
         "current_match": None,
         "prepared_match": None,
         "last_rating_changes": None,
+        "last_rating_detail": None,
+        "last_profile_snapshots": None,
         "recruit_message": None,
         "selection_message": None,
         "confirm_message": None,
@@ -458,6 +712,8 @@ def reset_room_state(room_state):
     room_state["current_match"] = None
     room_state["prepared_match"] = None
     room_state["last_rating_changes"] = None
+    room_state["last_rating_detail"] = None
+    room_state["last_profile_snapshots"] = None
 
     room_state["recruit_message"] = None
     room_state["selection_message"] = None
@@ -606,6 +862,88 @@ def get_match_k_factor(room_state):
     alpha = get_alpha_fixed_count(room_state)
     beta = get_bravo_fixed_count(room_state)
     return K_TABLE.get((alpha, beta), K_FACTOR)
+
+
+def get_rate_multiplier(user_id: int):
+    profile = get_player_profile(user_id)
+    active_effect = profile.get("active_effect")
+
+    if not active_effect:
+        return 1.0
+
+    if active_effect.get("type") == "rate_multiplier":
+        return float(active_effect.get("multiplier", 1.0))
+
+    return 1.0
+
+
+def consume_active_effect_match(user_id: int):
+    profile = get_player_profile(user_id)
+    active_effect = profile.get("active_effect")
+
+    if not active_effect:
+        return
+
+    remaining = active_effect.get("remaining_matches")
+    if remaining is None:
+        return
+
+    remaining -= 1
+    if remaining <= 0:
+        profile["active_effect"] = None
+    else:
+        active_effect["remaining_matches"] = remaining
+        profile["active_effect"] = active_effect
+
+
+def get_win_streak_bonus(user_id: int):
+    profile = get_player_profile(user_id)
+    active_effect = profile.get("active_effect")
+    current_streak = profile.get("win_streak", 0)
+
+    if not active_effect:
+        return 0
+
+    effect_type = active_effect.get("type")
+
+    if effect_type == "win_streak_bonus":
+        bonus_per_streak = int(active_effect.get("bonus_per_streak", 0))
+        return current_streak * bonus_per_streak
+
+    if effect_type == "streak_reward":
+        target_streak = int(active_effect.get("target_streak", 0))
+        reward = int(active_effect.get("reward", 0))
+        if current_streak == target_streak:
+            return reward
+
+    return 0
+
+
+def grant_room_coin_lottery(room_state):
+    changed = False
+
+    for member in room_state["session_participants"].values():
+        if random.random() < 0.3:
+            profile = get_player_profile(member.id)
+            old_coins = profile.get("coins", 0)
+            new_coins = min(COIN_LIMIT, old_coins + 1)
+
+            if new_coins != old_coins:
+                profile["coins"] = new_coins
+                changed = True
+
+    if changed:
+        save_player_profiles(player_profiles)
+
+
+def update_win_streaks(winners, losers):
+    for user in winners:
+        profile = get_player_profile(user.id)
+        profile["win_streak"] = profile.get("win_streak", 0) + 1
+
+    for user in losers:
+        profile = get_player_profile(user.id)
+        profile["win_streak"] = 0
 
 
 def get_random_users(room_state):
@@ -1119,6 +1457,170 @@ class BadgeSelectView(discord.ui.View):
             self.add_item(select)
 
 
+class CoinMenuView(discord.ui.View):
+    def __init__(self, user):
+        super().__init__(timeout=60)
+        self.user = user
+
+    @discord.ui.button(
+        label="ガチャ",
+        style=discord.ButtonStyle.success,
+        row=0
+    )    
+    async def gacha_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.user.id:
+            await interaction.response.send_message("自分のメニューだけ操作できます", ephemeral=True)
+            return
+
+        coins = get_player_profile(self.user.id).get("coins", 0)
+
+        if coins < GACHA_COST:
+            await interaction.response.send_message("コインが足りません", ephemeral=True)
+            return
+
+        remove_coin(self.user.id, GACHA_COST)
+        save_player_profiles(player_profiles)
+
+        item = draw_gacha_item()
+        await apply_gacha_result(interaction.guild, self.user.id, item)
+
+        result_text = item["label"]
+
+        admin_channel = get_admin_channel(interaction.guild)
+        if admin_channel:
+            name = build_player_display(
+                interaction.user,
+                mention=False,
+                include_weapon=False,
+                include_badge=True,
+                include_rating=False,
+            )
+            await admin_channel.send(
+                f"【ガチャ結果】\n{name}\n→ {result_text}"
+            )
+
+        await interaction.response.send_message(
+            f"ガチャ結果\n→ {result_text}",
+            ephemeral=True
+        )
+
+    @discord.ui.button(
+        label="チケット一覧",
+        style=discord.ButtonStyle.primary,
+        row=0
+    )
+    async def ticket_list_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.user.id:
+            await interaction.response.send_message("自分のメニューだけ操作できます", ephemeral=True)
+            return
+
+        profile = get_player_profile(self.user.id)
+        tickets = profile.get("tickets", [])
+
+        lines = []
+        if tickets:
+            lines.append("保持チケット:")
+            for i, ticket in enumerate(tickets, start=1):
+                lines.append(f"{i}. {ticket.get('label', ticket.get('ticket_id', '不明'))}")
+        else:
+            lines.append("保持チケットはありません")
+
+        lines.append("")
+        lines.append(get_active_effect_text(self.user.id))
+
+        await interaction.response.send_message("\n".join(lines), ephemeral=True)
+
+    @discord.ui.button(
+        label="チケット使用",
+        style=discord.ButtonStyle.danger,
+        row=0
+    )
+    async def ticket_use_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.user.id:
+            await interaction.response.send_message("自分のメニューだけ操作できます", ephemeral=True)
+            return
+
+        profile = get_player_profile(self.user.id)
+        tickets = profile.get("tickets", [])
+
+        if profile.get("active_effect"):
+            await interaction.response.send_message(
+                "すでに効果中のチケットがあります\n\n" + get_active_effect_text(self.user.id),
+                ephemeral=True
+            )
+            return
+
+        if not tickets:
+            await interaction.response.send_message("使用できるチケットがありません", ephemeral=True)
+            return
+
+        options = []
+        for i, ticket in enumerate(tickets):
+            options.append(
+                discord.SelectOption(
+                    label=ticket.get("label", ticket.get("ticket_id", "不明"))[:100],
+                    value=str(i)
+                )
+            )
+
+        select = discord.ui.Select(
+            placeholder="使用するチケットを選択",
+            options=options,
+            min_values=1,
+            max_values=1
+        )
+
+        async def select_callback(select_interaction: discord.Interaction):
+            if select_interaction.user.id != self.user.id:
+                await select_interaction.response.send_message("自分のチケットだけ使用できます", ephemeral=True)
+                return
+
+            index = int(select.values[0])
+
+            profile = get_player_profile(self.user.id)
+            tickets = profile.get("tickets", [])
+
+            if index < 0 or index >= len(tickets):
+                await select_interaction.response.send_message("そのチケットは存在しません", ephemeral=True)
+                return
+
+            active_ticket = tickets.pop(index)
+            profile["tickets"] = tickets
+            profile["active_effect"] = active_ticket
+            save_player_profiles(player_profiles)
+
+            admin_channel = get_admin_channel(select_interaction.guild)
+            if admin_channel:
+                name = build_player_display(
+                    select_interaction.user,
+                    mention=False,
+                    include_weapon=False,
+                    include_badge=True,
+                    include_rating=False,
+                )
+                label = active_ticket.get("label", active_ticket.get("ticket_id", "不明"))
+
+                await admin_channel.send(
+                    f"【チケット使用】\n{name}\n→ {label}"
+                )
+
+            await select_interaction.response.send_message(
+                "チケットを使用しました\n\n" + get_active_effect_text(self.user.id),
+                ephemeral=True
+            )
+
+        select.callback = select_callback
+
+        view = discord.ui.View(timeout=60)
+        view.add_item(select)
+
+        await interaction.response.send_message(
+            "使用するチケットを選んでください",
+            view=view,
+            ephemeral=True
+        )
+
+
 class PlayerRegisterView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -1126,15 +1628,17 @@ class PlayerRegisterView(discord.ui.View):
     @discord.ui.button(
         label="プレイヤー登録",
         style=discord.ButtonStyle.primary,
-        custom_id="player_register_button"
+        custom_id="player_register_button",
+        row=0
     )
     async def register_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(PlayerRegisterModal())
 
     @discord.ui.button(
         label="バッジ設定",
-        style=discord.ButtonStyle.secondary,
-        custom_id="badge_select_button"
+        style=discord.ButtonStyle.primary,
+        custom_id="badge_select_button",
+        row=0
     )
     async def badge_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         profile = get_player_profile(interaction.user.id)
@@ -1147,6 +1651,42 @@ class PlayerRegisterView(discord.ui.View):
         await interaction.response.send_message(
             "表示するバッジを選択してください",
             view=BadgeSelectView(interaction.user),
+            ephemeral=True
+        )
+
+    @discord.ui.button(
+        label="コイン",
+        style=discord.ButtonStyle.success,
+        custom_id="coin_menu_button",
+        row=0
+    )
+    async def coin_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try_claim_passive_coin(interaction.user.id)
+        save_player_profiles(player_profiles)
+
+        profile = get_player_profile(interaction.user.id)
+        coins = profile.get("coins", 0)
+
+        text = (
+            f"現在 {coins} / {COIN_LIMIT} コインを持っています。どうしますか？\n\n"
+            f"{get_active_effect_text(interaction.user.id)}"
+        )
+
+        await interaction.response.send_message(
+            text,
+            view=CoinMenuView(interaction.user),
+            ephemeral=True
+        )
+
+    @discord.ui.button(
+        label="ヒストリー",
+        style=discord.ButtonStyle.primary,
+        custom_id="history_button",
+        row=0
+    )
+    async def history_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message(
+            "シーズン履歴は過去ランキングチャンネルで確認してください",
             ephemeral=True
         )
 
@@ -1528,11 +2068,12 @@ async def build_ranking_lines(guild):
     ranking_data.sort(key=lambda x: (-x[0], x[1]))
 
     if not ranking_data:
-        return ["【レートランキング】", "ランキング対象のメンバーがいません"]
+        return ["# 【レートランキング】", "ランキング対象のメンバーがいません"]
 
-    lines = ["【レートランキング】"]
+    lines = ["# 【レートランキング】"]
     for i, (rate, _, display_text) in enumerate(ranking_data, start=1):
-        lines.append(f"#{i} {display_text} - {rate}")
+        lines.append(f"# #{i} {display_text} - {rate}")
+
     return lines
 
 
@@ -1542,7 +2083,10 @@ async def delete_old_ranking_messages(guild):
         return
 
     async for msg in ranking_channel.history(limit=100):
-        if msg.author == bot.user and msg.content.startswith("【レートランキング】"):
+        if msg.author == bot.user and (
+            msg.content.startswith("【レートランキング】")
+            or msg.content.startswith("# 【レートランキング】")
+        ):
             try:
                 await msg.delete()
             except Exception:
@@ -1701,23 +2245,42 @@ def build_rating_update_lines(room_state, next_team_alpha, next_team_bravo, titl
         ordered_players = next_team_alpha + next_team_bravo
 
     last_rating_changes = room_state.get("last_rating_changes") or {}
+    detail_map = room_state.get("last_rating_detail") or {}
 
     for user in ordered_players:
-        old = last_rating_changes.get(str(user.id), ratings.get(str(user.id), DEFAULT_RATING))
-        new = ratings.get(str(user.id), DEFAULT_RATING)
+        uid = str(user.id)
 
-        lines.append(
-            build_player_display(
-                user,
-                mention=False,
-                include_weapon=False,
-                include_badge=True,
-                include_rating=False,
-                include_rate_change=True,
-                old_rating=old,
-                new_rating=new,
-            )
+        old = last_rating_changes.get(uid, ratings.get(uid, DEFAULT_RATING))
+        new = ratings.get(uid, DEFAULT_RATING)
+
+        detail = detail_map.get(uid)
+
+        name = build_player_display(
+            user,
+            mention=False,
+            include_weapon=False,
+            include_badge=True,
+            include_rating=False,
+            include_rate_change=False,
         )
+
+        if detail:
+            base = detail["base"]
+            final = detail["final"]
+
+            base_str = f"+{base}" if base >= 0 else f"{base}"
+            final_str = f"+{final}" if final >= 0 else f"{final}"
+
+            if base != final:
+                change_text = f"({base_str} → {final_str})"
+            else:
+                change_text = f"({final_str})"
+        else:
+            diff = new - old
+            diff_str = f"+{diff}" if diff >= 0 else f"{diff}"
+            change_text = f"({diff_str})"
+
+        lines.append(f"{name}: {old} → {new} {change_text}")
 
     lines.append("")
     lines.append("次回のチーム分け")
@@ -1767,21 +2330,80 @@ async def process_result(ctx, room_key, winner_num: int):
 
     match_k = get_match_k_factor(room_state)
 
+    room_state["last_profile_snapshots"] = {}
+    for user in team_alpha + team_bravo:
+        uid = str(user.id)
+        profile = get_player_profile(user.id)
+        room_state["last_profile_snapshots"][uid] = {
+            "win_streak": profile.get("win_streak", 0),
+            "active_effect": json.loads(json.dumps(profile.get("active_effect"))),
+            "tickets": json.loads(json.dumps(profile.get("tickets", []))),
+        }
+
+    if winner_num == 1:
+        winners = team_alpha
+        losers = team_bravo
+    else:
+        winners = team_bravo
+        losers = team_alpha
+
+    update_win_streaks(winners, losers)
+
     room_state["last_rating_changes"] = {}
+    room_state["last_rating_detail"] = {}
+
     for user in team_alpha + team_bravo:
         room_state["last_rating_changes"][str(user.id)] = ratings.get(str(user.id), DEFAULT_RATING)
 
     for user in team_alpha:
-        old = ratings.get(str(user.id), DEFAULT_RATING)
-        new = elo_update(old, avg_bravo, s_alpha, K=match_k) + PARTICIPATION_BONUS
-        ratings[str(user.id)] = new
+        uid = str(user.id)
+        old = ratings.get(uid, DEFAULT_RATING)
+
+        base_new = elo_update(old, avg_bravo, s_alpha, K=match_k)
+        base_change = base_new - old
+
+        multiplier = get_rate_multiplier(user.id)
+        after_effect = int(base_change * multiplier)
+
+        streak_bonus = get_win_streak_bonus(user.id) if user in winners else 0
+        final_change = after_effect + PARTICIPATION_BONUS + streak_bonus
+
+        new = old + final_change
+        ratings[uid] = new
+
+        room_state["last_rating_detail"][uid] = {
+            "base": base_change,
+            "final": final_change,
+            "multiplier": multiplier,
+        }
 
     for user in team_bravo:
-        old = ratings.get(str(user.id), DEFAULT_RATING)
-        new = elo_update(old, avg_alpha, s_bravo, K=match_k) + PARTICIPATION_BONUS
-        ratings[str(user.id)] = new
+        uid = str(user.id)
+        old = ratings.get(uid, DEFAULT_RATING)
+
+        base_new = elo_update(old, avg_alpha, s_bravo, K=match_k)
+        base_change = base_new - old
+
+        multiplier = get_rate_multiplier(user.id)
+        after_effect = int(base_change * multiplier)
+
+        streak_bonus = get_win_streak_bonus(user.id) if user in winners else 0
+        final_change = after_effect + PARTICIPATION_BONUS + streak_bonus
+
+        new = old + final_change
+        ratings[uid] = new
+
+        room_state["last_rating_detail"][uid] = {
+            "base": base_change,
+            "final": final_change,
+            "multiplier": multiplier,
+        }
+
+    for user in team_alpha + team_bravo:
+        consume_active_effect_match(user.id)
 
     save_ratings(ratings)
+    save_player_profiles(player_profiles)
 
     room_state["prepared_match"] = make_teams_from_choices(room_state)
     next_team_alpha, next_team_bravo = room_state["prepared_match"]
@@ -1799,10 +2421,11 @@ async def process_result(ctx, room_key, winner_num: int):
     await ctx.send("\n".join(lines))
     await ctx.send(create_finished_prompt())
 
-
 async def end_room(ctx, room_key):
     room_state = room_states[room_key]
     summary_text = create_room_summary_text(room_state)
+
+    grant_room_coin_lottery(room_state)
 
     await disable_room_messages(room_state)
     await move_members_to_lobby(ctx.guild, room_key, room_state)
@@ -1814,8 +2437,7 @@ async def end_room(ctx, room_key):
     if summary_text:
         await ctx.send(summary_text)
     await ctx.send("部屋作成をやめました。次の募集をするときは !部屋作成 を使ってね")
-
-
+    
 async def start_disconnect_vote(ctx, room_key, member):
     room_state = room_states[room_key]
 
@@ -1849,6 +2471,9 @@ async def apply_disconnect_rating_change(ctx, room_key, member):
     all_players = team_alpha + team_bravo
 
     room_state["last_rating_changes"] = {}
+    room_state["last_rating_detail"] = None
+    room_state["last_profile_snapshots"] = None
+
     for user in all_players:
         room_state["last_rating_changes"][str(user.id)] = ratings.get(str(user.id), DEFAULT_RATING)
 
@@ -1921,9 +2546,22 @@ async def undo_result(ctx, room_key):
     for user_id, old_rate in room_state["last_rating_changes"].items():
         ratings[user_id] = old_rate
 
+    snapshots = room_state.get("last_profile_snapshots") or {}
+    for user_id, snapshot in snapshots.items():
+        profile = get_player_profile(int(user_id))
+        profile["win_streak"] = snapshot.get("win_streak", 0)
+        profile["active_effect"] = snapshot.get("active_effect")
+        profile["tickets"] = snapshot.get("tickets", [])
+
     save_ratings(ratings)
+    save_player_profiles(player_profiles)
+
     room_state["last_rating_changes"] = None
+    room_state["last_rating_detail"] = None
+    room_state["last_profile_snapshots"] = None
     room_state["prepared_match"] = None
+    room_state["disconnect_vote"] = None
+    room_state["disconnect_vote_message"] = None
     room_state["game_state"] = "playing"
 
     await ctx.send("試合結果を訂正しました")
@@ -2371,6 +3009,211 @@ async def process_bulk_profile_edit_message(message: discord.Message):
     return True
 
 
+async def process_bulk_admin_message(message: discord.Message):
+    guild = message.guild
+    if guild is None:
+        return False
+
+    waiting_user_id = bulk_admin_waiting.get(guild.id)
+    if waiting_user_id != message.author.id:
+        return False
+
+    content = message.content.strip()
+
+    if not content:
+        bulk_admin_waiting.pop(guild.id, None)
+        await message.channel.send("入力が空だったので運営一括モードを終了しました。")
+        return True
+
+    if content in ("キャンセル", "中止", "!キャンセル", "!中止"):
+        bulk_admin_waiting.pop(guild.id, None)
+        await message.channel.send("運営一括モードを終了しました。")
+        return True
+
+    success_lines = []
+    error_lines = []
+    changed_profiles = False
+    changed_ratings = False
+
+    for line_no, raw_line in enumerate(content.splitlines(), start=1):
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        parts = line.split()
+        if len(parts) < 2:
+            error_lines.append(f"{line_no}行目: 形式が違います -> {line}")
+            continue
+
+        user_id_text = parts[0]
+        command_name = parts[1]
+        args = parts[2:]
+
+        if not user_id_text.isdigit():
+            error_lines.append(f"{line_no}行目: ユーザーIDが数字ではありません -> {line}")
+            continue
+
+        user_id = int(user_id_text)
+        profile = get_player_profile(user_id)
+
+        if command_name == "武器":
+            if not args:
+                error_lines.append(f"{line_no}行目: 武器名がありません -> {line}")
+                continue
+            profile["weapon"] = " ".join(args)
+            changed_profiles = True
+            success_lines.append(line)
+
+        elif command_name == "武器削除":
+            profile["weapon"] = None
+            changed_profiles = True
+            success_lines.append(line)
+
+        elif command_name == "バッジ付与":
+            if len(args) != 1:
+                error_lines.append(f"{line_no}行目: バッジIDを1つ指定してください -> {line}")
+                continue
+            badge_id = args[0]
+            if badge_id not in BADGE_DEFINITIONS:
+                error_lines.append(f"{line_no}行目: 存在しないバッジIDです -> {line}")
+                continue
+            if badge_id not in profile["owned_badges"]:
+                profile["owned_badges"].append(badge_id)
+            changed_profiles = True
+            success_lines.append(line)
+
+        elif command_name == "バッジ削除":
+            if len(args) != 1:
+                error_lines.append(f"{line_no}行目: バッジIDを1つ指定してください -> {line}")
+                continue
+            badge_id = args[0]
+            if badge_id not in BADGE_DEFINITIONS:
+                error_lines.append(f"{line_no}行目: 存在しないバッジIDです -> {line}")
+                continue
+            if badge_id in profile["owned_badges"]:
+                profile["owned_badges"].remove(badge_id)
+            if profile.get("selected_badge") == badge_id:
+                profile["selected_badge"] = None
+            changed_profiles = True
+            success_lines.append(line)
+
+        elif command_name == "バッジ強制付与":
+            if len(args) != 1:
+                error_lines.append(f"{line_no}行目: バッジIDを1つ指定してください -> {line}")
+                continue
+            badge_id = args[0]
+            if badge_id not in BADGE_DEFINITIONS:
+                error_lines.append(f"{line_no}行目: 存在しないバッジIDです -> {line}")
+                continue
+            if badge_id not in profile["owned_badges"]:
+                profile["owned_badges"].append(badge_id)
+            profile["selected_badge"] = badge_id
+            changed_profiles = True
+            success_lines.append(line)
+
+        elif command_name == "レート":
+            if len(args) != 1 or not args[0].lstrip("-").isdigit():
+                error_lines.append(f"{line_no}行目: レート値が不正です -> {line}")
+                continue
+            new_rating = int(args[0])
+            if new_rating < 0:
+                error_lines.append(f"{line_no}行目: レートは0以上にしてください -> {line}")
+                continue
+            ratings[str(user_id)] = new_rating
+            changed_ratings = True
+            success_lines.append(line)
+
+        elif command_name == "初期補正付与":
+            if args:
+                error_lines.append(f"{line_no}行目: 余分な入力があります -> {line}")
+                continue
+            profile["can_apply_initial_bonus"] = True
+            profile["initial_applied"] = False
+            changed_profiles = True
+            success_lines.append(line)
+
+        elif command_name == "初期補正剥奪":
+            if args:
+                error_lines.append(f"{line_no}行目: 余分な入力があります -> {line}")
+                continue
+            profile["can_apply_initial_bonus"] = False
+            changed_profiles = True
+            success_lines.append(line)
+
+        elif command_name == "コイン":
+            if len(args) != 1 or not args[0].isdigit():
+                error_lines.append(f"{line_no}行目: コイン数が不正です -> {line}")
+                continue
+            coins = int(args[0])
+            if coins > COIN_LIMIT:
+                coins = COIN_LIMIT
+            profile["coins"] = coins
+            changed_profiles = True
+            success_lines.append(f"{user_id} コイン {coins}")
+
+        elif command_name == "チケット付与":
+            if not args:
+                error_lines.append(f"{line_no}行目: チケットIDがありません -> {line}")
+                continue
+
+            for ticket_id in args:
+                if ticket_id not in TICKET_DEFINITIONS:
+                    error_lines.append(f"{line_no}行目: 存在しないチケットIDです -> {ticket_id}")
+                    break
+            else:
+                tickets = profile.get("tickets", [])
+                for ticket_id in args:
+                    if len(tickets) >= TICKET_LIMIT:
+                        tickets.pop(0)
+                    tickets.append(build_ticket_instance(ticket_id))
+                profile["tickets"] = tickets
+                changed_profiles = True
+                success_lines.append(line)
+                continue
+
+        else:
+            error_lines.append(f"{line_no}行目: 未対応コマンドです -> {command_name}")
+
+    if changed_profiles:
+        save_player_profiles(player_profiles)
+    if changed_ratings:
+        save_ratings(ratings)
+
+    bulk_admin_waiting.pop(guild.id, None)
+
+    lines = ["【運営一括結果】"]
+
+    if success_lines:
+        lines.append("")
+        lines.append("【成功】")
+        lines.extend(success_lines)
+
+    if error_lines:
+        lines.append("")
+        lines.append("【失敗】")
+        lines.extend(error_lines)
+
+    if not success_lines and not error_lines:
+        lines.append("有効な入力がありませんでした。")
+
+    text = "\n".join(lines)
+
+    if len(text) <= 1900:
+        await message.channel.send(text)
+    else:
+        chunk = ""
+        for line in lines:
+            if len(chunk) + len(line) + 1 > 1900:
+                await message.channel.send(chunk)
+                chunk = line
+            else:
+                chunk += ("\n" if chunk else "") + line
+        if chunk:
+            await message.channel.send(chunk)
+
+    return True
+
+
 # =========================
 # コマンド
 # =========================
@@ -2393,6 +3236,10 @@ async def on_message(message):
         return
 
     handled = await process_bulk_profile_edit_message(message)
+    if handled:
+        return
+
+    handled = await process_bulk_admin_message(message)
     if handled:
         return
 
@@ -2446,6 +3293,12 @@ async def command_three(ctx):
 
 @bot.command(name="ランキング")
 async def ランキング(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if not await ensure_admin_channel(ctx):
+        return
+
     await post_ranking(ctx.guild)
     await ctx.send("ランキングを更新しました。")
 
@@ -2453,6 +3306,8 @@ async def ランキング(ctx):
 async def weapon_list(ctx):
     if ctx.author.id != OWNER_ID:
         await ctx.send("管理者専用です")
+        return
+    if not await ensure_admin_channel(ctx):
         return
 
     try:
@@ -2498,6 +3353,8 @@ async def weapon_list(ctx):
 async def xp_list(ctx):
     if ctx.author.id != OWNER_ID:
         await ctx.send("管理者専用です")
+        return
+    if not await ensure_admin_channel(ctx):
         return
 
     try:
@@ -2747,6 +3604,8 @@ async def bulk_change_rate_mode(ctx):
     if ctx.author.id != OWNER_ID:
         await ctx.send("このコマンドは管理者専用です。")
         return
+    if not await ensure_admin_channel(ctx):
+        return
 
     bulk_rate_change_waiting[ctx.guild.id] = ctx.author.id
     await ctx.send(
@@ -2766,6 +3625,8 @@ async def reset_all_rates(ctx):
     if ctx.author.id != OWNER_ID:
         await ctx.send("このコマンドは管理者専用です。")
         return
+    if not await ensure_admin_channel(ctx):
+        return
 
     members = await get_human_members(ctx.guild)
 
@@ -2774,6 +3635,11 @@ async def reset_all_rates(ctx):
         profile = get_player_profile(member.id)
         profile["initial_applied"] = False
         profile["can_apply_initial_bonus"] = True
+        profile["coins"] = 0
+        profile["tickets"] = []
+        profile["active_effect"] = None
+        profile["next_coin_at"] = None
+        profile["win_streak"] = 0
 
     save_ratings(ratings)
     save_player_profiles(player_profiles)
@@ -2794,6 +3660,8 @@ async def reset_all_rates(ctx):
 async def grant_all_initial_bonus_permission(ctx):
     if ctx.author.id != OWNER_ID:
         await ctx.send("管理者専用です")
+        return
+    if not await ensure_admin_channel(ctx):
         return
 
     members = [m for m in ctx.guild.members if not m.bot]
@@ -2822,6 +3690,8 @@ async def revoke_all_initial_bonus_permission(ctx):
     if ctx.author.id != OWNER_ID:
         await ctx.send("管理者専用です")
         return
+    if not await ensure_admin_channel(ctx):
+        return
 
     members = [m for m in ctx.guild.members if not m.bot]
     if not members:
@@ -2848,6 +3718,8 @@ async def grant_initial_bonus_permission_command(ctx, user_id: int):
     if ctx.author.id != OWNER_ID:
         await ctx.send("管理者専用です")
         return
+    if not await ensure_admin_channel(ctx):
+        return
 
     profile = get_player_profile(user_id)
     profile["can_apply_initial_bonus"] = True
@@ -2863,6 +3735,8 @@ async def revoke_initial_bonus_permission_command(ctx, user_id: int):
     if ctx.author.id != OWNER_ID:
         await ctx.send("管理者専用です")
         return
+    if not await ensure_admin_channel(ctx):
+        return
 
     profile = get_player_profile(user_id)
     profile["can_apply_initial_bonus"] = False
@@ -2877,14 +3751,45 @@ async def update_register_message(ctx):
     if ctx.author.id != OWNER_ID:
         await ctx.send("管理者専用です")
         return
+    if not await ensure_admin_channel(ctx):
+        return
 
     await post_player_register_message(ctx.guild)
     await ctx.send("プレイヤー登録メッセージを更新しました")
+
+
+@bot.command(name="運営一括")
+async def bulk_admin_mode(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if not await ensure_admin_channel(ctx):
+        return
+
+    bulk_admin_waiting[ctx.guild.id] = ctx.author.id
+
+    await ctx.send(
+        "運営一括モードに入りました。\n"
+        "次の1メッセージで、1行に1人ずつ\n"
+        "ユーザーID コマンド 内容\n"
+        "の形式で送ってください。\n\n"
+        "例:\n"
+        "123456789012345678 武器 スシ\n"
+        "123456789012345678 バッジ付与 yuta\n"
+        "123456789012345678 バッジ強制付与 yuta\n"
+        "123456789012345678 レート 2700\n"
+        "123456789012345678 初期補正付与\n"
+        "123456789012345678 コイン 3\n"
+        "123456789012345678 チケット付与 rate_x1_2_10 win_bonus_1_15\n\n"
+        "やめるときは キャンセル と送ってください。"
+    )
 
 @bot.command(name="ユーザーID一覧")
 async def user_id_list(ctx):
     if ctx.author.id != OWNER_ID:
         await ctx.send("管理者専用です")
+        return
+    if not await ensure_admin_channel(ctx):
         return
 
     try:
@@ -2903,6 +3808,93 @@ async def user_id_list(ctx):
     lines = ["【ユーザーID一覧】"]
     for member in human_members:
         lines.append(f"{member.display_name} {member.id}")
+
+    text = "\n".join(lines)
+
+    if len(text) <= 1900:
+        await ctx.send(text)
+    else:
+        chunk = ""
+        for line in lines:
+            if len(chunk) + len(line) + 1 > 1900:
+                await ctx.send(chunk)
+                chunk = line
+            else:
+                chunk += ("\n" if chunk else "") + line
+        if chunk:
+            await ctx.send(chunk)
+
+
+@bot.command(name="運営一覧")
+async def admin_dump(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if not await ensure_admin_channel(ctx):
+        return
+
+    try:
+        members = [member async for member in ctx.guild.fetch_members(limit=None)]
+    except Exception:
+        members = ctx.guild.members
+
+    human_members = [m for m in members if not m.bot]
+
+    if not human_members:
+        await ctx.send("プレイヤーがいません")
+        return
+
+    human_members.sort(key=lambda m: m.display_name.lower())
+
+    lines = []
+
+    for member in human_members:
+        uid = str(member.id)
+        profile = get_player_profile(member.id)
+
+        weapon = profile.get("weapon")
+        if weapon:
+            lines.append(f"{uid} 武器 {weapon}")
+        else:
+            lines.append(f"{uid} 武器削除")
+
+        owned_badges = profile.get("owned_badges", [])
+        selected_badge = profile.get("selected_badge")
+
+        for badge_id in owned_badges:
+            lines.append(f"{uid} バッジ付与 {badge_id}")
+
+        if selected_badge:
+            lines.append(f"{uid} バッジ強制付与 {selected_badge}")
+
+        rate = ratings.get(uid, DEFAULT_RATING)
+        lines.append(f"{uid} レート {rate}")
+
+        if profile.get("can_apply_initial_bonus", True):
+            lines.append(f"{uid} 初期補正付与")
+        else:
+            lines.append(f"{uid} 初期補正剥奪")
+
+        coins = profile.get("coins", 0)
+        lines.append(f"{uid} コイン {coins}")
+
+        ticket_ids = []
+
+        for ticket in profile.get("tickets", []):
+            ticket_id = ticket.get("ticket_id")
+            if ticket_id:
+                ticket_ids.append(ticket_id)
+
+        active_effect = profile.get("active_effect")
+        if active_effect and active_effect.get("ticket_id"):
+            ticket_ids.append(active_effect.get("ticket_id"))
+
+        if ticket_ids:
+            lines.append(f"{uid} チケット付与 " + " ".join(ticket_ids))
+
+    if not lines:
+        await ctx.send("出力対象がありません")
+        return
 
     text = "\n".join(lines)
 
