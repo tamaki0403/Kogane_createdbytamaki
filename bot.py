@@ -622,7 +622,7 @@ async def apply_gacha_result(guild, user_id: int, item):
 
 # <:Tobuze:1494883064806113430>「漲る呪力（ボーナス）でトぶぜ」
 
-レート +10
+# レート +10
 
 ランダムで{bonus_count}人にも同じ効果
 
@@ -2062,7 +2062,7 @@ async def build_ranking_lines(guild):
 
     lines = ["# 【レートランキング】"]
     for i, (rate, _, display_text) in enumerate(ranking_data, start=1):
-        lines.append(f"# #{i} {display_text} - {rate}")
+        lines.append(f"## #{i} {display_text} - {rate}")
 
     return lines
 
