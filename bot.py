@@ -3059,6 +3059,20 @@ async def process_bulk_admin_message(message: discord.Message):
             changed_profiles = True
             success_lines.append(line)
 
+        elif command_name == "XP":
+            if len(args) != 1 or not args[0].isdigit():
+                error_lines.append(f"{line_no}行目: XPが不正です -> {line}")
+                continue
+            xp = int(args[0])
+            profile["xp"] = xp
+            changed_profiles = True
+            success_lines.append(line)
+
+        elif command_name == "XP削除":
+            profile["xp"] = None
+            changed_profiles = True
+            success_lines.append(line)
+
         elif command_name == "バッジ付与":
             if len(args) != 1:
                 error_lines.append(f"{line_no}行目: バッジIDを1つ指定してください -> {line}")
@@ -3765,6 +3779,8 @@ async def bulk_admin_mode(ctx):
         "の形式で送ってください。\n\n"
         "例:\n"
         "123456789012345678 武器 スシ\n"
+        "123456789012345678 XP 2500\n"
+        "123456789012345678 XP削除\n"
         "123456789012345678 バッジ付与 yuta\n"
         "123456789012345678 バッジ強制付与 yuta\n"
         "123456789012345678 レート 2700\n"
@@ -3815,8 +3831,8 @@ async def user_id_list(ctx):
             await ctx.send(chunk)
 
 
-@bot.command(name="運営一覧")
-async def admin_dump(ctx):
+@bot.command(name="運営一覧1")
+async def admin_dump_1(ctx):
     if ctx.author.id != OWNER_ID:
         await ctx.send("管理者専用です")
         return
@@ -3829,11 +3845,6 @@ async def admin_dump(ctx):
         members = ctx.guild.members
 
     human_members = [m for m in members if not m.bot]
-
-    if not human_members:
-        await ctx.send("プレイヤーがいません")
-        return
-
     human_members.sort(key=lambda m: m.display_name.lower())
 
     lines = []
@@ -3843,30 +3854,185 @@ async def admin_dump(ctx):
         profile = get_player_profile(member.id)
 
         weapon = profile.get("weapon")
+        xp = profile.get("xp")
+
         if weapon:
             lines.append(f"{uid} 武器 {weapon}")
-        else:
-            lines.append(f"{uid} 武器削除")
+        if xp is not None:
+            lines.append(f"{uid} XP {xp}")
 
-        owned_badges = profile.get("owned_badges", [])
-        selected_badge = profile.get("selected_badge")
+    if not lines:
+        await ctx.send("出力対象がありません")
+        return
 
-        for badge_id in owned_badges:
+    text = "\n".join(lines)
+    if len(text) <= 1900:
+        await ctx.send(text)
+    else:
+        chunk = ""
+        for line in lines:
+            if len(chunk) + len(line) + 1 > 1900:
+                await ctx.send(chunk)
+                chunk = line
+            else:
+                chunk += ("\n" if chunk else "") + line
+        if chunk:
+            await ctx.send(chunk)
+
+
+@bot.command(name="運営一覧2")
+async def admin_dump_2(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if not await ensure_admin_channel(ctx):
+        return
+
+    try:
+        members = [member async for member in ctx.guild.fetch_members(limit=None)]
+    except Exception:
+        members = ctx.guild.members
+
+    human_members = [m for m in members if not m.bot]
+    human_members.sort(key=lambda m: m.display_name.lower())
+
+    lines = []
+
+    for member in human_members:
+        uid = str(member.id)
+        profile = get_player_profile(member.id)
+
+        for badge_id in profile.get("owned_badges", []):
             lines.append(f"{uid} バッジ付与 {badge_id}")
 
+    if not lines:
+        await ctx.send("出力対象がありません")
+        return
+
+    text = "\n".join(lines)
+    if len(text) <= 1900:
+        await ctx.send(text)
+    else:
+        chunk = ""
+        for line in lines:
+            if len(chunk) + len(line) + 1 > 1900:
+                await ctx.send(chunk)
+                chunk = line
+            else:
+                chunk += ("\n" if chunk else "") + line
+        if chunk:
+            await ctx.send(chunk)
+
+
+@bot.command(name="運営一覧3")
+async def admin_dump_3(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if not await ensure_admin_channel(ctx):
+        return
+
+    try:
+        members = [member async for member in ctx.guild.fetch_members(limit=None)]
+    except Exception:
+        members = ctx.guild.members
+
+    human_members = [m for m in members if not m.bot]
+    human_members.sort(key=lambda m: m.display_name.lower())
+
+    lines = []
+
+    for member in human_members:
+        uid = str(member.id)
+        profile = get_player_profile(member.id)
+
+        selected_badge = profile.get("selected_badge")
         if selected_badge:
             lines.append(f"{uid} バッジ強制付与 {selected_badge}")
 
-        rate = ratings.get(uid, DEFAULT_RATING)
-        lines.append(f"{uid} レート {rate}")
+    if not lines:
+        await ctx.send("出力対象がありません")
+        return
 
-        if profile.get("can_apply_initial_bonus", True):
-            lines.append(f"{uid} 初期補正付与")
-        else:
-            lines.append(f"{uid} 初期補正剥奪")
+    text = "\n".join(lines)
+    if len(text) <= 1900:
+        await ctx.send(text)
+    else:
+        chunk = ""
+        for line in lines:
+            if len(chunk) + len(line) + 1 > 1900:
+                await ctx.send(chunk)
+                chunk = line
+            else:
+                chunk += ("\n" if chunk else "") + line
+        if chunk:
+            await ctx.send(chunk)
 
+
+@bot.command(name="運営一覧4")
+async def admin_dump_4(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if not await ensure_admin_channel(ctx):
+        return
+
+    try:
+        members = [member async for member in ctx.guild.fetch_members(limit=None)]
+    except Exception:
+        members = ctx.guild.members
+
+    human_members = [m for m in members if not m.bot]
+    human_members.sort(key=lambda m: m.display_name.lower())
+
+    lines = []
+
+    for member in human_members:
+        uid = str(member.id)
+        profile = get_player_profile(member.id)
         coins = profile.get("coins", 0)
         lines.append(f"{uid} コイン {coins}")
+
+    if not lines:
+        await ctx.send("出力対象がありません")
+        return
+
+    text = "\n".join(lines)
+    if len(text) <= 1900:
+        await ctx.send(text)
+    else:
+        chunk = ""
+        for line in lines:
+            if len(chunk) + len(line) + 1 > 1900:
+                await ctx.send(chunk)
+                chunk = line
+            else:
+                chunk += ("\n" if chunk else "") + line
+        if chunk:
+            await ctx.send(chunk)
+
+
+@bot.command(name="運営一覧5")
+async def admin_dump_5(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if not await ensure_admin_channel(ctx):
+        return
+
+    try:
+        members = [member async for member in ctx.guild.fetch_members(limit=None)]
+    except Exception:
+        members = ctx.guild.members
+
+    human_members = [m for m in members if not m.bot]
+    human_members.sort(key=lambda m: m.display_name.lower())
+
+    lines = []
+
+    for member in human_members:
+        uid = str(member.id)
+        profile = get_player_profile(member.id)
 
         ticket_ids = []
 
@@ -3887,7 +4053,48 @@ async def admin_dump(ctx):
         return
 
     text = "\n".join(lines)
+    if len(text) <= 1900:
+        await ctx.send(text)
+    else:
+        chunk = ""
+        for line in lines:
+            if len(chunk) + len(line) + 1 > 1900:
+                await ctx.send(chunk)
+                chunk = line
+            else:
+                chunk += ("\n" if chunk else "") + line
+        if chunk:
+            await ctx.send(chunk)
 
+
+@bot.command(name="運営一覧6")
+async def admin_dump_6(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if not await ensure_admin_channel(ctx):
+        return
+
+    try:
+        members = [member async for member in ctx.guild.fetch_members(limit=None)]
+    except Exception:
+        members = ctx.guild.members
+
+    human_members = [m for m in members if not m.bot]
+    human_members.sort(key=lambda m: m.display_name.lower())
+
+    lines = []
+
+    for member in human_members:
+        uid = str(member.id)
+        rate = ratings.get(uid, DEFAULT_RATING)
+        lines.append(f"{uid} レート {rate}")
+
+    if not lines:
+        await ctx.send("出力対象がありません")
+        return
+
+    text = "\n".join(lines)
     if len(text) <= 1900:
         await ctx.send(text)
     else:
