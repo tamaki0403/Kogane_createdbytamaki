@@ -1636,7 +1636,7 @@ class PlayerRegisterView(discord.ui.View):
 
     @discord.ui.button(
         label="バッジ設定",
-        style=discord.ButtonStyle.primary,
+        style=discord.ButtonStyle.danger,
         custom_id="badge_select_button",
         row=0
     )
@@ -1678,17 +1678,7 @@ class PlayerRegisterView(discord.ui.View):
             ephemeral=True
         )
 
-    @discord.ui.button(
-        label="ヒストリー",
-        style=discord.ButtonStyle.primary,
-        custom_id="history_button",
-        row=0
-    )
-    async def history_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message(
-            "シーズン履歴は過去ランキングチャンネルで確認してください",
-            ephemeral=True
-        )
+
 
 async def post_player_register_message(guild):
     channel = get_player_register_channel(guild)
