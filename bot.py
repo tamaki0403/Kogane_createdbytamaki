@@ -1,21 +1,24 @@
 import os
 import json
 import random
+import math
 import discord
 from discord.ext import commands
 
 # =========================
 # ファイルパス / 環境変数
 # =========================
-BASE_DIR = os.path.dirname(os.path.abspath(__file__)
-RATINGS_FILE = os.path.join(BASE_DIR, "ratings.json")
-PLAYER_PROFILES_FILE = os.path.join(BASE_DIR, "player_profiles.json")
+DATA_DIR = "/data"
+os.makedirs(DATA_DIR, exist_ok=True)
+
+RATINGS_FILE = os.path.join(DATA_DIR, "ratings.json")
+PLAYER_PROFILES_FILE = os.path.join(DATA_DIR, "player_profiles.json")
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 # =========================
 # Bot状態（追加）
 # =========================
-BOT_STATE_FILE = os.path.join(BASE_DIR, "bot_state.json")
+BOT_STATE_FILE = os.path.join(DATA_DIR, "bot_state.json")
 
 def load_bot_state():
     try:
@@ -132,12 +135,46 @@ K_TABLE = {
 # =========================
 # レート関連
 # =========================
+
+GLICKO2_SCALE = 173.7178
+DEFAULT_RD = 350.0
+DEFAULT_VOLATILITY = 0.06
+TAU = 0.5
+EPSILON = 0.000001
+
+
 def load_ratings():
     try:
         with open(RATINGS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
     except Exception:
         return {}
+
+    normalized = {}
+
+    for uid, value in data.items():
+        # 旧形式: "123": 2500
+        if isinstance(value, int) or isinstance(value, float):
+            normalized[uid] = {
+                "rating": float(value),
+                "rd": DEFAULT_RD,
+                "volatility": DEFAULT_VOLATILITY,
+            }
+        # 新形式: "123": {"rating": ..., "rd": ..., "volatility": ...}
+        elif isinstance(value, dict):
+            normalized[uid] = {
+                "rating": float(value.get("rating", DEFAULT_RATING)),
+                "rd": float(value.get("rd", DEFAULT_RD)),
+                "volatility": float(value.get("volatility", DEFAULT_VOLATILITY)),
+            }
+        else:
+            normalized[uid] = {
+                "rating": float(DEFAULT_RATING),
+                "rd": DEFAULT_RD,
+                "volatility": DEFAULT_VOLATILITY,
+            }
+
+    return normalized
 
 
 def save_ratings(ratings_data):
@@ -145,9 +182,156 @@ def save_ratings(ratings_data):
         json.dump(ratings_data, f, indent=2, ensure_ascii=False)
 
 
-def elo_update(rA, rB, scoreA, K=K_FACTOR):
-    expected_a = 1 / (1 + 10 ** ((rB - rA) / 400))
-    return int(rA + K * (scoreA - expected_a))
+def get_rating_entry(user_id: int | str):
+    uid = str(user_id)
+
+    entry = ratings.get(uid)
+
+    # ① データが存在しない場合
+    if entry is None:
+        entry = {
+            "rating": float(DEFAULT_RATING),
+            "rd": DEFAULT_RD,
+            "volatility": DEFAULT_VOLATILITY,
+        }
+        ratings[uid] = entry
+
+    # ② 旧データ（int/float）の場合 → 変換
+    elif isinstance(entry, (int, float)):
+        entry = {
+            "rating": float(entry),
+            "rd": DEFAULT_RD,
+            "volatility": DEFAULT_VOLATILITY,
+        }
+        ratings[uid] = entry
+
+    # ③ dictだけど欠損がある場合
+    else:
+        if "rating" not in entry:
+            entry["rating"] = float(DEFAULT_RATING)
+        if "rd" not in entry:
+            entry["rd"] = DEFAULT_RD
+        if "volatility" not in entry:
+            entry["volatility"] = DEFAULT_VOLATILITY
+
+    return entry
+
+
+def get_user_rating(user_id: int | str):
+    return int(round(get_rating_entry(user_id)["rating"]))
+
+
+def set_user_rating(user_id: int | str, new_rating: float):
+    entry = get_rating_entry(user_id)
+    entry["rating"] = float(new_rating)
+
+
+def get_user_rd(user_id: int | str):
+    return float(get_rating_entry(user_id)["rd"])
+
+
+def set_user_rd(user_id: int | str, new_rd: float):
+    entry = get_rating_entry(user_id)
+    entry["rd"] = float(new_rd)
+
+
+def get_user_volatility(user_id: int | str):
+    return float(get_rating_entry(user_id)["volatility"])
+
+
+def set_user_volatility(user_id: int | str, new_volatility: float):
+    entry = get_rating_entry(user_id)
+    entry["volatility"] = float(new_volatility)
+
+
+def _g(phi: float) -> float:
+    return 1.0 / math.sqrt(1.0 + 3.0 * (phi ** 2) / (math.pi ** 2))
+
+
+def _E(mu: float, mu_j: float, phi_j: float) -> float:
+    return 1.0 / (1.0 + math.exp(-_g(phi_j) * (mu - mu_j)))
+
+
+def _f(x: float, delta: float, phi: float, v: float, a: float, tau: float) -> float:
+    exp_x = math.exp(x)
+    numerator = exp_x * (delta ** 2 - phi ** 2 - v - exp_x)
+    denominator = 2.0 * ((phi ** 2 + v + exp_x) ** 2)
+    return (numerator / denominator) - ((x - a) / (tau ** 2))
+
+
+def glicko2_update(rating: float, rd: float, volatility: float, matches: list):
+    if not matches:
+        phi = rd / GLICKO2_SCALE
+        phi_star = math.sqrt(phi ** 2 + volatility ** 2)
+        return rating, phi_star * GLICKO2_SCALE, volatility
+
+    mu = (rating - 1500.0) / GLICKO2_SCALE
+    phi = rd / GLICKO2_SCALE
+
+    converted = []
+    for opp_rating, opp_rd, score in matches:
+        mu_j = (opp_rating - 1500.0) / GLICKO2_SCALE
+        phi_j = opp_rd / GLICKO2_SCALE
+        converted.append((mu_j, phi_j, score))
+
+    v_inv = 0.0
+    for mu_j, phi_j, _score in converted:
+        e_val = _E(mu, mu_j, phi_j)
+        g_val = _g(phi_j)
+        v_inv += (g_val ** 2) * e_val * (1.0 - e_val)
+    v = 1.0 / v_inv
+
+    delta_sum = 0.0
+    for mu_j, phi_j, score in converted:
+        g_val = _g(phi_j)
+        e_val = _E(mu, mu_j, phi_j)
+        delta_sum += g_val * (score - e_val)
+    delta = v * delta_sum
+
+    a = math.log(volatility ** 2)
+    A = a
+
+    if delta ** 2 > phi ** 2 + v:
+        B = math.log(delta ** 2 - phi ** 2 - v)
+    else:
+        k = 1
+        while _f(a - k * TAU, delta, phi, v, a, TAU) < 0:
+            k += 1
+        B = a - k * TAU
+
+    fA = _f(A, delta, phi, v, a, TAU)
+    fB = _f(B, delta, phi, v, a, TAU)
+
+    while abs(B - A) > EPSILON:
+        C = A + (A - B) * fA / (fB - fA)
+        fC = _f(C, delta, phi, v, a, TAU)
+
+        if fC * fB < 0:
+            A = B
+            fA = fB
+        else:
+            fA /= 2.0
+
+        B = C
+        fB = fC
+
+    new_volatility = math.exp(A / 2.0)
+
+    phi_star = math.sqrt(phi ** 2 + new_volatility ** 2)
+    new_phi = 1.0 / math.sqrt((1.0 / (phi_star ** 2)) + (1.0 / v))
+
+    sum_term = 0.0
+    for mu_j, phi_j, score in converted:
+        g_val = _g(phi_j)
+        e_val = _E(mu, mu_j, phi_j)
+        sum_term += g_val * (score - e_val)
+
+    new_mu = mu + (new_phi ** 2) * sum_term
+
+    new_rating = 1500.0 + GLICKO2_SCALE * new_mu
+    new_rd = GLICKO2_SCALE * new_phi
+
+    return new_rating, new_rd, new_volatility
 
 
 ratings = load_ratings()
@@ -164,23 +348,24 @@ def get_sorted_rating_user_ids():
         user_id
         for user_id, _ in sorted(
             ratings.items(),
-            key=lambda x: (-x[1], x[0])
+            key=lambda x: (-x[1]["rating"], x[0])
         )
     ]
-
 
 def get_user_rank(user_id: int):
     target_id = str(user_id)
 
     sorted_items = sorted(
         ratings.items(),
-        key=lambda x: (-x[1], x[0])
+        key=lambda x: (-x[1]["rating"], x[0])
     )
 
     rank = 1
     prev_rate = None
 
-    for i, (uid, rate) in enumerate(sorted_items):
+    for i, (uid, data) in enumerate(sorted_items):
+        rate = data["rating"]
+
         if prev_rate is not None and rate < prev_rate:
             rank = i + 1
 
@@ -403,14 +588,14 @@ def build_player_display(
         line += f" {badge_text}"
 
     if include_rating:
-        current_rating = ratings.get(str(user.id), DEFAULT_RATING)
+        current_rating = get_user_rating(user.id)
         line += f" {current_rating}"
 
     if include_rate_change:
         if old_rating is None:
-            old_rating = ratings.get(str(user.id), DEFAULT_RATING)
+            old_rating = get_user_rating(user.id)
         if new_rating is None:
-            new_rating = ratings.get(str(user.id), DEFAULT_RATING)
+            new_rating = get_user_rating(user.id)
 
         diff = new_rating - old_rating
         sign = "+" if diff >= 0 else ""
@@ -524,7 +709,7 @@ GACHA_ITEMS = [
     {"kind": "ticket", "value": "rate_x1_5_5", "label": "5試合 レート変動率 1.5倍", "weight": 0.8},
     {"kind": "ticket", "value": "win_bonus_2_15", "label": "15試合 連勝ごとにボーナス +2", "weight": 0.7},
     {"kind": "ticket", "value": "streak_7_win_50", "label": "15試合中 7連勝で +50", "weight": 0.4},
-    {"kind": "all_rating", "value": 10, "label": "自分+ランダム3人にレート +10", "weight": 0.1},
+    {"kind": "all_rating", "value": 10, "label": "自分はレート +20 / コイン +2、ランダム3人はレート +10", "weight": 0.1},
 ]
 
 COIN_LIMIT = 5
@@ -564,11 +749,11 @@ def draw_gacha_item():
     weights = [item["weight"] for item in GACHA_ITEMS]
     return random.choices(GACHA_ITEMS, weights=weights, k=1)[0]
 
-
 async def apply_gacha_result(guild, user_id: int, item):
     if item["kind"] == "rating":
         uid = str(user_id)
-        ratings[uid] = ratings.get(uid, DEFAULT_RATING) + item["value"]
+        old = get_user_rating(uid)
+        set_user_rating(uid, old + item["value"])
         save_ratings(ratings)
 
     elif item["kind"] == "ticket":
@@ -603,17 +788,29 @@ async def apply_gacha_result(guild, user_id: int, item):
         else:
             selected = []
 
-        targets = [drawer] + selected
+        # 本人（大当たり）
+        drawer_uid = str(drawer.id)
+        drawer_old = get_user_rating(drawer_uid)
+        set_user_rating(drawer_uid, drawer_old + 20)
 
-        for member in targets:
+        profile = get_player_profile(drawer.id)
+        profile["coins"] = min(profile.get("coins", 0) + 2, COIN_LIMIT)
+
+        # ランダム対象
+        for member in selected:
             uid = str(member.id)
-            ratings[uid] = ratings.get(uid, DEFAULT_RATING) + item["value"]
+            old = get_user_rating(uid)
+            set_user_rating(uid, old + item["value"])
 
         save_ratings(ratings)
+        save_player_profiles(player_profiles)
 
         drawer_name = drawer.display_name
         bonus_count = len(selected)
-        target_lines = "\n".join([f"・{member.display_name}" for member in targets])
+
+        target_lines = [f"・{drawer.display_name}（レート +20 / コイン +2）"]
+        target_lines.extend([f"・{member.display_name}（レート +10）" for member in selected])
+        target_text = "\n".join(target_lines)
 
         text = f"""# 【領域展開「坐殺博徒」】
 
@@ -622,12 +819,12 @@ async def apply_gacha_result(guild, user_id: int, item):
 
 # <:Tobuze:1494883064806113430>「漲る呪力（ボーナス）でトぶぜ」
 
-# レート +10
+# 本人：レート +20 / コイン +2
 
-ランダムで{bonus_count}人にも同じ効果
+ランダムで{bonus_count}人にレート +10
 
 ▼対象
-{target_lines}"""
+{target_text}"""
 
         register_channel = get_player_register_channel(guild)
         if register_channel:
@@ -825,7 +1022,7 @@ def ensure_session_player(room_state, user):
     user_id = str(user.id)
     room_state["session_participants"][user_id] = user
     if user_id not in room_state["session_start_ratings"]:
-        room_state["session_start_ratings"][user_id] = ratings.get(user_id, DEFAULT_RATING)
+        room_state["session_start_ratings"][user_id] = get_user_rating(user_id)
 
 
 def get_joined_user_ids(room_state):
@@ -839,7 +1036,7 @@ def is_joined(room_state, user):
 def get_avg_rating(team):
     if not team:
         return DEFAULT_RATING
-    return sum(ratings.get(str(user.id), DEFAULT_RATING) for user in team) / len(team)
+    return sum(get_user_rating(user.id) for user in team) / len(team)
 
 
 def get_phase1_count(room_state, choice_name):
@@ -1289,7 +1486,7 @@ def create_room_summary_text(room_state):
     rows = []
     for user_id, member in room_state["session_participants"].items():
         start_rate = room_state["session_start_ratings"].get(user_id, DEFAULT_RATING)
-        end_rate = ratings.get(user_id, DEFAULT_RATING)
+        end_rate = get_user_rating(user_id)
         diff = end_rate - start_rate
         rows.append((diff, end_rate, member, start_rate))
     rows.sort(key=lambda x: (-x[0], -x[1], x[2].display_name.lower()))
@@ -1362,8 +1559,8 @@ class PlayerRegisterModal(discord.ui.Modal, title="プレイヤー登録"):
         if can_apply and not already_applied:
             adjustment = get_xp_adjustment(xp)
             new_rating = DEFAULT_RATING + adjustment
-            old_rating = ratings.get(str(user.id), DEFAULT_RATING)
-            ratings[str(user.id)] = new_rating
+            old_rating = get_user_rating(user.id)
+            set_user_rating(user.id, new_rating)
             save_ratings(ratings)
 
             profile["initial_applied"] = True
@@ -1386,7 +1583,7 @@ class PlayerRegisterModal(discord.ui.Modal, title="プレイヤー登録"):
 
             weapon = profile.get("weapon", "未登録")
             xp = profile.get("xp", "未登録")
-            rate = ratings.get(str(user.id), DEFAULT_RATING)
+            rate = get_user_rating(user.id)
 
             display_name = build_player_display(
                 user,
@@ -1728,7 +1925,6 @@ class BaseControlView(discord.ui.View):
         for child in self.children:
             child.disabled = True
 
-
 class RecruitView(BaseControlView):
     def __init__(self, room_key, room_state):
         super().__init__()
@@ -1758,7 +1954,8 @@ class RecruitView(BaseControlView):
 
         if len(self.room_state["joined_players"]) == ROOM_CAPACITY:
             host_id = str(interaction.user.id)
-            ratings[host_id] = ratings.get(host_id, DEFAULT_RATING) + 5
+            old = get_user_rating(host_id)
+            set_user_rating(host_id, old + 5)
             save_ratings(ratings)
 
             self.disable_all_buttons()
@@ -1779,7 +1976,6 @@ class RecruitView(BaseControlView):
 
         self.room_state["joined_players"].remove(user)
         await interaction.response.edit_message(content=create_recruit_text(self.room_state), view=self)
-
 
 class Phase1ChoiceView(BaseControlView):
     def __init__(self, room_key, room_state):
@@ -2045,7 +2241,7 @@ async def build_ranking_lines(guild):
 
     ranking_data = []
     for member in human_members:
-        rate = ratings.get(str(member.id), DEFAULT_RATING)
+        rate = get_user_rating(member.id)
         display_text = build_player_display(
             member,
             mention=False,
@@ -2197,27 +2393,6 @@ async def start_game(ctx, room_key):
     await move_members_to_vc(ctx.guild, room_key, team_alpha, team_bravo)
     await ctx.send(create_result_prompt(team_alpha, team_bravo))
 
-
-async def next_game(ctx, room_key):
-    room_state = room_states[room_key]
-
-    if not room_state["prepared_match"]:
-        try:
-            room_state["prepared_match"] = make_teams_from_choices(room_state)
-        except Exception as e:
-            await ctx.send(f"次の試合情報を作れませんでした: {e}")
-            return
-
-    room_state["current_match"] = room_state["prepared_match"]
-    room_state["prepared_match"] = None
-    room_state["game_state"] = "playing"
-
-    team_alpha, team_bravo = room_state["current_match"]
-    mark_match_played_for_members(team_alpha + team_bravo)
-    await move_members_to_vc(ctx.guild, room_key, team_alpha, team_bravo)
-    await ctx.send(create_result_prompt(team_alpha, team_bravo))
-
-
 def build_rating_update_lines(room_state, next_team_alpha, next_team_bravo, title="【レート更新】", bonus_text=None):
     if bonus_text:
         bonus_text = bonus_text.split("（")[0].strip()
@@ -2240,8 +2415,8 @@ def build_rating_update_lines(room_state, next_team_alpha, next_team_bravo, titl
     for user in ordered_players:
         uid = str(user.id)
 
-        old = last_rating_changes.get(uid, ratings.get(uid, DEFAULT_RATING))
-        new = ratings.get(uid, DEFAULT_RATING)
+        old = last_rating_changes.get(uid, get_user_rating(uid))
+        new = get_user_rating(uid)
 
         detail = detail_map.get(uid)
 
@@ -2313,29 +2488,32 @@ async def process_result(ctx, room_key, winner_num: int):
         return
 
     team_alpha, team_bravo = room_state["current_match"]
-    avg_alpha = get_avg_rating(team_alpha)
-    avg_bravo = get_avg_rating(team_bravo)
-
-    s_alpha, s_bravo = (1, 0) if winner_num == 1 else (0, 1)
-
-    match_k = get_match_k_factor(room_state)
 
     room_state["last_profile_snapshots"] = {}
     for user in team_alpha + team_bravo:
         uid = str(user.id)
         profile = get_player_profile(user.id)
+        entry = get_rating_entry(uid)
+
         room_state["last_profile_snapshots"][uid] = {
             "win_streak": profile.get("win_streak", 0),
             "active_effect": json.loads(json.dumps(profile.get("active_effect"))),
             "tickets": json.loads(json.dumps(profile.get("tickets", []))),
+            "rating": float(entry["rating"]),
+            "rd": float(entry["rd"]),
+            "volatility": float(entry["volatility"]),
         }
 
     if winner_num == 1:
         winners = team_alpha
         losers = team_bravo
+        alpha_score = 1.0
+        bravo_score = 0.0
     else:
         winners = team_bravo
         losers = team_alpha
+        alpha_score = 0.0
+        bravo_score = 1.0
 
     update_win_streaks(winners, losers)
 
@@ -2343,23 +2521,53 @@ async def process_result(ctx, room_key, winner_num: int):
     room_state["last_rating_detail"] = {}
 
     for user in team_alpha + team_bravo:
-        room_state["last_rating_changes"][str(user.id)] = ratings.get(str(user.id), DEFAULT_RATING)
+        room_state["last_rating_changes"][str(user.id)] = get_user_rating(user.id)
 
+    pending_updates = {}
+
+    # =========================
+    # アルファ側更新
+    # =========================
     for user in team_alpha:
         uid = str(user.id)
-        old = ratings.get(uid, DEFAULT_RATING)
 
-        base_new = elo_update(old, avg_bravo, s_alpha, K=match_k)
-        base_change = base_new - old
+        entry = get_rating_entry(uid)
+        old_rating = float(entry["rating"])
+        old_rd = float(entry["rd"])
+        old_volatility = float(entry["volatility"])
+
+        matches = []
+        for enemy in team_bravo:
+            enemy_uid = str(enemy.id)
+            matches.append((
+                float(get_rating_entry(enemy_uid)["rating"]),
+                float(get_rating_entry(enemy_uid)["rd"]),
+                alpha_score,
+            ))
+
+        new_rating_raw, new_rd_raw, new_volatility = glicko2_update(
+            rating=old_rating,
+            rd=old_rd,
+            volatility=old_volatility,
+            matches=matches,
+        )
+
+        base_new_rating = int(round(new_rating_raw))
+        base_change = base_new_rating - int(round(old_rating))
 
         multiplier = get_rate_multiplier(user.id)
-        after_effect = int(base_change * multiplier)
+        after_effect = int(round(base_change * multiplier))
 
         streak_bonus = get_win_streak_bonus(user.id) if user in winners else 0
         final_change = after_effect + PARTICIPATION_BONUS + streak_bonus
 
-        new = old + final_change
-        ratings[uid] = new
+        final_rating = old_rating + final_change
+
+        pending_updates[uid] = {
+            "rating": float(final_rating),
+            "rd": float(new_rd_raw),
+            "volatility": float(new_volatility),
+        }
 
         room_state["last_rating_detail"][uid] = {
             "base": base_change,
@@ -2367,27 +2575,64 @@ async def process_result(ctx, room_key, winner_num: int):
             "multiplier": multiplier,
         }
 
+    # =========================
+    # ブラボー側更新
+    # =========================
     for user in team_bravo:
         uid = str(user.id)
-        old = ratings.get(uid, DEFAULT_RATING)
 
-        base_new = elo_update(old, avg_alpha, s_bravo, K=match_k)
-        base_change = base_new - old
+        entry = get_rating_entry(uid)
+        old_rating = float(entry["rating"])
+        old_rd = float(entry["rd"])
+        old_volatility = float(entry["volatility"])
+
+        matches = []
+        for enemy in team_alpha:
+            enemy_uid = str(enemy.id)
+            matches.append((
+                float(get_rating_entry(enemy_uid)["rating"]),
+                float(get_rating_entry(enemy_uid)["rd"]),
+                bravo_score,
+            ))
+
+        new_rating_raw, new_rd_raw, new_volatility = glicko2_update(
+            rating=old_rating,
+            rd=old_rd,
+            volatility=old_volatility,
+            matches=matches,
+        )
+
+        base_new_rating = int(round(new_rating_raw))
+        base_change = base_new_rating - int(round(old_rating))
 
         multiplier = get_rate_multiplier(user.id)
-        after_effect = int(base_change * multiplier)
+        after_effect = int(round(base_change * multiplier))
 
         streak_bonus = get_win_streak_bonus(user.id) if user in winners else 0
         final_change = after_effect + PARTICIPATION_BONUS + streak_bonus
 
-        new = old + final_change
-        ratings[uid] = new
+        final_rating = old_rating + final_change
+
+        pending_updates[uid] = {
+            "rating": float(final_rating),
+            "rd": float(new_rd_raw),
+            "volatility": float(new_volatility),
+        }
 
         room_state["last_rating_detail"][uid] = {
             "base": base_change,
             "final": final_change,
             "multiplier": multiplier,
         }
+
+    # =========================
+    # 一括反映
+    # =========================
+    for uid, data in pending_updates.items():
+        entry = get_rating_entry(uid)
+        entry["rating"] = float(data["rating"])
+        entry["rd"] = float(data["rd"])
+        entry["volatility"] = float(data["volatility"])
 
     for user in team_alpha + team_bravo:
         consume_active_effect_match(user.id)
@@ -2403,7 +2648,7 @@ async def process_result(ctx, room_key, winner_num: int):
         next_team_alpha,
         next_team_bravo,
         title="【レート更新】",
-        bonus_text=f"全員に +{PARTICIPATION_BONUS} が追加されました（K={match_k}）",
+        bonus_text=f"全員に +{PARTICIPATION_BONUS} が追加されました",
     )
 
     room_state["game_state"] = "finished"
@@ -2453,7 +2698,6 @@ async def start_disconnect_vote(ctx, room_key, member):
         view=view
     )
 
-
 async def apply_disconnect_rating_change(ctx, room_key, member):
     room_state = room_states[room_key]
 
@@ -2462,17 +2706,41 @@ async def apply_disconnect_rating_change(ctx, room_key, member):
 
     room_state["last_rating_changes"] = {}
     room_state["last_rating_detail"] = None
-    room_state["last_profile_snapshots"] = None
-
-    for user in all_players:
-        room_state["last_rating_changes"][str(user.id)] = ratings.get(str(user.id), DEFAULT_RATING)
+    room_state["last_profile_snapshots"] = {}
 
     for user in all_players:
         uid = str(user.id)
+        entry = get_rating_entry(uid)
+        profile = get_player_profile(user.id)
+
+        room_state["last_rating_changes"][uid] = get_user_rating(uid)
+        room_state["last_profile_snapshots"][uid] = {
+            "win_streak": profile.get("win_streak", 0),
+            "active_effect": json.loads(json.dumps(profile.get("active_effect"))),
+            "tickets": json.loads(json.dumps(profile.get("tickets", []))),
+            "rating": float(entry["rating"]),
+            "rd": float(entry["rd"]),
+            "volatility": float(entry["volatility"]),
+        }
+
+    for user in all_players:
+        uid = str(user.id)
+
+        entry = get_rating_entry(uid)
+        old_rating = float(entry["rating"])
+        old_rd = float(entry["rd"])
+        old_volatility = float(entry["volatility"])
+
         if user.id == member.id:
-            ratings[uid] = ratings.get(uid, DEFAULT_RATING) - DISCONNECT_PENALTY
+            new_rating = old_rating - DISCONNECT_PENALTY
         else:
-            ratings[uid] = ratings.get(uid, DEFAULT_RATING) + DISCONNECT_REWARD
+            new_rating = old_rating + DISCONNECT_REWARD
+
+        new_rd = max(50.0, old_rd * 0.95)
+
+        entry["rating"] = float(new_rating)
+        entry["rd"] = float(new_rd)
+        entry["volatility"] = float(old_volatility)
 
     save_ratings(ratings)
 
@@ -2533,10 +2801,16 @@ async def undo_result(ctx, room_key):
         await ctx.send("戻せる試合結果がありません")
         return
 
-    for user_id, old_rate in room_state["last_rating_changes"].items():
-        ratings[user_id] = old_rate
-
     snapshots = room_state.get("last_profile_snapshots") or {}
+
+    for user_id, old_rate in room_state["last_rating_changes"].items():
+        set_user_rating(user_id, old_rate)
+
+        snapshot = snapshots.get(user_id)
+        if snapshot:
+            set_user_rd(user_id, snapshot.get("rd", DEFAULT_RD))
+            set_user_volatility(user_id, snapshot.get("volatility", DEFAULT_VOLATILITY))
+
     for user_id, snapshot in snapshots.items():
         profile = get_player_profile(int(user_id))
         profile["win_streak"] = snapshot.get("win_streak", 0)
@@ -2803,8 +3077,8 @@ async def process_bulk_rate_change_message(message: discord.Message):
             error_lines.append(f"{line_no}行目: レートは0以上にしてください -> {line}")
             continue
 
-        old_rating = ratings.get(str(user_id), DEFAULT_RATING)
-        ratings[str(user_id)] = new_rating
+        old_rating = get_user_rating(user_id)
+        set_user_rating(user_id, new_rating)
         name = await get_member_display_name_by_id(guild, user_id)
         success_lines.append(f"{name}: {old_rating} → {new_rating}")
         changed_any = True
@@ -3123,7 +3397,7 @@ async def process_bulk_admin_message(message: discord.Message):
             if new_rating < 0:
                 error_lines.append(f"{line_no}行目: レートは0以上にしてください -> {line}")
                 continue
-            ratings[str(user_id)] = new_rating
+            set_user_rating(user_id, new_rating)
             changed_ratings = True
             success_lines.append(line)
 
@@ -3635,7 +3909,13 @@ async def reset_all_rates(ctx):
     members = await get_human_members(ctx.guild)
 
     for member in members:
-        ratings[str(member.id)] = DEFAULT_RATING
+        uid = str(member.id)
+        ratings[uid] = {
+            "rating": float(DEFAULT_RATING),
+            "rd": DEFAULT_RD,
+            "volatility": DEFAULT_VOLATILITY,
+        }
+
         profile = get_player_profile(member.id)
         profile["initial_applied"] = False
         profile["can_apply_initial_bonus"] = True
@@ -4087,7 +4367,7 @@ async def admin_dump_6(ctx):
 
     for member in human_members:
         uid = str(member.id)
-        rate = ratings.get(uid, DEFAULT_RATING)
+        rate = get_user_rating(uid)
         lines.append(f"{uid} レート {rate}")
 
     if not lines:
