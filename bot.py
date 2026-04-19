@@ -5,7 +5,6 @@ import math
 import copy
 import discord
 from discord.ext import commands
-
 # =========================
 # ファイルパス / 環境変数
 # =========================
