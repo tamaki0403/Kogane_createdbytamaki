@@ -40,7 +40,7 @@ bot_state = load_bot_state()
 # =========================
 OWNER_ID = 1225788050894753865
 # レート変動の全体スケール
-BASE_CHANGE_GAIN = 1.10
+BASE_CHANGE_GAIN = 1.20
 
 
 # =========================
@@ -109,7 +109,7 @@ BADGE_DEFINITIONS = {
 }
 # ▲▲▲ BADGE AREA END ▲▲▲
 PARTICIPATION_BONUS = 1
-BASE_CHANGE_GAIN = 1.10
+
 
 PATTERN_CHANGE_TABLE = {
     70: 55,
@@ -140,7 +140,7 @@ GLICKO2_SCALE = 173.7178
 DEFAULT_RD = 120.0
 
 RD_MAX = 120.0
-RD_MIN = 70.0
+RD_MIN = 100.0
 RD_DECAY = 0.85
 DEFAULT_VOLATILITY = 0.06
 TAU = 0.5
