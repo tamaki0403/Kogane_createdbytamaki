@@ -974,6 +974,12 @@ def get_admin_channel(guild):
     return guild.get_channel(ADMIN_CHANNEL_ID)
 
 
+def calc_team_avg(team):
+    if not team:
+        return 0
+    return int(sum(get_user_rating(u.id) for u in team) / len(team))
+
+
 def get_room_voice_channels(guild, room_key):
     room_cfg = ROOM_CHANNELS.get(room_key)
     if room_cfg is None:
@@ -2573,8 +2579,11 @@ def build_rating_update_lines(room_state, next_team_alpha, next_team_bravo, titl
         for u in next_team_bravo
     )
 
-    lines.append(f"アルファ: {alpha_names}")
-    lines.append(f"ブラボー: {bravo_names}")
+    alpha_avg = calc_team_avg(next_team_alpha)
+    bravo_avg = calc_team_avg(next_team_bravo)
+
+    lines.append(f"アルファ（平均 {alpha_avg}）: {alpha_names}")
+    lines.append(f"ブラボー（平均 {bravo_avg}）: {bravo_names}")
 
     return lines
 
@@ -4097,6 +4106,26 @@ async def bulk_change_rate_mode(ctx):
         "987654321098765432 2637\n\n"
         "やめるときは キャンセル と送ってください。"
     )
+
+
+@bot.command(name="全員RD設定")
+async def set_all_rd(ctx, value: float):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("このコマンドは管理者専用です。")
+        return
+    if not await ensure_admin_channel(ctx):
+        return
+
+    value = max(RD_MIN, min(RD_MAX, value))
+
+    members = await get_human_members(ctx.guild)
+
+    for member in members:
+        entry = get_rating_entry(member.id)
+        entry["rd"] = float(value)
+
+    save_ratings(ratings)
+    await ctx.send(f"サーバー内の全プレイヤーのRDを {value} に設定しました。")
 
 
 @bot.command(name="全員レートリセット")
