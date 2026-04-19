@@ -3,8 +3,10 @@ import json
 import random
 import math
 import copy
+import time
 import discord
 from discord.ext import commands
+
 # =========================
 # ファイルパス / 環境変数
 # =========================
@@ -37,7 +39,8 @@ bot_state = load_bot_state()
 # 管理者設定
 # =========================
 OWNER_ID = 1225788050894753865
-
+# レート変動の全体スケール
+BASE_CHANGE_GAIN = 1.10
 
 
 # =========================
@@ -106,6 +109,7 @@ BADGE_DEFINITIONS = {
 }
 # ▲▲▲ BADGE AREA END ▲▲▲
 PARTICIPATION_BONUS = 1
+BASE_CHANGE_GAIN = 1.10
 
 PATTERN_CHANGE_TABLE = {
     70: 55,
@@ -133,7 +137,11 @@ TEAM_SIZE = 4
 # =========================
 
 GLICKO2_SCALE = 173.7178
-DEFAULT_RD = 350.0
+DEFAULT_RD = 120.0
+
+RD_MAX = 120.0
+RD_MIN = 70.0
+RD_DECAY = 0.85
 DEFAULT_VOLATILITY = 0.06
 TAU = 0.5
 EPSILON = 0.000001
@@ -426,6 +434,8 @@ def get_player_profile(user_id: int):
         profile["next_coin_at"] = None
     if "win_streak" not in profile:
         profile["win_streak"] = 0
+    if "last_played" not in profile:
+        profile["last_played"] = None
 
     if profile["selected_badge"] and profile["selected_badge"] not in profile["owned_badges"]:
         profile["selected_badge"] = None
@@ -664,6 +674,24 @@ TICKET_DEFINITIONS = {
         "multiplier": 1.5,
         "remaining_matches": 5,
     },
+    "rate_plus_3_10": {
+        "label": "10試合 レート変動に +3",
+        "type": "flat_bonus",
+        "value": 3,
+        "remaining_matches": 10,
+    },
+    "rate_plus_5_10": {
+        "label": "10試合 レート変動に +5",
+        "type": "flat_bonus",
+        "value": 5,
+        "remaining_matches": 10,
+    },
+    "rate_plus_10_5": {
+        "label": "5試合 レート変動に +10",
+        "type": "flat_bonus",
+        "value": 10,
+        "remaining_matches": 5,
+    },
     "win_bonus_1_15": {
         "label": "15試合 連勝ごとにボーナス +1",
         "type": "win_streak_bonus",
@@ -700,6 +728,9 @@ GACHA_ITEMS = [
     {"kind": "ticket", "value": "rate_x1_1_10", "label": "10試合 レート変動率 1.1倍", "weight": 7.0},
     {"kind": "ticket", "value": "rate_x1_2_10", "label": "10試合 レート変動率 1.2倍", "weight": 5.0},
     {"kind": "ticket", "value": "rate_x1_3_10", "label": "10試合 レート変動率 1.3倍", "weight": 4.0},
+    {"kind": "ticket", "value": "rate_plus_3_10", "label": "10試合 レート変動に +3", "weight": 4.0},
+    {"kind": "ticket", "value": "rate_plus_5_10", "label": "10試合 レート変動に +5", "weight": 2.5},
+    {"kind": "ticket", "value": "rate_plus_10_5", "label": "5試合 レート変動に +10", "weight": 1.0},
     {"kind": "ticket", "value": "win_bonus_1_15", "label": "15試合 連勝ごとにボーナス +1", "weight": 3.0},
     {"kind": "ticket", "value": "streak_5_win_20", "label": "15試合中 5連勝で +20", "weight": 2.0},
     {"kind": "ticket", "value": "rate_x1_5_5", "label": "5試合 レート変動率 1.5倍", "weight": 0.8},
@@ -720,6 +751,7 @@ def build_ticket_instance(ticket_id: str):
         "type": data["type"],
         "remaining_matches": data["remaining_matches"],
         "multiplier": data.get("multiplier"),
+        "value": data.get("value"),
         "bonus_per_streak": data.get("bonus_per_streak"),
         "target_streak": data.get("target_streak"),
         "reward": data.get("reward"),
@@ -1056,17 +1088,17 @@ PATTERN_COUNT_TABLE = {
 
 
 PATTERN_MULTIPLIER_TABLE = {
-    70: 55 / 60,
-    35: 50 / 60,
-    20: 45 / 60,
-    15: 35 / 60,
-    10: 30 / 60,
-    6: 27 / 60,
-    5: 25 / 60,
-    4: 23 / 60,
-    3: 20 / 60,
-    2: 18 / 60,
-    1: 15 / 60,
+    70: 1.75,
+    35: 1.62,
+    20: 1.50,
+    15: 1.38,
+    10: 1.24,
+    6: 1.08,
+    5: 0.98,
+    4: 0.88,
+    3: 0.74,
+    2: 0.62,
+    1: 0.50,
 }
 
 
@@ -1079,6 +1111,28 @@ def get_pattern_count(room_state):
 def get_pattern_multiplier(room_state):
     pattern_count = get_pattern_count(room_state)
     return PATTERN_MULTIPLIER_TABLE.get(pattern_count, 1.0)
+
+
+def apply_rd_decay_recovery(user_id: int | str):
+    uid = str(user_id)
+    entry = get_rating_entry(uid)
+    profile = get_player_profile(int(uid))
+
+    now = time.time()
+    last_played = profile.get("last_played")
+
+    if last_played is None:
+        profile["last_played"] = now
+        return
+
+    days_passed = (now - last_played) / 86400.0
+    if days_passed <= 0:
+        return
+
+    recovery = min(10.0, days_passed * 1.5)
+    entry["rd"] = min(RD_MAX, float(entry["rd"]) + recovery)
+
+    profile["last_played"] = now
 
 
 
@@ -1985,7 +2039,7 @@ class RecruitView(BaseControlView):
             await interaction.message.edit(view=self)
             await begin_phase1(interaction.guild, self.room_key)
 
-    @discord.ui.button(label="抜ける", style=discord.ButtonStyle.gray)
+    @discord.ui.button(label="抜ける", style=discord.ButtonStyle.secondary)
     async def leave_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         user = interaction.user
 
@@ -2537,6 +2591,9 @@ async def process_result(ctx, room_key, winner_num: int):
     room_state["last_profile_snapshots"] = {}
     for user in team_alpha + team_bravo:
         uid = str(user.id)
+
+        apply_rd_decay_recovery(uid)
+
         profile = get_player_profile(user.id)
         entry = get_rating_entry(uid)
 
@@ -2544,6 +2601,7 @@ async def process_result(ctx, room_key, winner_num: int):
             "win_streak": profile.get("win_streak", 0),
             "active_effect": copy.deepcopy(profile.get("active_effect")),
             "tickets": copy.deepcopy(profile.get("tickets", [])),
+            "last_played": profile.get("last_played"),
             "rating": float(entry["rating"]),
             "rd": float(entry["rd"]),
             "volatility": float(entry["volatility"]),
@@ -2571,7 +2629,6 @@ async def process_result(ctx, room_key, winner_num: int):
     pending_updates = {}
 
     pattern_multiplier = get_pattern_multiplier(room_state)
-    pattern_base = int(round(60 * pattern_multiplier))
 
     # =========================
     # アルファ側更新
@@ -2584,14 +2641,19 @@ async def process_result(ctx, room_key, winner_num: int):
         old_rd = float(entry["rd"])
         old_volatility = float(entry["volatility"])
 
-        matches = []
-        for enemy in team_bravo:
-            enemy_uid = str(enemy.id)
-            matches.append((
-                float(get_rating_entry(enemy_uid)["rating"]),
-                float(get_rating_entry(enemy_uid)["rd"]),
-                alpha_score,
-            ))
+        enemy_avg_rating = sum(
+            float(get_rating_entry(str(enemy.id))["rating"])
+            for enemy in team_bravo
+        ) / len(team_bravo)
+
+        enemy_avg_rd = sum(
+            float(get_rating_entry(str(enemy.id))["rd"])
+            for enemy in team_bravo
+        ) / len(team_bravo)
+
+        matches = [
+            (enemy_avg_rating, enemy_avg_rd, alpha_score)
+        ]
 
         new_rating_raw, new_rd_raw, new_volatility = glicko2_update(
             rating=old_rating,
@@ -2600,15 +2662,33 @@ async def process_result(ctx, room_key, winner_num: int):
             matches=matches,
         )
 
-        
-        base_change = pattern_base if user in winners else -pattern_base
+        # 差分計算
+        glicko_change = new_rating_raw - old_rating
+        base_adjusted_change = glicko_change * BASE_CHANGE_GAIN
 
+        # 固定人数補正
+        pattern_adjusted_change = base_adjusted_change * pattern_multiplier
+
+        # 格差補正
+        rating_gap = enemy_avg_rating - old_rating
+        gap_multiplier = 1.0 + (rating_gap / 1000.0) * 0.25
+        gap_multiplier = max(0.85, min(1.15, gap_multiplier))
+        gap_adjusted_change = pattern_adjusted_change * gap_multiplier
+
+        # チケット倍率
         ticket_multiplier = get_rate_multiplier(user.id)
-        after_effect = int(round(base_change * ticket_multiplier))
+        multiplied_change = gap_adjusted_change * ticket_multiplier
 
+        # チケット固定加算
+        ticket_flat_bonus = 0
+        active_effect = get_player_profile(user.id).get("active_effect")
+        if active_effect and active_effect.get("type") == "flat_bonus":
+            ticket_flat_bonus = int(active_effect.get("value", 0))
+
+        # 連勝ボーナス
         streak_bonus = get_win_streak_bonus(user.id) if user in winners else 0
-        final_change = after_effect + PARTICIPATION_BONUS + streak_bonus
 
+        final_change = int(round(multiplied_change)) + PARTICIPATION_BONUS + streak_bonus + ticket_flat_bonus
         final_rating = old_rating + final_change
 
         pending_updates[uid] = {
@@ -2617,11 +2697,10 @@ async def process_result(ctx, room_key, winner_num: int):
             "volatility": float(new_volatility),
         }
 
-        active_effect = get_player_profile(user.id).get("active_effect")
         ticket_label = active_effect.get("label") if active_effect else None
 
         room_state["last_rating_detail"][uid] = {
-            "base": base_change,
+            "base": int(round(gap_adjusted_change)),
             "final": final_change,
             "ticket_label": ticket_label,
         }
@@ -2637,14 +2716,19 @@ async def process_result(ctx, room_key, winner_num: int):
         old_rd = float(entry["rd"])
         old_volatility = float(entry["volatility"])
 
-        matches = []
-        for enemy in team_alpha:
-            enemy_uid = str(enemy.id)
-            matches.append((
-                float(get_rating_entry(enemy_uid)["rating"]),
-                float(get_rating_entry(enemy_uid)["rd"]),
-                bravo_score,
-            ))
+        enemy_avg_rating = sum(
+            float(get_rating_entry(str(enemy.id))["rating"])
+            for enemy in team_alpha
+        ) / len(team_alpha)
+
+        enemy_avg_rd = sum(
+            float(get_rating_entry(str(enemy.id))["rd"])
+            for enemy in team_alpha
+        ) / len(team_alpha)
+
+        matches = [
+            (enemy_avg_rating, enemy_avg_rd, bravo_score)
+        ]
 
         new_rating_raw, new_rd_raw, new_volatility = glicko2_update(
             rating=old_rating,
@@ -2653,15 +2737,33 @@ async def process_result(ctx, room_key, winner_num: int):
             matches=matches,
         )
 
-        
-        base_change = pattern_base if user in winners else -pattern_base
+        # 差分計算
+        glicko_change = new_rating_raw - old_rating
+        base_adjusted_change = glicko_change * BASE_CHANGE_GAIN
 
+        # 固定人数補正
+        pattern_adjusted_change = base_adjusted_change * pattern_multiplier
+
+        # 格差補正
+        rating_gap = enemy_avg_rating - old_rating
+        gap_multiplier = 1.0 + (rating_gap / 1000.0) * 0.25
+        gap_multiplier = max(0.85, min(1.15, gap_multiplier))
+        gap_adjusted_change = pattern_adjusted_change * gap_multiplier
+
+        # チケット倍率
         ticket_multiplier = get_rate_multiplier(user.id)
-        after_effect = int(round(base_change * ticket_multiplier))
+        multiplied_change = gap_adjusted_change * ticket_multiplier
 
+        # チケット固定加算
+        ticket_flat_bonus = 0
+        active_effect = get_player_profile(user.id).get("active_effect")
+        if active_effect and active_effect.get("type") == "flat_bonus":
+            ticket_flat_bonus = int(active_effect.get("value", 0))
+
+        # 連勝ボーナス
         streak_bonus = get_win_streak_bonus(user.id) if user in winners else 0
-        final_change = after_effect + PARTICIPATION_BONUS + streak_bonus
 
+        final_change = int(round(multiplied_change)) + PARTICIPATION_BONUS + streak_bonus + ticket_flat_bonus
         final_rating = old_rating + final_change
 
         pending_updates[uid] = {
@@ -2670,11 +2772,10 @@ async def process_result(ctx, room_key, winner_num: int):
             "volatility": float(new_volatility),
         }
 
-        active_effect = get_player_profile(user.id).get("active_effect")
         ticket_label = active_effect.get("label") if active_effect else None
 
         room_state["last_rating_detail"][uid] = {
-            "base": base_change,
+            "base": int(round(gap_adjusted_change)),
             "final": final_change,
             "ticket_label": ticket_label,
         }
@@ -2685,11 +2786,17 @@ async def process_result(ctx, room_key, winner_num: int):
     for uid, data in pending_updates.items():
         entry = get_rating_entry(uid)
         entry["rating"] = float(data["rating"])
-        entry["rd"] = float(data["rd"])
+
+        old_rd = float(entry["rd"])
+        new_rd = RD_MIN + (old_rd - RD_MIN) * RD_DECAY
+        entry["rd"] = max(RD_MIN, min(RD_MAX, new_rd))
+
         entry["volatility"] = float(data["volatility"])
 
     for user in team_alpha + team_bravo:
         consume_active_effect_match(user.id)
+        profile = get_player_profile(user.id)
+        profile["last_played"] = time.time()
 
     save_ratings(ratings)
     save_player_profiles(player_profiles)
@@ -2787,6 +2894,7 @@ async def apply_disconnect_rating_change(ctx, room_key, member):
             "win_streak": profile.get("win_streak", 0),
             "active_effect": copy.deepcopy(profile.get("active_effect")),
             "tickets": copy.deepcopy(profile.get("tickets", [])),
+            "last_played": profile.get("last_played"),
             "rating": float(entry["rating"]),
             "rd": float(entry["rd"]),
             "volatility": float(entry["volatility"]),
@@ -2902,6 +3010,7 @@ async def undo_result(ctx, room_key):
         profile["win_streak"] = snapshot.get("win_streak", 0)
         profile["active_effect"] = snapshot.get("active_effect")
         profile["tickets"] = snapshot.get("tickets", [])
+        profile["last_played"] = snapshot.get("last_played")
 
     save_ratings(ratings)
     save_player_profiles(player_profiles)
@@ -4016,6 +4125,7 @@ async def reset_all_rates(ctx):
         profile["active_effect"] = None
         profile["next_coin_at"] = None
         profile["win_streak"] = 0
+        profile["last_played"] = None
 
     save_ratings(ratings)
     save_player_profiles(player_profiles)
