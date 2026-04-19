@@ -2,6 +2,7 @@ import os
 import json
 import random
 import math
+import copy
 import discord
 from discord.ext import commands
 
@@ -38,8 +39,7 @@ bot_state = load_bot_state()
 # =========================
 OWNER_ID = 1225788050894753865
 
-# 中断用フラグ（なくてもOKだが安全）
-CANCELABLE_STATES = ["mode_select", "recruiting", "ready"]
+
 
 # =========================
 # チャンネル設定
@@ -72,11 +72,7 @@ def get_room_key_by_channel_id(channel_id: int):
     return None
 
 
-def get_room_state_by_channel(channel_id: int):
-    room_key = get_room_key_by_channel_id(channel_id)
-    if room_key is None:
-        return None, None
-    return room_key, room_states[room_key]
+
 
 # =========================
 # レート設定
@@ -110,9 +106,21 @@ BADGE_DEFINITIONS = {
     },
 }
 # ▲▲▲ BADGE AREA END ▲▲▲
-
-K_FACTOR = 90
 PARTICIPATION_BONUS = 1
+
+PATTERN_CHANGE_TABLE = {
+    70: 55,
+    35: 50,
+    20: 45,
+    15: 35,
+    10: 30,
+    6: 27,
+    5: 25,
+    4: 23,
+    3: 20,
+    2: 18,
+    1: 15,
+}
 
 DISCONNECT_PENALTY = 50
 DISCONNECT_REWARD = 8
@@ -120,17 +128,6 @@ DISCONNECT_GUILTY_THRESHOLD = 4
 
 ROOM_CAPACITY = 8
 TEAM_SIZE = 4
-
-## =========================
-# 固定人数ごとのKテーブル
-# =========================
-K_TABLE = {
-    (0, 0): 140, (0, 1): 140, (0, 2): 116, (0, 3): 90, (0, 4): 40,
-    (1, 0): 140, (1, 1): 124, (1, 2): 106, (1, 3): 86, (1, 4): 40,
-    (2, 0): 116, (2, 1): 106, (2, 2): 94, (2, 3): 78, (2, 4): 40,
-    (3, 0): 90, (3, 1): 86, (3, 2): 78, (3, 3): 68, (3, 4): 40,
-    (4, 0): 40, (4, 1): 40, (4, 2): 40, (4, 3): 40, (4, 4): 40,
-}
 
 # =========================
 # レート関連
@@ -873,6 +870,7 @@ ROOM_KEYS = ("A", "B")
 def create_room_state():
     return {
         "game_state": "idle",
+        "host_id": None,
         "joined_players": [],
         "current_match": None,
         "prepared_match": None,
@@ -905,6 +903,7 @@ def reset_room_tracking(room_state):
 
 def reset_room_state(room_state):
     room_state["game_state"] = "idle"
+    room_state["host_id"] = None
     room_state["joined_players"] = []
     room_state["current_match"] = None
     room_state["prepared_match"] = None
@@ -1028,15 +1027,8 @@ def ensure_session_player(room_state, user):
 def get_joined_user_ids(room_state):
     return [str(u.id) for u in room_state["joined_players"]]
 
-
 def is_joined(room_state, user):
     return user in room_state["joined_players"]
-
-
-def get_avg_rating(team):
-    if not team:
-        return DEFAULT_RATING
-    return sum(get_user_rating(user.id) for user in team) / len(team)
 
 
 def get_phase1_count(room_state, choice_name):
@@ -1055,10 +1047,41 @@ def get_bravo_fixed_count(room_state):
     return get_phase1_count(room_state, "bravo")
 
 
-def get_match_k_factor(room_state):
+PATTERN_COUNT_TABLE = {
+    (0, 0): 70, (0, 1): 35, (0, 2): 15, (0, 3): 5, (0, 4): 1,
+    (1, 0): 35, (1, 1): 20, (1, 2): 10, (1, 3): 4, (1, 4): 1,
+    (2, 0): 15, (2, 1): 10, (2, 2): 6,  (2, 3): 3, (2, 4): 1,
+    (3, 0): 5,  (3, 1): 4,  (3, 2): 3,  (3, 3): 2, (3, 4): 1,
+    (4, 0): 1,  (4, 1): 1,  (4, 2): 1,  (4, 3): 1, (4, 4): 1,
+}
+
+
+PATTERN_MULTIPLIER_TABLE = {
+    70: 55 / 60,
+    35: 50 / 60,
+    20: 45 / 60,
+    15: 35 / 60,
+    10: 30 / 60,
+    6: 27 / 60,
+    5: 25 / 60,
+    4: 23 / 60,
+    3: 20 / 60,
+    2: 18 / 60,
+    1: 15 / 60,
+}
+
+
+def get_pattern_count(room_state):
     alpha = get_alpha_fixed_count(room_state)
-    beta = get_bravo_fixed_count(room_state)
-    return K_TABLE.get((alpha, beta), K_FACTOR)
+    bravo = get_bravo_fixed_count(room_state)
+    return PATTERN_COUNT_TABLE.get((alpha, bravo), 1)
+
+
+def get_pattern_multiplier(room_state):
+    pattern_count = get_pattern_count(room_state)
+    return PATTERN_MULTIPLIER_TABLE.get(pattern_count, 1.0)
+
+
 
 
 def get_rate_multiplier(user_id: int):
@@ -1953,10 +1976,11 @@ class RecruitView(BaseControlView):
         await interaction.response.edit_message(content=create_recruit_text(self.room_state), view=self)
 
         if len(self.room_state["joined_players"]) == ROOM_CAPACITY:
-            host_id = str(interaction.user.id)
-            old = get_user_rating(host_id)
-            set_user_rating(host_id, old + 5)
-            save_ratings(ratings)
+            host_id = self.room_state.get("host_id")
+            if host_id is not None:
+                old = get_user_rating(host_id)
+                set_user_rating(host_id, old + 5)
+                save_ratings(ratings)
 
             self.disable_all_buttons()
             await interaction.message.edit(view=self)
@@ -2393,10 +2417,33 @@ async def start_game(ctx, room_key):
     await move_members_to_vc(ctx.guild, room_key, team_alpha, team_bravo)
     await ctx.send(create_result_prompt(team_alpha, team_bravo))
 
+
+async def next_game(ctx, room_key):
+    room_state = room_states[room_key]
+
+    if room_state["game_state"] != "finished":
+        await ctx.send("今は次の試合を開始できません")
+        return
+
+    if not room_state["prepared_match"]:
+        await ctx.send("次の試合情報がありません")
+        return
+
+    room_state["current_match"] = room_state["prepared_match"]
+    room_state["prepared_match"] = None
+    room_state["game_state"] = "playing"
+
+    team_alpha, team_bravo = room_state["current_match"]
+    mark_match_played_for_members(team_alpha + team_bravo)
+    await move_members_to_vc(ctx.guild, room_key, team_alpha, team_bravo)
+    await ctx.send(create_result_prompt(team_alpha, team_bravo))
+
+
+
 def build_rating_update_lines(room_state, next_team_alpha, next_team_bravo, title="【レート更新】", bonus_text=None):
     if bonus_text:
         bonus_text = bonus_text.split("（")[0].strip()
-        lines = [f"{title}{bonus_text}"]
+        lines = [title, bonus_text]
     else:
         lines = [title]
 
@@ -2430,14 +2477,12 @@ def build_rating_update_lines(room_state, next_team_alpha, next_team_bravo, titl
         )
 
         if detail:
-            base = detail["base"]
             final = detail["final"]
-
-            base_str = f"+{base}" if base >= 0 else f"{base}"
             final_str = f"+{final}" if final >= 0 else f"{final}"
 
-            if base != final:
-                change_text = f"({base_str} → {final_str})"
+            ticket_label = detail.get("ticket_label")
+            if ticket_label:
+                change_text = f"({final_str} : {ticket_label})"
             else:
                 change_text = f"({final_str})"
         else:
@@ -2448,7 +2493,8 @@ def build_rating_update_lines(room_state, next_team_alpha, next_team_bravo, titl
         lines.append(f"{name}: {old} → {new} {change_text}")
 
     lines.append("")
-    lines.append("次回のチーム分け")
+    lines.append("※ 以下は次回のチーム分けです")
+    lines.append("")
 
     alpha_names = " ".join(
         build_player_display(
@@ -2497,8 +2543,8 @@ async def process_result(ctx, room_key, winner_num: int):
 
         room_state["last_profile_snapshots"][uid] = {
             "win_streak": profile.get("win_streak", 0),
-            "active_effect": json.loads(json.dumps(profile.get("active_effect"))),
-            "tickets": json.loads(json.dumps(profile.get("tickets", []))),
+            "active_effect": copy.deepcopy(profile.get("active_effect")),
+            "tickets": copy.deepcopy(profile.get("tickets", [])),
             "rating": float(entry["rating"]),
             "rd": float(entry["rd"]),
             "volatility": float(entry["volatility"]),
@@ -2524,6 +2570,9 @@ async def process_result(ctx, room_key, winner_num: int):
         room_state["last_rating_changes"][str(user.id)] = get_user_rating(user.id)
 
     pending_updates = {}
+
+    pattern_multiplier = get_pattern_multiplier(room_state)
+    pattern_base = int(round(60 * pattern_multiplier))
 
     # =========================
     # アルファ側更新
@@ -2552,11 +2601,11 @@ async def process_result(ctx, room_key, winner_num: int):
             matches=matches,
         )
 
-        base_new_rating = int(round(new_rating_raw))
-        base_change = base_new_rating - int(round(old_rating))
+        
+        base_change = pattern_base if user in winners else -pattern_base
 
-        multiplier = get_rate_multiplier(user.id)
-        after_effect = int(round(base_change * multiplier))
+        ticket_multiplier = get_rate_multiplier(user.id)
+        after_effect = int(round(base_change * ticket_multiplier))
 
         streak_bonus = get_win_streak_bonus(user.id) if user in winners else 0
         final_change = after_effect + PARTICIPATION_BONUS + streak_bonus
@@ -2569,10 +2618,13 @@ async def process_result(ctx, room_key, winner_num: int):
             "volatility": float(new_volatility),
         }
 
+        active_effect = get_player_profile(user.id).get("active_effect")
+        ticket_label = active_effect.get("label") if active_effect else None
+
         room_state["last_rating_detail"][uid] = {
             "base": base_change,
             "final": final_change,
-            "multiplier": multiplier,
+            "ticket_label": ticket_label,
         }
 
     # =========================
@@ -2602,11 +2654,11 @@ async def process_result(ctx, room_key, winner_num: int):
             matches=matches,
         )
 
-        base_new_rating = int(round(new_rating_raw))
-        base_change = base_new_rating - int(round(old_rating))
+        
+        base_change = pattern_base if user in winners else -pattern_base
 
-        multiplier = get_rate_multiplier(user.id)
-        after_effect = int(round(base_change * multiplier))
+        ticket_multiplier = get_rate_multiplier(user.id)
+        after_effect = int(round(base_change * ticket_multiplier))
 
         streak_bonus = get_win_streak_bonus(user.id) if user in winners else 0
         final_change = after_effect + PARTICIPATION_BONUS + streak_bonus
@@ -2619,10 +2671,13 @@ async def process_result(ctx, room_key, winner_num: int):
             "volatility": float(new_volatility),
         }
 
+        active_effect = get_player_profile(user.id).get("active_effect")
+        ticket_label = active_effect.get("label") if active_effect else None
+
         room_state["last_rating_detail"][uid] = {
             "base": base_change,
             "final": final_change,
-            "multiplier": multiplier,
+            "ticket_label": ticket_label,
         }
 
     # =========================
@@ -2653,7 +2708,22 @@ async def process_result(ctx, room_key, winner_num: int):
 
     room_state["game_state"] = "finished"
 
-    await ctx.send("\n".join(lines))
+    text = "\n".join(lines)
+
+    if len(text) <= 1900:
+        await ctx.send(text)
+    else:
+        await ctx.send("レート更新結果が長すぎるため分割します")
+        chunk = ""
+        for line in lines:
+            if len(chunk) + len(line) + 1 > 1900:
+                await ctx.send(chunk)
+                chunk = line
+            else:
+                chunk += ("\n" if chunk else "") + line
+        if chunk:
+            await ctx.send(chunk)
+
     await ctx.send(create_finished_prompt())
 
 async def end_room(ctx, room_key):
@@ -2716,8 +2786,8 @@ async def apply_disconnect_rating_change(ctx, room_key, member):
         room_state["last_rating_changes"][uid] = get_user_rating(uid)
         room_state["last_profile_snapshots"][uid] = {
             "win_streak": profile.get("win_streak", 0),
-            "active_effect": json.loads(json.dumps(profile.get("active_effect"))),
-            "tickets": json.loads(json.dumps(profile.get("tickets", []))),
+            "active_effect": copy.deepcopy(profile.get("active_effect")),
+            "tickets": copy.deepcopy(profile.get("tickets", [])),
             "rating": float(entry["rating"]),
             "rd": float(entry["rd"]),
             "volatility": float(entry["volatility"]),
@@ -2757,7 +2827,22 @@ async def apply_disconnect_rating_change(ctx, room_key, member):
 
     room_state["game_state"] = "finished"
 
-    await ctx.send("\n".join(lines))
+    text = "\n".join(lines)
+
+    if len(text) <= 1900:
+        await ctx.send(text)
+    else:
+        await ctx.send("レート更新結果が長すぎるため分割します")
+        chunk = ""
+        for line in lines:
+            if len(chunk) + len(line) + 1 > 1900:
+                await ctx.send(chunk)
+                chunk = line
+            else:
+                chunk += ("\n" if chunk else "") + line
+        if chunk:
+            await ctx.send(chunk)
+
     await ctx.send(create_finished_prompt())
 
 
@@ -2804,12 +2889,14 @@ async def undo_result(ctx, room_key):
     snapshots = room_state.get("last_profile_snapshots") or {}
 
     for user_id, old_rate in room_state["last_rating_changes"].items():
-        set_user_rating(user_id, old_rate)
-
         snapshot = snapshots.get(user_id)
+
         if snapshot:
+            set_user_rating(user_id, snapshot.get("rating", old_rate))
             set_user_rd(user_id, snapshot.get("rd", DEFAULT_RD))
             set_user_volatility(user_id, snapshot.get("volatility", DEFAULT_VOLATILITY))
+        else:
+            set_user_rating(user_id, old_rate)
 
     for user_id, snapshot in snapshots.items():
         profile = get_player_profile(int(user_id))
@@ -2931,15 +3018,7 @@ async def get_human_members(guild):
     return [m for m in members if not m.bot]
 
 
-def grant_initial_bonus_permission(user_id: int):
-    profile = get_player_profile(user_id)
-    profile["can_apply_initial_bonus"] = True
-    profile["initial_applied"] = False
 
-
-def revoke_initial_bonus_permission(user_id: int):
-    profile = get_player_profile(user_id)
-    profile["can_apply_initial_bonus"] = False
 
 
 # =========================
@@ -3539,6 +3618,7 @@ async def 部屋作成(ctx):
 
     reset_room_state(room_state)
     reset_room_tracking(room_state)
+    room_state["host_id"] = str(ctx.author.id)
     await begin_recruit(ctx.guild, room_key)
 
 
@@ -3839,7 +3919,20 @@ async def list_user_badges(ctx, user_id: int):
         else:
             lines.append(f"- {label} ({b})")
 
-    await ctx.send("\n".join(lines))
+    text = "\n".join(lines)
+
+    if len(text) <= 1900:
+        await ctx.send(text)
+    else:
+        chunk = ""
+        for line in lines:
+            if len(chunk) + len(line) + 1 > 1900:
+                await ctx.send(chunk)
+                chunk = line
+            else:
+                chunk += ("\n" if chunk else "") + line
+        if chunk:
+            await ctx.send(chunk)
 
 
 @bot.command(name="バッジ所持者一覧")
