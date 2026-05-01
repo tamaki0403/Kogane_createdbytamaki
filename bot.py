@@ -54,7 +54,7 @@ HOME_CHANNEL_ID = 1493300698568462388
 RECRUIT_CHANNEL_ID = 1492899909093949480  # ← ここに募集チャンネルのIDを入力
 
 # レート更新ログチャンネル（新規作成してIDを入力）
-RATE_LOG_CHANNEL_ID = 1492082738679910512  # ← ここにレートログチャンネルのIDを入力
+RATE_LOG_CHANNEL_ID = 1499607836911730778  # ← ここにレートログチャンネルのIDを入力
 
 ADMIN_CHANNEL_ID = 1492883720082952302
 
@@ -697,7 +697,11 @@ intents.message_content = True
 intents.voice_states = True
 intents.members = True
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(
+command_prefix="!",
+intents=intents,
+allowed_mentions=discord.AllowedMentions(everyone=True)
+)
 
 
 # =========================
@@ -1185,7 +1189,19 @@ def create_playing_text(team_alpha, team_bravo):
 
 
 def create_finished_text(room_state):
-    lines = ["【試合終了】次の行動を選んでください。"]
+    lines = ["【試合終了】次の行動を選んでください。", ""]
+
+    prepared = room_state.get("prepared_match")
+    if prepared:
+        next_team_alpha, next_team_bravo = prepared
+        alpha_avg = calc_team_avg(next_team_alpha)
+        bravo_avg = calc_team_avg(next_team_bravo)
+        alpha_names = " ".join(build_player_display(u) for u in next_team_alpha)
+        bravo_names = " ".join(build_player_display(u) for u in next_team_bravo)
+        lines.append("【次回チーム分け】")
+        lines.append(f"アルファ（平均 {alpha_avg}）: {alpha_names}")
+        lines.append(f"ブラボー（平均 {bravo_avg}）: {bravo_names}")
+
     return "\n".join(lines)
 
 
@@ -1212,12 +1228,12 @@ def create_disconnect_vote_text(target):
 class RecruitModal(discord.ui.Modal, title="募集作成"):
     description_input = discord.ui.TextInput(
         label="募集内容",
-        placeholder="例：今夜の内部戦！ガチ勢もカジュアル勢も歓迎",
+        placeholder="例：エリアプラベ@7 後衛@2まで",
         max_length=200,
     )
     start_time_input = discord.ui.TextInput(
         label="開始時刻",
-        placeholder="例：21:00",
+        placeholder="例：21:00から1時間",
         max_length=50,
     )
 
@@ -1231,7 +1247,8 @@ class RecruitModal(discord.ui.Modal, title="募集作成"):
             return
 
         content = (
-            f"【募集】\n"
+            f"【募集】参加する場合は下のボタンをおしてください！\n"
+            f"@everyone\n"
             f"{description}\n"
             f"開始時刻: {start_time}\n\n"
             f"0/{ROOM_CAPACITY}人\n\n"
@@ -2012,17 +2029,25 @@ class HomeView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
+    # 左から: 緑・青・緑・赤 の順
     @discord.ui.button(label="募集作成", style=discord.ButtonStyle.success,
                        custom_id="home_create_recruit", row=0)
     async def create_recruit_button(self, interaction: discord.Interaction, button):
         await interaction.response.send_modal(RecruitModal())
 
-    @discord.ui.button(label="プレイヤー登録", style=discord.ButtonStyle.primary,
-                       custom_id="home_player_register", row=0)
-    async def register_button(self, interaction: discord.Interaction, button):
-        await interaction.response.send_modal(PlayerRegisterModal())
+    @discord.ui.button(label="コイン", style=discord.ButtonStyle.primary,
+                       custom_id="home_coin_menu", row=0)
+    async def coin_button(self, interaction: discord.Interaction, button):
+        try_claim_passive_coin(interaction.user.id)
+        profile = get_player_profile(interaction.user.id)
+        coins = profile.get("coins", 0)
+        text = (
+            f"現在 {coins} / {COIN_LIMIT} コインを持っています。どうしますか？\n\n"
+            f"{get_active_effect_text(interaction.user.id)}"
+        )
+        await interaction.response.send_message(text, view=CoinMenuView(interaction.user), ephemeral=True)
 
-    @discord.ui.button(label="バッジ設定", style=discord.ButtonStyle.danger,
+    @discord.ui.button(label="バッジ設定", style=discord.ButtonStyle.success,
                        custom_id="home_badge_select", row=0)
     async def badge_button(self, interaction: discord.Interaction, button):
         profile = get_player_profile(interaction.user.id)
@@ -2035,17 +2060,10 @@ class HomeView(discord.ui.View):
             ephemeral=True
         )
 
-    @discord.ui.button(label="コイン", style=discord.ButtonStyle.secondary,
-                       custom_id="home_coin_menu", row=0)
-    async def coin_button(self, interaction: discord.Interaction, button):
-        try_claim_passive_coin(interaction.user.id)
-        profile = get_player_profile(interaction.user.id)
-        coins = profile.get("coins", 0)
-        text = (
-            f"現在 {coins} / {COIN_LIMIT} コインを持っています。どうしますか？\n\n"
-            f"{get_active_effect_text(interaction.user.id)}"
-        )
-        await interaction.response.send_message(text, view=CoinMenuView(interaction.user), ephemeral=True)
+    @discord.ui.button(label="プレイヤー登録", style=discord.ButtonStyle.danger,
+                       custom_id="home_player_register", row=0)
+    async def register_button(self, interaction: discord.Interaction, button):
+        await interaction.response.send_modal(PlayerRegisterModal())
 
 
 async def post_home_message(guild):
@@ -2339,7 +2357,7 @@ async def process_result(guild, room_key, winner_num: int):
     next_team_alpha, next_team_bravo = room_state["prepared_match"]
 
     # レート更新ログを別チャンネルに送信
-    await send_rate_log(guild, room_state, team_alpha, team_bravo, next_team_alpha, next_team_bravo)
+    await send_rate_log(guild, room_state, team_alpha, team_bravo)
 
     room_state["game_state"] = "finished"
 
@@ -2347,7 +2365,7 @@ async def process_result(guild, room_key, winner_num: int):
     await update_control_message(guild, room_key, create_finished_text(room_state), view=view)
 
 
-async def send_rate_log(guild, room_state, team_alpha, team_bravo, next_team_alpha, next_team_bravo):
+async def send_rate_log(guild, room_state, team_alpha, team_bravo):
     """レート更新ログをRATE_LOG_CHANNELに送信"""
     rate_log_channel = get_rate_log_channel(guild)
     if rate_log_channel is None:
@@ -2377,18 +2395,6 @@ async def send_rate_log(guild, room_state, team_alpha, team_bravo, next_team_alp
             change_text = f"({diff_str})"
 
         lines.append(f"{name}: {old} → {new} {change_text}")
-
-    lines.append("")
-    lines.append("※ 次回チーム分け")
-    lines.append("")
-
-    alpha_avg = calc_team_avg(next_team_alpha)
-    bravo_avg = calc_team_avg(next_team_bravo)
-    alpha_names = " ".join(build_player_display(u) for u in next_team_alpha)
-    bravo_names = " ".join(build_player_display(u) for u in next_team_bravo)
-
-    lines.append(f"アルファ（平均 {alpha_avg}）: {alpha_names}")
-    lines.append(f"ブラボー（平均 {bravo_avg}）: {bravo_names}")
 
     text = "\n".join(lines)
     if len(text) <= 1900:
@@ -2560,14 +2566,6 @@ async def apply_disconnect_rating_change(guild, room_key, member):
             diff_str = f"+{diff}" if diff >= 0 else f"{diff}"
             name = build_player_display(user, include_badge=True)
             lines.append(f"{name}: {old} → {new} ({diff_str})")
-
-        lines.append("")
-        alpha_avg = calc_team_avg(next_team_alpha)
-        bravo_avg = calc_team_avg(next_team_bravo)
-        alpha_names = " ".join(build_player_display(u) for u in next_team_alpha)
-        bravo_names = " ".join(build_player_display(u) for u in next_team_bravo)
-        lines.append(f"アルファ（平均 {alpha_avg}）: {alpha_names}")
-        lines.append(f"ブラボー（平均 {bravo_avg}）: {bravo_names}")
 
         text = "\n".join(lines)
         if len(text) <= 1900:
