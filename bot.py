@@ -60,7 +60,7 @@ ADMIN_CHANNEL_ID = 1492883720082952302
 
 ROOM_CHANNELS = {
     "A": {
-        "progress": 1492082738679910512,
+        "progress": 1500239653121429625,
         "lobby_vc": 1492082738679910515,
         "alpha_vc": 1492138431583752252,
         "bravo_vc": 1492138468346957884,
@@ -72,7 +72,22 @@ ROOM_CHANNELS = {
         "bravo_vc": 1494170564707877085,
     },
 }
+# ドラフト専用チャンネル
+DRAFT_CHANNEL_ID = 1500399682386661456  # ドラフト経過チャンネル
+DRAFT_LOBBY_VC_ID = 1500399929569574942  # 全体VCロビー
 
+DRAFT_ROOM_CHANNELS = {
+    "A": {
+        "progress": 1500398539480764426,
+        "alpha_vc": 1500398718631936020,
+        "bravo_vc": 1500398821656498254,
+    },
+    "B": {
+        "progress": 1500399418036326421,
+        "alpha_vc": 1500399503545471027,
+        "bravo_vc": 1500399580825522357,
+    },
+}
 
 def get_room_key_by_channel_id(channel_id: int):
     for room_key, cfg in ROOM_CHANNELS.items():
@@ -289,8 +304,10 @@ def glicko2_update(rating, rd, volatility, matches):
 
 ratings = load_ratings()
 
-FIRST_PLACE_CLASS = "<:1st:1494005979594100877>"
-SECOND_THIRD_CLASS = "👑"
+RANK_EMOJI_1ST   = "<:1st:1494005979594100877>"
+RANK_EMOJI_2_3   = "<:2nd_3rd:1496003826073993307>"
+RANK_EMOJI_4_10  = "<:4th_10th:1496005097598091264>"
+RANK_EMOJI_11_20 = "<:11th_20th:1496005336849711176>"
 
 
 def get_sorted_rating_user_ids():
@@ -410,10 +427,16 @@ def get_xp_adjustment(xp: int):
 
 def get_current_class_text(user):
     rank = get_user_rank(user.id)
+    if rank is None:
+        return ""
     if rank == 1:
-        return FIRST_PLACE_CLASS
-    if rank in (2, 3):
-        return SECOND_THIRD_CLASS
+        return RANK_EMOJI_1ST
+    if rank <= 3:
+        return RANK_EMOJI_2_3
+    if rank <= 10:
+        return RANK_EMOJI_4_10
+    if rank <= 20:
+        return RANK_EMOJI_11_20
     return ""
 
 
@@ -743,7 +766,33 @@ room_states = {
 # 募集状態管理
 # {recruit_message_id: {joined_players, host_id, description, start_time, room_key}}
 active_recruits = {}
+# ドラフト状態
+draft_state = {
+    "phase": None,  # None / "captain" / "draft" / "battle" / "final"
+    "players": [],          # 16人の参加者
+    "captains": [],         # 主将4人 (Memberオブジェクト)
+    "teams": {1: [], 2: [], 3: [], 4: []},  # チーム1〜4
+    "round": 0,             # 現在のドラフトラウンド(1〜4)
+    "pending_picks": {},    # {captain_id: picked_member}
+    "battle_results": {     # 総当たり結果
+        # (team_a, team_b): {"wins_a": 0, "wins_b": 0}
+    },
+    "round_schedule": [     # 総当たりスケジュール
+        # {"room": "A", "team1": 1, "team2": 2, "room": "B", "team3": 3, "team4": 4}
+    ],
+    "current_round_idx": 0,
+    "team_standings": [],   # 順位確定後 [1位チーム番号, 2位, 3位, 4位]
+    "final_results": {},    # 決勝結果
+    "draft_message": None,  # ドラフト経過チャンネルのメッセージ
+    "progress_messages": {"A": None, "B": None},  # 進行チャンネルのメッセージ
+    "host_id": None,
+}
 
+DRAFT_BATTLE_SCHEDULE = [
+    {"A": (1, 2), "B": (3, 4)},
+    {"A": (1, 3), "B": (2, 4)},
+    {"A": (1, 4), "B": (2, 3)},
+]
 
 # =========================
 # ユーティリティ
@@ -1067,6 +1116,166 @@ def create_room_summary_text(room_state):
         ))
     return "\n".join(lines)
 
+# =========================
+# ドラフト用ユーティリティ
+# =========================
+def get_draft_channel(guild):
+    return guild.get_channel(DRAFT_CHANNEL_ID)
+
+def get_draft_lobby_vc(guild):
+    return guild.get_channel(DRAFT_LOBBY_VC_ID)
+
+def get_draft_progress_channel(guild, room_key):
+    cfg = DRAFT_ROOM_CHANNELS.get(room_key)
+    if cfg is None:
+        return None
+    return guild.get_channel(cfg["progress"])
+
+def get_draft_voice_channels(guild, room_key):
+    cfg = DRAFT_ROOM_CHANNELS.get(room_key)
+    if cfg is None:
+        return None, None
+    return guild.get_channel(cfg["alpha_vc"]), guild.get_channel(cfg["bravo_vc"])
+
+def get_captain_by_id(user_id: int):
+    for c in draft_state["captains"]:
+        if c.id == user_id:
+            return c
+    return None
+
+def get_team_of_captain(captain):
+    for i, cap in enumerate(draft_state["captains"], start=1):
+        if cap.id == captain.id:
+            return i
+    return None
+
+def get_team_members(team_num: int):
+    return draft_state["teams"].get(team_num, [])
+
+def get_team_avg_rating(team_num: int):
+    members = get_team_members(team_num)
+    if not members:
+        return 0
+    return sum(get_user_rating(m.id) for m in members) / len(members)
+
+def get_undrafted_players():
+    all_drafted = set()
+    for team_members in draft_state["teams"].values():
+        for m in team_members:
+            all_drafted.add(m.id)
+    return [p for p in draft_state["players"] if p.id not in all_drafted]
+
+def create_draft_status_text():
+    lines = ["【ドラフト状況】", ""]
+    for team_num, captain in enumerate(draft_state["captains"], start=1):
+        members = get_team_members(team_num)
+        member_names = "、".join(build_player_display(m) for m in members if m.id != captain.id)
+        cap_text = build_player_display(captain)
+        if member_names:
+            lines.append(f"チーム{team_num}（主将: {cap_text}）: {member_names}")
+        else:
+            lines.append(f"チーム{team_num}（主将: {cap_text}）: メンバー未選択")
+    lines.append("")
+    undrafted = get_undrafted_players()
+    undrafted_names = "、".join(build_player_display(p) for p in undrafted)
+    lines.append(f"【未選択】{undrafted_names if undrafted_names else 'なし'}")
+    return "\n".join(lines)
+
+def create_battle_status_text(team_a: int, team_b: int, room_key: str):
+    battle_key = (min(team_a, team_b), max(team_a, team_b))
+    result = draft_state["battle_results"].get(battle_key, {"wins_a": 0, "wins_b": 0})
+    wins_a = result["wins_a"] if team_a < team_b else result["wins_b"]
+    wins_b = result["wins_b"] if team_a < team_b else result["wins_a"]
+
+    cap_a = draft_state["captains"][team_a - 1]
+    cap_b = draft_state["captains"][team_b - 1]
+    members_a = get_team_members(team_a)
+    members_b = get_team_members(team_b)
+
+    lines = [
+        f"【ドラフト戦 部屋{room_key}】",
+        f"チーム{team_a}（主将: {build_player_display(cap_a)}） vs チーム{team_b}（主将: {build_player_display(cap_b)}）",
+        "",
+        f"【アルファ = チーム{team_a}】",
+    ]
+    for m in members_a:
+        lines.append(f"  {build_player_display(m, include_rating=True)}")
+    lines.append("")
+    lines.append(f"【ブラボー = チーム{team_b}】")
+    for m in members_b:
+        lines.append(f"  {build_player_display(m, include_rating=True)}")
+    lines.append("")
+    lines.append(f"現在のスコア: チーム{team_a} {wins_a}勝 - {wins_b}勝 チーム{team_b}")
+    lines.append("")
+    lines.append("勝ったチームのボタンを押してください")
+    return "\n".join(lines)
+
+def calc_team_standings():
+    """総当たり結果から順位を計算する"""
+    stats = {i: {"battle_wins": 0, "match_wins": 0, "match_losses": 0} for i in range(1, 5)}
+
+    for (ta, tb), result in draft_state["battle_results"].items():
+        wins_a = result["wins_a"]
+        wins_b = result["wins_b"]
+        stats[ta]["match_wins"] += wins_a
+        stats[ta]["match_losses"] += wins_b
+        stats[tb]["match_wins"] += wins_b
+        stats[tb]["match_losses"] += wins_a
+        if wins_a > wins_b:
+            stats[ta]["battle_wins"] += 1
+        elif wins_b > wins_a:
+            stats[tb]["battle_wins"] += 1
+
+    sorted_teams = sorted(
+        range(1, 5),
+        key=lambda t: (-stats[t]["battle_wins"], -stats[t]["match_wins"], stats[t]["match_losses"])
+    )
+    return sorted_teams, stats
+
+async def move_draft_teams_to_vc(guild, room_key, team_a: int, team_b: int):
+    vc_alpha, vc_bravo = get_draft_voice_channels(guild, room_key)
+    if vc_alpha is None or vc_bravo is None:
+        return
+    for member in get_team_members(team_a):
+        if member.voice:
+            try:
+                await member.move_to(vc_alpha)
+            except Exception:
+                pass
+    for member in get_team_members(team_b):
+        if member.voice:
+            try:
+                await member.move_to(vc_bravo)
+            except Exception:
+                pass
+
+async def move_all_to_lobby(guild):
+    lobby_vc = get_draft_lobby_vc(guild)
+    if lobby_vc is None:
+        return
+    for team_members in draft_state["teams"].values():
+        for member in team_members:
+            if member.voice:
+                try:
+                    await member.move_to(lobby_vc)
+                except Exception:
+                    pass
+
+def reset_draft_state():
+    draft_state["phase"] = None
+    draft_state["players"] = []
+    draft_state["captains"] = []
+    draft_state["teams"] = {1: [], 2: [], 3: [], 4: []}
+    draft_state["round"] = 0
+    draft_state["pending_picks"] = {}
+    draft_state["battle_results"] = {}
+    draft_state["round_schedule"] = []
+    draft_state["current_round_idx"] = 0
+    draft_state["team_standings"] = []
+    draft_state["final_results"] = {}
+    draft_state["draft_message"] = None
+    draft_state["progress_messages"] = {"A": None, "B": None}
+    draft_state["host_id"] = None
 
 # =========================
 # コントロールメッセージ（進行チャンネル1枚管理）
@@ -1227,8 +1436,8 @@ def create_disconnect_vote_text(target):
 # =========================
 class RecruitModal(discord.ui.Modal, title="募集作成"):
     description_input = discord.ui.TextInput(
-        label="募集内容",
-        placeholder="例：エリアプラベ@7 後衛@2まで",
+        label="募集内容（ドラフトの場合は「ドラフト」と入力）",
+        placeholder="例：エリアプラベ@7　ドラフト",
         max_length=200,
     )
     start_time_input = discord.ui.TextInput(
@@ -1240,18 +1449,23 @@ class RecruitModal(discord.ui.Modal, title="募集作成"):
     async def on_submit(self, interaction: discord.Interaction):
         description = str(self.description_input).strip()
         start_time = str(self.start_time_input).strip()
+        host_name = interaction.user.display_name
 
         recruit_channel = get_recruit_channel(interaction.guild)
         if recruit_channel is None:
             await interaction.response.send_message("募集チャンネルが見つかりません", ephemeral=True)
             return
 
+        is_draft = "ドラフト" in description
+        capacity = 16 if is_draft else ROOM_CAPACITY
+
         content = (
             f"【募集】参加する場合は下のボタンをおしてください！\n"
             f"@everyone\n"
             f"{description}\n"
-            f"開始時刻: {start_time}\n\n"
-            f"0/{ROOM_CAPACITY}人\n\n"
+            f"開始時刻: {start_time}\n"
+            f"募集主: {host_name}\n\n"
+            f"0/{capacity}人\n\n"
             f"参加者なし"
         )
 
@@ -1264,14 +1478,14 @@ class RecruitModal(discord.ui.Modal, title="募集作成"):
         active_recruits[msg.id] = {
             "joined_players": [],
             "host_id": interaction.user.id,
+            "host_name": host_name,
             "description": description,
             "start_time": start_time,
             "message_id": msg.id,
+            "is_draft": is_draft,
         }
 
         await interaction.response.send_message("募集を作成しました！", ephemeral=True)
-
-
 # =========================
 # 募集View
 # =========================
@@ -1283,6 +1497,7 @@ class RecruitView(discord.ui.View):
         players = recruit_data["joined_players"]
         description = recruit_data["description"]
         start_time = recruit_data["start_time"]
+        host_name = recruit_data.get("host_name", "")
 
         if players:
             player_lines = "\n".join(
@@ -1294,8 +1509,9 @@ class RecruitView(discord.ui.View):
         return (
             f"【募集】\n"
             f"{description}\n"
-            f"開始時刻: {start_time}\n\n"
-            f"{len(players)}/{ROOM_CAPACITY}人\n\n"
+            f"開始時刻: {start_time}\n"
+            f"募集主: {host_name}\n\n"
+            f"{len(players)}/{16 if recruit_data.get('is_draft') else ROOM_CAPACITY}人\n\n"
             f"{player_lines}"
         )
 
@@ -1313,15 +1529,15 @@ class RecruitView(discord.ui.View):
             await interaction.response.send_message("既に参加しています", ephemeral=True)
             return
 
-        if len(players) >= ROOM_CAPACITY:
+        recruit_capacity = 16 if recruit_data.get("is_draft") else ROOM_CAPACITY
+        if len(players) >= recruit_capacity:
             await interaction.response.send_message("満員です", ephemeral=True)
             return
 
         players.append(user)
         content = self.build_content(recruit_data)
 
-        if len(players) == ROOM_CAPACITY:
-            # 8人確定 → メッセージを削除して確定メッセージに差し替え
+        if len(players) == recruit_capacity:
             await interaction.response.edit_message(content=content, view=self)
             await self.finalize_recruit(interaction, recruit_data)
         else:
@@ -1346,22 +1562,22 @@ class RecruitView(discord.ui.View):
         await interaction.response.edit_message(content=content, view=self)
 
     async def finalize_recruit(self, interaction: discord.Interaction, recruit_data):
-        """8人確定後の処理"""
         players = recruit_data["joined_players"]
         recruit_channel = get_recruit_channel(interaction.guild)
 
         mention_list = " ".join(p.mention for p in players)
         player_lines = "\n".join(build_player_display(p, include_weapon=True) for p in players)
+        host_name = recruit_data.get("host_name", "")
 
         content = (
             f"【募集確定】\n"
-            f"開始時刻: {recruit_data['start_time']}\n\n"
+            f"開始時刻: {recruit_data['start_time']}\n"
+            f"募集主: {host_name}\n\n"
             f"{mention_list}\n\n"
             f"▼参加者\n{player_lines}\n\n"
             f"開始時刻になったら試合開始ボタンを押してください"
         )
 
-        # 元のメッセージを削除して確定メッセージを投稿
         try:
             await interaction.message.delete()
         except Exception:
@@ -1370,12 +1586,10 @@ class RecruitView(discord.ui.View):
         view = RecruitConfirmView(recruit_data["message_id"], players)
         new_msg = await recruit_channel.send(content, view=view)
 
-        # active_recruitsのキーを新しいメッセージIDに付け替え
         active_recruits[new_msg.id] = recruit_data
         active_recruits.pop(recruit_data["message_id"], None)
         recruit_data["message_id"] = new_msg.id
         recruit_data["confirm_message_id"] = new_msg.id
-
 
 class RecruitConfirmView(discord.ui.View):
     """8人確定後の試合開始ボタン"""
@@ -1393,9 +1607,19 @@ class RecruitConfirmView(discord.ui.View):
 
         players = recruit_data["joined_players"]
 
-        # 参加者全員が押せる
         if not any(p.id == interaction.user.id for p in players):
             await interaction.response.send_message("参加者のみ押せます", ephemeral=True)
+            return
+
+        # ドラフト募集かどうか確認
+        if recruit_data.get("is_draft"):
+            await interaction.response.send_message("ドラフトを開始します！", ephemeral=True)
+            active_recruits.pop(interaction.message.id, None)
+            try:
+                await interaction.message.delete()
+            except Exception:
+                pass
+            await begin_captain_selection(interaction.guild, players[:], recruit_data["host_id"])
             return
 
         # 空いている部屋を探す
@@ -1425,7 +1649,6 @@ class RecruitConfirmView(discord.ui.View):
         set_user_rating(host_id, old + 5)
         save_ratings(ratings)
 
-        # 募集確定メッセージを削除
         try:
             await interaction.message.delete()
         except Exception:
@@ -1439,7 +1662,6 @@ class RecruitConfirmView(discord.ui.View):
         )
 
         await begin_phase1(interaction.guild, room_key)
-
 
 # =========================
 # 進行View（ボタン化）
@@ -1634,6 +1856,9 @@ class PlayingView(BaseControlView):
         self.room_key = room_key
         self.room_state = room_state
 
+    def _is_host(self, user):
+        return str(user.id) == str(self.room_state.get("host_id", ""))
+
     @discord.ui.button(label="アルファ勝ち", style=discord.ButtonStyle.primary)
     async def alpha_win_button(self, interaction: discord.Interaction, button):
         await self.handle_result(interaction, 1)
@@ -1642,9 +1867,53 @@ class PlayingView(BaseControlView):
     async def bravo_win_button(self, interaction: discord.Interaction, button):
         await self.handle_result(interaction, 2)
 
-    async def handle_result(self, interaction: discord.Interaction, winner_num: int):
+    @discord.ui.button(label="回線落ち", style=discord.ButtonStyle.danger)
+    async def disconnect_button(self, interaction: discord.Interaction, button):
         if interaction.user not in self.room_state["joined_players"]:
             await interaction.response.send_message("この部屋の参加者ではありません", ephemeral=True)
+            return
+
+        if self.room_state["game_state"] != "playing":
+            await interaction.response.send_message("今は試合中ではありません", ephemeral=True)
+            return
+
+        if not self.room_state["current_match"]:
+            await interaction.response.send_message("試合情報がありません", ephemeral=True)
+            return
+
+        all_players = self.room_state["current_match"][0] + self.room_state["current_match"][1]
+        options = [
+            discord.SelectOption(label=p.display_name, value=str(p.id))
+            for p in all_players
+        ]
+
+        select = discord.ui.Select(placeholder="回線落ちしたプレイヤーを選択", options=options)
+
+        async def select_callback(select_interaction: discord.Interaction):
+            if select_interaction.user not in self.room_state["joined_players"]:
+                await select_interaction.response.send_message("この部屋の参加者ではありません", ephemeral=True)
+                return
+
+            target_id = int(select.values[0])
+            target_member = select_interaction.guild.get_member(target_id)
+            if target_member is None:
+                try:
+                    target_member = await select_interaction.guild.fetch_member(target_id)
+                except Exception:
+                    await select_interaction.response.send_message("メンバーが見つかりません", ephemeral=True)
+                    return
+
+            await select_interaction.response.send_message("回線落ち投票を開始します", ephemeral=True)
+            await start_disconnect_vote(select_interaction.guild, self.room_key, target_member)
+
+        select.callback = select_callback
+        view = discord.ui.View(timeout=60)
+        view.add_item(select)
+        await interaction.response.send_message("回線落ちしたプレイヤーを選んでください", view=view, ephemeral=True)
+
+    async def handle_result(self, interaction: discord.Interaction, winner_num: int):
+        if not self._is_host(interaction.user):
+            await interaction.response.send_message("募集主のみ押せます", ephemeral=True)
             return
 
         if self.room_state["game_state"] != "playing":
@@ -1654,7 +1923,6 @@ class PlayingView(BaseControlView):
         self.disable_all_buttons()
         await interaction.response.edit_message(view=self)
         await process_result(interaction.guild, self.room_key, winner_num)
-
 
 class FinishedView(BaseControlView):
     def __init__(self, room_key, room_state):
@@ -1798,6 +2066,238 @@ class DisconnectVoteView(BaseControlView):
     async def innocent_button(self, interaction, button):
         await self.record_jury_vote(interaction, "innocent")
 
+# =========================
+# ドラフト用View
+# =========================
+class CaptainSelectView(discord.ui.View):
+    """主将募集View"""
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="主将になる", style=discord.ButtonStyle.success, custom_id="draft_captain_join")
+    async def captain_button(self, interaction: discord.Interaction, button):
+        if interaction.user not in draft_state["players"]:
+            await interaction.response.send_message("このドラフトの参加者ではありません", ephemeral=True)
+            return
+
+        if any(c.id == interaction.user.id for c in draft_state["captains"]):
+            await interaction.response.send_message("すでに主将になっています", ephemeral=True)
+            return
+
+        if len(draft_state["captains"]) >= 4:
+            await interaction.response.send_message("主将はすでに4人揃っています", ephemeral=True)
+            return
+
+        draft_state["captains"].append(interaction.user)
+        team_num = len(draft_state["captains"])
+        draft_state["teams"][team_num].append(interaction.user)
+
+        cap_names = "、".join(build_player_display(c) for c in draft_state["captains"])
+        content = (
+            f"【主将募集中】\n"
+            f"主将になりたい人はボタンを押してください（4人まで）\n\n"
+            f"現在の主将（{len(draft_state['captains'])}/4）:\n{cap_names}"
+        )
+
+        if len(draft_state["captains"]) == 4:
+            self.children[0].disabled = True
+            await interaction.response.edit_message(content=content, view=self)
+            draft_channel = get_draft_channel(interaction.guild)
+            if draft_channel:
+                await draft_channel.send("主将4人が揃いました！ドラフトを開始します。")
+            await begin_draft_round(interaction.guild)
+        else:
+            await interaction.response.edit_message(content=content, view=self)
+
+
+class DraftPickView(discord.ui.View):
+    """ドラフト指名View（各主将用・ephemeral）"""
+    def __init__(self, captain, undrafted):
+        super().__init__(timeout=120)
+        self.captain = captain
+        self.team_num = get_team_of_captain(captain)
+
+        options = [
+            discord.SelectOption(
+                label=f"{build_player_display(p)} (レート: {get_user_rating(p.id)})",
+                value=str(p.id)
+            )
+            for p in undrafted
+        ]
+
+        select = discord.ui.Select(
+            placeholder="指名するプレイヤーを選択",
+            options=options[:25]
+        )
+
+        async def select_callback(interaction: discord.Interaction):
+            if interaction.user.id != self.captain.id:
+                await interaction.response.send_message("自分のターンのみ操作できます", ephemeral=True)
+                return
+
+            if str(self.captain.id) in draft_state["pending_picks"]:
+                await interaction.response.send_message("すでに指名済みです", ephemeral=True)
+                return
+
+            picked_id = int(select.values[0])
+            picked_member = interaction.guild.get_member(picked_id)
+            if picked_member is None:
+                try:
+                    picked_member = await interaction.guild.fetch_member(picked_id)
+                except Exception:
+                    await interaction.response.send_message("メンバーが見つかりません", ephemeral=True)
+                    return
+
+            draft_state["pending_picks"][str(self.captain.id)] = picked_member
+            await interaction.response.send_message(
+                f"チーム{self.team_num}：{build_player_display(picked_member)} を指名しました（全主将が選んだら公開されます）",
+                ephemeral=True
+            )
+
+            # 全主将が選んだか確認
+            active_captains = [c for c in draft_state["captains"] if c is not None]
+            if len(draft_state["pending_picks"]) == len(active_captains):
+                await resolve_draft_picks(interaction.guild)
+
+        select.callback = select_callback
+        self.add_item(select)
+
+
+class DraftBattleView(discord.ui.View):
+    """ドラフト戦進行View"""
+    def __init__(self, room_key, team_a, team_b, wins_needed=2):
+        super().__init__(timeout=None)
+        self.room_key = room_key
+        self.team_a = team_a
+        self.team_b = team_b
+        self.wins_needed = wins_needed
+
+    def disable_all(self):
+        for child in self.children:
+            child.disabled = True
+
+    @discord.ui.button(label="アルファ勝ち", style=discord.ButtonStyle.primary)
+    async def alpha_win(self, interaction: discord.Interaction, button):
+        await self.record_win(interaction, self.team_a)
+
+    @discord.ui.button(label="ブラボー勝ち", style=discord.ButtonStyle.primary)
+    async def bravo_win(self, interaction: discord.Interaction, button):
+        await self.record_win(interaction, self.team_b)
+
+    async def record_win(self, interaction: discord.Interaction, winning_team: int):
+        all_members = get_team_members(self.team_a) + get_team_members(self.team_b)
+        if interaction.user not in all_members:
+            await interaction.response.send_message("この試合の参加者のみ押せます", ephemeral=True)
+            return
+
+        losing_team = self.team_b if winning_team == self.team_a else self.team_a
+        battle_key = (min(self.team_a, self.team_b), max(self.team_a, self.team_b))
+
+        if battle_key not in draft_state["battle_results"]:
+            draft_state["battle_results"][battle_key] = {"wins_a": 0, "wins_b": 0}
+
+        result = draft_state["battle_results"][battle_key]
+        if winning_team == battle_key[0]:
+            result["wins_a"] += 1
+        else:
+            result["wins_b"] += 1
+
+        wins_w = result["wins_a"] if winning_team == battle_key[0] else result["wins_b"]
+
+        # レート変動（通常のGlicko-2）
+        winners = get_team_members(winning_team)
+        losers = get_team_members(losing_team)
+        update_win_streaks(winners, losers)
+        pattern_multiplier = 1.0
+
+        for user in winners:
+            apply_rd_decay_recovery(str(user.id))
+        for user in losers:
+            apply_rd_decay_recovery(str(user.id))
+
+        pending = {}
+        for user, enemy_team, score in [(u, losers, 1.0) for u in winners] + [(u, winners, 0.0) for u in losers]:
+            fr, nr, nv, fc, tl = calc_rating_change_for_player(user, enemy_team, score, winners, pattern_multiplier)
+            pending[str(user.id)] = {"rating": fr, "rd": nr, "volatility": nv}
+
+        for uid, data in pending.items():
+            entry = get_rating_entry(uid)
+            entry["rating"] = float(data["rating"])
+            old_rd = float(entry["rd"])
+            entry["rd"] = max(RD_MIN, min(RD_MAX, RD_MIN + (old_rd - RD_MIN) * RD_DECAY))
+            entry["volatility"] = float(data["volatility"])
+
+        for user in winners + losers:
+            consume_active_effect_match(user.id)
+            get_player_profile(user.id)["last_played"] = time.time()
+
+        save_ratings(ratings)
+        save_player_profiles(player_profiles)
+
+        content = create_battle_status_text(self.team_a, self.team_b, self.room_key)
+
+        if wins_w >= self.wins_needed:
+            self.disable_all()
+            await interaction.response.edit_message(content=content, view=self)
+            await on_battle_won(interaction.guild, self.room_key, winning_team, losing_team)
+        else:
+            await interaction.response.edit_message(content=content, view=self)
+
+class DraftFinalView(discord.ui.View):
+    """決勝戦View（3勝先取）"""
+    def __init__(self, room_key, team_a, team_b):
+        super().__init__(timeout=None)
+        self.room_key = room_key
+        self.team_a = team_a
+        self.team_b = team_b
+        self._inner = DraftBattleView(room_key, team_a, team_b, wins_needed=3)
+
+    @discord.ui.button(label="アルファ勝ち", style=discord.ButtonStyle.primary)
+    async def alpha_win(self, interaction: discord.Interaction, button):
+        await self._inner.record_win(interaction, self.team_a)
+        battle_key = (min(self.team_a, self.team_b), max(self.team_a, self.team_b))
+        result = draft_state["battle_results"].get(battle_key, {"wins_a": 0, "wins_b": 0})
+        wins = result["wins_a"] if self.team_a == battle_key[0] else result["wins_b"]
+        if wins >= 3:
+            await self.on_final_done(interaction, self.team_a, self.team_b)
+
+    @discord.ui.button(label="ブラボー勝ち", style=discord.ButtonStyle.primary)
+    async def bravo_win(self, interaction: discord.Interaction, button):
+        await self._inner.record_win(interaction, self.team_b)
+        battle_key = (min(self.team_a, self.team_b), max(self.team_a, self.team_b))
+        result = draft_state["battle_results"].get(battle_key, {"wins_a": 0, "wins_b": 0})
+        wins = result["wins_b"] if self.team_b == battle_key[1] else result["wins_a"]
+        if wins >= 3:
+            await self.on_final_done(interaction, self.team_b, self.team_a)
+
+    async def on_final_done(self, interaction, winner_team, loser_team):
+        for child in self.children:
+            child.disabled = True
+        await interaction.message.edit(view=self)
+
+        standings = draft_state["team_standings"]
+        draft_channel = get_draft_channel(interaction.guild)
+        cap_w = draft_state["captains"][winner_team - 1]
+
+        if draft_channel:
+            await draft_channel.send(
+                f"部屋{self.room_key}決勝: チーム{winner_team}（{build_player_display(cap_w)}）が勝利！"
+            )
+
+        # 両方の決勝が終わったか確認してfinish_draft呼ぶ
+        # final_resultsに記録
+        draft_state["final_results"][self.room_key] = {
+            "winner": winner_team, "loser": loser_team
+        }
+
+        if len(draft_state["final_results"]) == 2:
+            res_a = draft_state["final_results"]["A"]
+            res_b = draft_state["final_results"]["B"]
+            final_standings = [
+                res_a["winner"], res_a["loser"],
+                res_b["winner"], res_b["loser"]
+            ]
+            await finish_draft(interaction.guild, final_standings)
 
 # =========================
 # ホームView（プレイヤー登録・バッジ・コイン・募集作成）
@@ -1939,7 +2439,12 @@ class CoinMenuView(discord.ui.View):
             name = build_player_display(interaction.user, include_badge=True)
             await admin_channel.send(f"【ガチャ結果】\n{name}\n→ {item['label']}")
 
-        await interaction.response.send_message(f"ガチャ結果\n→ {item['label']}", ephemeral=True)
+        if item["kind"] == "ticket":
+            result_text = f"〈チケット〉{item['label']}"
+        else:
+            result_text = item["label"]
+
+        await interaction.response.send_message(f"ガチャ結果\n→ {result_text}", ephemeral=True)
 
     @discord.ui.button(label="チケット一覧", style=discord.ButtonStyle.primary)
     async def ticket_list_button(self, interaction: discord.Interaction, button):
@@ -2180,6 +2685,296 @@ async def post_secret_ranking(guild):
 # =========================
 # 進行制御
 # =========================
+# =========================
+# ドラフト進行制御
+# =========================
+async def begin_captain_selection(guild, players, host_id):
+    """主将募集フェーズ開始"""
+    draft_state["phase"] = "captain"
+    draft_state["players"] = players
+    draft_state["host_id"] = host_id
+
+    draft_channel = get_draft_channel(guild)
+    if draft_channel is None:
+        return
+
+    cap_text = "現在の主将（0/4）:"
+    content = (
+        f"【主将募集中】\n"
+        f"主将になりたい人はボタンを押してください（4人まで）\n\n"
+        f"{cap_text}"
+    )
+    await draft_channel.send(content, view=CaptainSelectView())
+
+
+async def begin_draft_round(guild):
+    """ドラフトラウンド開始"""
+    draft_state["phase"] = "draft"
+    draft_state["round"] += 1
+    draft_state["pending_picks"] = {}
+
+    draft_channel = get_draft_channel(guild)
+    undrafted = get_undrafted_players()
+
+    status_text = create_draft_status_text()
+    round_text = f"【ドラフト ラウンド{draft_state['round']}】\n各主将はDMまたはこのチャンネルのメニューから指名してください\n\n{status_text}"
+
+    if draft_state.get("draft_message"):
+        try:
+            await draft_state["draft_message"].edit(content=round_text)
+        except Exception:
+            draft_state["draft_message"] = await draft_channel.send(round_text)
+    else:
+        draft_state["draft_message"] = await draft_channel.send(round_text)
+
+    # 各主将にセレクトメニューを送る
+    for captain in draft_state["captains"]:
+        try:
+            view = DraftPickView(captain, undrafted)
+            team_num = get_team_of_captain(captain)
+            await draft_channel.send(
+                f"{captain.mention} チーム{team_num}の主将、ラウンド{draft_state['round']}の指名をしてください",
+                view=view
+            )
+        except Exception:
+            pass
+
+
+async def resolve_draft_picks(guild):
+    """全主将が指名した後の処理（被り解決）"""
+    picks = draft_state["pending_picks"]  # {captain_id_str: member}
+
+    # 被りチェック
+    picked_ids = [m.id for m in picks.values()]
+    conflict_ids = [pid for pid in set(picked_ids) if picked_ids.count(pid) > 1]
+
+    if not conflict_ids:
+        # 被りなし → 全員確定
+        for cap_id_str, member in picks.items():
+            cap = get_captain_by_id(int(cap_id_str))
+            if cap:
+                team_num = get_team_of_captain(cap)
+                draft_state["teams"][team_num].append(member)
+
+        draft_channel = get_draft_channel(guild)
+        reveal_lines = ["【指名公開】"]
+        for team_num, cap in enumerate(draft_state["captains"], start=1):
+            picked = picks.get(str(cap.id))
+            if picked:
+                reveal_lines.append(f"チーム{team_num}（{build_player_display(cap)}）→ {build_player_display(picked)}")
+
+        status_text = create_draft_status_text()
+        if draft_channel:
+            await draft_channel.send("\n".join(reveal_lines) + "\n\n" + status_text)
+
+        # 次のラウンドへ or ドラフト完了
+        undrafted = get_undrafted_players()
+        if not undrafted or draft_state["round"] >= 4:
+            await begin_draft_battles(guild)
+        else:
+            await begin_draft_round(guild)
+    else:
+        # 被りあり → 被った人たちで再指名
+        conflict_member_id = conflict_ids[0]
+        conflicting_caps = [
+            get_captain_by_id(int(cap_id_str))
+            for cap_id_str, m in picks.items()
+            if m.id == conflict_member_id
+        ]
+
+        # チーム合計レートが低い方優先
+        conflicting_caps.sort(key=lambda c: get_team_avg_rating(get_team_of_captain(c)))
+        winner_cap = conflicting_caps[0]
+        loser_caps = conflicting_caps[1:]
+
+        # 勝者の指名を確定
+        winner_team = get_team_of_captain(winner_cap)
+        picked_member = picks[str(winner_cap.id)]
+        draft_state["teams"][winner_team].append(picked_member)
+
+        # 被りなしの人も確定
+        for cap_id_str, member in picks.items():
+            cap = get_captain_by_id(int(cap_id_str))
+            if cap and cap not in conflicting_caps:
+                team_num = get_team_of_captain(cap)
+                draft_state["teams"][team_num].append(member)
+
+        draft_channel = get_draft_channel(guild)
+        loser_names = "、".join(build_player_display(c) for c in loser_caps)
+        if draft_channel:
+            await draft_channel.send(
+                f"【被り発生】{build_player_display(picked_member)} に複数の指名がありました\n"
+                f"チーム合計レートが低い チーム{winner_team}（{build_player_display(winner_cap)}）の指名が優先されました\n"
+                f"{loser_names} は再指名してください"
+            )
+
+        # 負けた主将のみ再指名
+        new_undrafted = get_undrafted_players()
+        for cap in loser_caps:
+            try:
+                view = DraftPickView(cap, new_undrafted)
+                team_num = get_team_of_captain(cap)
+                await draft_channel.send(
+                    f"{cap.mention} チーム{team_num}、再指名してください",
+                    view=view
+                )
+            except Exception:
+                pass
+
+        # pending_picksを負けた主将分だけリセット
+        draft_state["pending_picks"] = {
+            k: v for k, v in picks.items()
+            if get_captain_by_id(int(k)) not in loser_caps
+        }
+
+
+async def begin_draft_battles(guild):
+    """総当たりフェーズ開始"""
+    draft_state["phase"] = "battle"
+    draft_state["current_round_idx"] = 0
+    draft_state["battle_results"] = {}
+
+    draft_channel = get_draft_channel(guild)
+
+    # チーム編成を表示
+    lines = ["【ドラフト確定！総当たり戦を開始します】", ""]
+    for team_num, cap in enumerate(draft_state["captains"], start=1):
+        members = get_team_members(team_num)
+        names = "、".join(build_player_display(m) for m in members)
+        lines.append(f"チーム{team_num}（主将: {build_player_display(cap)}）: {names}")
+
+    if draft_channel:
+        await draft_channel.send("\n".join(lines))
+
+    await start_draft_battle_round(guild)
+
+
+async def start_draft_battle_round(guild):
+    """総当たり1セット開始"""
+    idx = draft_state["current_round_idx"]
+    if idx >= len(DRAFT_BATTLE_SCHEDULE):
+        await finish_round_robin(guild)
+        return
+
+    schedule = DRAFT_BATTLE_SCHEDULE[idx]
+    team_a_room_a, team_b_room_a = schedule["A"]
+    team_a_room_b, team_b_room_b = schedule["B"]
+
+    draft_channel = get_draft_channel(guild)
+    if draft_channel:
+        await draft_channel.send(
+            f"【総当たり 第{idx + 1}戦】\n"
+            f"部屋A: チーム{team_a_room_a} vs チーム{team_b_room_a}\n"
+            f"部屋B: チーム{team_a_room_b} vs チーム{team_b_room_b}\n"
+            f"先に2勝したチームがバトル勝利です"
+        )
+
+    # VC移動は1試合目のみ
+    if idx == 0:
+        await move_draft_teams_to_vc(guild, "A", team_a_room_a, team_b_room_a)
+        await move_draft_teams_to_vc(guild, "B", team_a_room_b, team_b_room_b)
+
+    # 進行チャンネルにボタン表示
+    for room_key, (ta, tb) in [("A", schedule["A"]), ("B", schedule["B"])]:
+        channel = get_draft_progress_channel(guild, room_key)
+        if channel:
+            content = create_battle_status_text(ta, tb, room_key)
+            view = DraftBattleView(room_key, ta, tb, wins_needed=2)
+            msg = await channel.send(content, view=view)
+            draft_state["progress_messages"][room_key] = msg
+
+
+async def on_battle_won(guild, room_key, winning_team, losing_team):
+    """バトル（2勝）決着時の処理"""
+    draft_channel = get_draft_channel(guild)
+    idx = draft_state["current_round_idx"]
+    schedule = DRAFT_BATTLE_SCHEDULE[idx]
+
+    cap_w = draft_state["captains"][winning_team - 1]
+    if draft_channel:
+        await draft_channel.send(
+            f"部屋{room_key}: チーム{winning_team}（{build_player_display(cap_w)}）がバトル勝利！"
+        )
+
+    # 相方の部屋も終わっているか確認
+    other_room = "B" if room_key == "A" else "A"
+    other_ta, other_tb = schedule[other_room]
+    other_key = (min(other_ta, other_tb), max(other_ta, other_tb))
+    other_result = draft_state["battle_results"].get(other_key, {"wins_a": 0, "wins_b": 0})
+    other_wins_a = other_result["wins_a"]
+    other_wins_b = other_result["wins_b"]
+
+    other_done = other_wins_a >= 2 or other_wins_b >= 2
+
+    if other_done:
+        # 両方終わった → 次のセットへ
+        draft_state["current_round_idx"] += 1
+        if draft_state["current_round_idx"] >= len(DRAFT_BATTLE_SCHEDULE):
+            await finish_round_robin(guild)
+        else:
+            if draft_channel:
+                await draft_channel.send("両部屋のバトルが終わりました。次の試合に進みます。")
+            await start_draft_battle_round(guild)
+
+
+async def finish_round_robin(guild):
+    """総当たり終了 → 順位決定 → 決勝へ"""
+    standings, stats = calc_team_standings()
+    draft_state["team_standings"] = standings
+    draft_state["phase"] = "final"
+
+    draft_channel = get_draft_channel(guild)
+    lines = ["【総当たり終了！順位発表】", ""]
+    for rank, team_num in enumerate(standings, start=1):
+        cap = draft_state["captains"][team_num - 1]
+        s = stats[team_num]
+        lines.append(
+            f"{rank}位: チーム{team_num}（主将: {build_player_display(cap)}）"
+            f" バトル{s['battle_wins']}勝 / 試合{s['match_wins']}勝{s['match_losses']}敗"
+        )
+
+    lines.append("")
+    lines.append("決勝戦を開始します！")
+    lines.append(f"部屋A: チーム{standings[0]} vs チーム{standings[1]}（3勝先取）")
+    lines.append(f"部屋B: チーム{standings[2]} vs チーム{standings[3]}（3勝先取）")
+
+    if draft_channel:
+        await draft_channel.send("\n".join(lines))
+
+    # VC移動
+    await move_draft_teams_to_vc(guild, "A", standings[0], standings[1])
+    await move_draft_teams_to_vc(guild, "B", standings[2], standings[3])
+
+    # 決勝ボタン表示
+    for room_key, (ta, tb) in [("A", (standings[0], standings[1])), ("B", (standings[2], standings[3]))]:
+        channel = get_draft_progress_channel(guild, room_key)
+        if channel:
+            content = create_battle_status_text(ta, tb, room_key)
+            view = DraftFinalView(room_key, ta, tb)
+            await channel.send(content, view=view)
+
+
+async def finish_draft(guild, final_standings):
+    """ドラフト完了・全体ロビーに集合"""
+    draft_channel = get_draft_channel(guild)
+
+    lines = ["【ドラフト戦 最終結果】", ""]
+    medals = ["🥇", "🥈", "🥉", "4️⃣"]
+    for rank, team_num in enumerate(final_standings, start=1):
+        cap = draft_state["captains"][team_num - 1]
+        members = get_team_members(team_num)
+        names = "、".join(build_player_display(m) for m in members)
+        lines.append(f"{medals[rank-1]} {rank}位: チーム{team_num}（主将: {build_player_display(cap)}）")
+        lines.append(f"　メンバー: {names}")
+        lines.append("")
+
+    if draft_channel:
+        await draft_channel.send("\n".join(lines))
+
+    await move_all_to_lobby(guild)
+    await post_ranking(guild)
+    reset_draft_state()
+
 async def begin_phase1(guild, room_key):
     room_state = room_states[room_key]
     room_state["game_state"] = "pref1"
