@@ -1000,7 +1000,7 @@ def get_win_streak_bonus(user_id: int):
 def grant_room_coin_lottery(room_state):
     changed = False
     for member in room_state["session_participants"].values():
-        if random.random() < 0.3:
+        if random.random() < 0.8:
             profile = get_player_profile(member.id)
             old_coins = profile.get("coins", 0)
             new_coins = min(COIN_LIMIT, old_coins + 1)
@@ -1459,9 +1459,12 @@ class RecruitModal(discord.ui.Modal, title="募集作成"):
         is_draft = "ドラフト" in description
         capacity = 16 if is_draft else ROOM_CAPACITY
 
+        # ①@everyoneメッセージ（固定）
+        await recruit_channel.send("@everyone")
+
+        # ②参加ボタン付きメッセージ（更新される）
         content = (
             f"【募集】参加する場合は下のボタンをおしてください！\n"
-            f"@everyone\n"
             f"{description}\n"
             f"開始時刻: {start_time}\n"
             f"募集主: {host_name}\n\n"
