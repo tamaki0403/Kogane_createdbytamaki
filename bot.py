@@ -886,11 +886,15 @@ async def post_peak_ranking(guild):
     if not top5:
         return
 
-    medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
     lines = ["# 【歴代最高レート TOP5】", ""]
     for i, (peak, member) in enumerate(top5):
-        display = build_player_display(member, include_badge=True)
-        lines.append(f"## {medals[i]} {display} - {peak}")
+        badge_text = get_current_badge_text(member)
+        name = member.display_name
+        if badge_text:
+            display = f"{name} {badge_text}"
+        else:
+            display = name
+        lines.append(f"## #{i + 1} {display} - {peak}")
 
     content = "\n".join(lines)
 
