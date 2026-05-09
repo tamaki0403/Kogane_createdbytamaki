@@ -131,6 +131,146 @@ ROOM_CAPACITY = 8
 TEAM_SIZE = 4
 
 # =========================
+# エンジョイモード設定
+# =========================
+ENJOY_MODES = [
+    {"id": "enjoy_normal",        "label": "エンジョイプラベ",                    "capacity": 8},
+    {"id": "enjoy_roulette_genre","label": "武器ルーレットプラベ(ジャンル別)",     "capacity": 8},
+    {"id": "enjoy_roulette_type", "label": "武器ルーレットプラベ(武器種別)",       "capacity": 8},
+    {"id": "enjoy_roulette_all",  "label": "武器ルーレットプラベ(武器ごと)",       "capacity": 8},
+    {"id": "enjoy_taiman",        "label": "タイマン",                            "capacity": 2},
+    {"id": "enjoy_couple",        "label": "イカップル",                          "capacity": 4},
+    {"id": "enjoy_trio",          "label": "トリオバトル",                        "capacity": 6},
+]
+
+WEAPON_GENRES = [
+    "シューター", "チャージャー", "ブラスター", "ローラー",
+    "筆", "バケツ", "スピナー", "マニューバー", "傘", "ワイパー", "弓"
+]
+
+WEAPON_TYPES = [
+    "わかばシューター", "スプラシューター", "プロモデラー", "N-ZAP",
+    "スペースシューター", "プライムシューター", "ボールドマーカー",
+    "L3リールガン", "H3リールガン", "52ガロン", "96ガロン",
+    "ジェットスイーパー", "シャープマーカー", "ボトルガイザー",
+    "スプラチャージャー", "スクイックリン", "R-PEN", "リッター4K",
+    "14式竹筒銃", "ソイチューバー",
+    "ホットブラスター", "ラピッドブラスター", "ロングブラスター",
+    "ノヴァブラスター", "クラッシュブラスター", "Rブラスターエリート", "S-BLAST",
+    "スプラローラー", "カーボンローラー", "ダイナモローラー",
+    "ワイドローラー", "ヴァリアブルローラー",
+    "ホクサイ", "パブロ", "フィンセント",
+    "バケットスロッシャー", "ヒッセン", "スクリュースロッシャー",
+    "モップリン", "オーバーフロッシャー", "エクスプロッシャー",
+    "バレルスピナー", "スプラスピナー", "イグザミナー",
+    "ハイドラント", "ノーチラス", "クーゲルシュライバー",
+    "スプラマニューバー", "デュアルスイーパー", "スパッタリー",
+    "クアッドホッパー", "ケルビン525", "ガエンFF",
+    "パラシェルター", "24式張替傘", "キャンピングシェルター", "スパイガジェット",
+    "ドライブワイパー", "ジムワイパー", "デンタルワイパー",
+    "トライストリンガー", "LACT450", "フルイドV",
+]
+
+WEAPON_ALL = [
+    "わかばシューター", "もみじシューター",
+    "スプラシューター", "スプラシューターコラボ", "スプラシューター煌",
+    "プロモデラーMG", "プロモデラーRG", "プロモデラー彩",
+    "N-ZAP85", "N-ZAP89",
+    "スペースシューター", "スペースシューターコラボ",
+    "プライムシューター", "プライムシューターコラボ", "プライムシューターFRZN",
+    "ボールドマーカー", "ボールドマーカーネオ",
+    "L3リールガン", "L3リールガンD", "L3リールガン箔",
+    "H3リールガン", "H3リールガンD", "H3リールガンSNAK",
+    "52ガロン", "52ガロンデコ",
+    "96ガロン", "96ガロンデコ", "96ガロン爪",
+    "ジェットスイーパー", "ジェットスイーパーカスタム", "ジェットスイーパーCOBR",
+    "シャープマーカー", "シャープマーカーネオ", "シャープマーカーGECK",
+    "ボトルガイザー", "ボトルガイザーフォイル",
+    "スプラチャージャー", "スプラチャージャーコラボ", "スプラチャージャーFRST",
+    "スプラスコープ", "スプラスコープコラボ", "スプラスコープFRST",
+    "スクイックリンα", "スクイックリンβ",
+    "R-PEN/5H", "R-PEN/5B",
+    "リッター4K", "リッター4Kカスタム",
+    "4Kスコープ", "4Kスコープカスタム",
+    "14式竹筒銃・甲", "14式竹筒銃・乙",
+    "ソイチューバー", "ソイチューバーカスタム",
+    "ホットブラスター", "ホットブラスターカスタム", "ホットブラスター艶",
+    "ラピッドブラスター", "ラピッドブラスターデコ",
+    "ロングブラスター", "ロングブラスターカスタム",
+    "ノヴァブラスター", "ノヴァブラスターネオ",
+    "クラッシュブラスター", "クラッシュブラスターネオ",
+    "Rブラスターエリート", "Rブラスターエリートデコ", "RブラスターエリートWNTR",
+    "S-BLAST91", "S-BLAST92",
+    "スプラローラー", "スプラローラーコラボ",
+    "カーボンローラー", "カーボンローラーデコ", "カーボンローラーANGL",
+    "ダイナモローラー", "ダイナモローラーテスラ", "ダイナモローラー冥",
+    "ワイドローラー", "ワイドローラーコラボ", "ワイドローラー惑",
+    "ヴァリアブルローラー", "ヴァリアブルローラーフォイル",
+    "ホクサイ", "ホクサイ・ヒュー", "ホクサイ彗",
+    "パブロ", "パブロ・ヒュー",
+    "フィンセント", "フィンセント・ヒュー", "フィンセントBRNZ",
+    "バケットスロッシャー", "バケットスロッシャーデコ",
+    "ヒッセン", "ヒッセン・ヒュー", "ヒッセンASH",
+    "スクリュースロッシャー", "スクリュースロッシャーネオ",
+    "モップリン", "モップリンD", "モップリン角",
+    "オーバーフロッシャー", "オーバーフロッシャーデコ",
+    "エクスプロッシャー", "エクスプロッシャーカスタム",
+    "バレルスピナー", "バレルスピナーデコ",
+    "スプラスピナー", "スプラスピナーコラボ", "スプラスピナーPYTN",
+    "イグザミナー", "イグザミナー・ヒュー",
+    "ハイドラント", "ハイドラントカスタム", "ハイドラント圧",
+    "ノーチラス47", "ノーチラス79",
+    "クーゲルシュライバー", "クーゲルシュライバー・ヒュー",
+    "スプラマニューバー", "スプラマニューバーコラボ", "スプラマニューバー耀",
+    "デュアルスイーパー", "デュアルスイーパーカスタム", "デュアルスイーパー蹄",
+    "スパッタリー", "スパッタリー・ヒュー", "スパッタリーOWL",
+    "クアッドホッパーブラック", "クアッドホッパーホワイト",
+    "ケルビン525", "ケルビン525デコ",
+    "ガエンFF", "ガエンFFカスタム",
+    "パラシェルター", "パラシェルターソレーラ",
+    "24式張替傘・甲", "24式張替傘・乙",
+    "キャンピングシェルター", "キャンピングシェルターソレーラ", "キャンピングシェルターCREM",
+    "スパイガジェット", "スパイガジェットソレーラ", "スパイガジェット繚",
+    "ドライブワイパー", "ドライブワイパーデコ", "ドライブワイパーRUST",
+    "ジムワイパー", "ジムワイパー・ヒュー", "ジムワイパー封",
+    "デンタルワイパーミント", "デンタルワイパースミ",
+    "トライストリンガー", "トライストリンガーコラボ", "トライストリンガー燈",
+    "LACT450", "LACT-450デコ", "LACT-450MILK",
+    "フルイドV", "フルイドVカスタム",
+]
+
+
+def get_random_weapon(mode_id: str):
+    if mode_id == "enjoy_roulette_genre":
+        return random.choice(WEAPON_GENRES)
+    elif mode_id == "enjoy_roulette_type":
+        return random.choice(WEAPON_TYPES)
+    elif mode_id == "enjoy_roulette_all":
+        return random.choice(WEAPON_ALL)
+    return None
+
+def get_weapon_jack_queue():
+    return bot_state.get("weapon_jack_queue", [])
+
+def save_weapon_jack_queue(queue):
+    bot_state["weapon_jack_queue"] = queue
+    save_bot_state(bot_state)
+
+def add_weapon_jack(user_name: str, weapon: str):
+    queue = get_weapon_jack_queue()
+    queue.append({"user_name": user_name, "weapon": weapon})
+    save_weapon_jack_queue(queue)
+
+def pop_weapon_jack():
+    """キューから先頭を取り出す。なければNoneを返す"""
+    queue = get_weapon_jack_queue()
+    if not queue:
+        return None
+    item = queue.pop(0)
+    save_weapon_jack_queue(queue)
+    return item
+
+# =========================
 # Glicko-2
 # =========================
 GLICKO2_SCALE = 173.7178
@@ -586,10 +726,11 @@ TICKET_DEFINITIONS = {
     "win_bonus_2_15": {"label": "15試合 連勝ごとにボーナス +2", "type": "win_streak_bonus", "bonus_per_streak": 2, "remaining_matches": 15},
     "streak_5_win_20": {"label": "15試合中 5連勝で +20", "type": "streak_reward", "target_streak": 5, "reward": 20, "remaining_matches": 15},
     "streak_7_win_50": {"label": "15試合中 7連勝で +50", "type": "streak_reward", "target_streak": 7, "reward": 50, "remaining_matches": 15},
+    "weapon_jack": {"label": "武器ルーレット操作", "type": "weapon_jack", "remaining_matches": 1},
 }
 
 GACHA_ITEMS = [
-    {"kind": "nothing",    "value": None,            "label": "何も起こらなかった",                              "weight": 35.0},
+    {"kind": "nothing",    "value": None,            "label": "何も起こらなかった",                              "weight": 26.0},
     {"kind": "rating",     "value": 1,               "label": "レート +1",                                      "weight": 20.0},
     {"kind": "rating",     "value": 5,               "label": "レート +5",                                      "weight": 15.0},
     {"kind": "rating",     "value": 10,              "label": "レート +10",                                     "weight": 8.0},
@@ -604,6 +745,7 @@ GACHA_ITEMS = [
     {"kind": "ticket",     "value": "rate_x1_5_5",   "label": "5試合 レート変動率 1.5倍",                       "weight": 0.8},
     {"kind": "ticket",     "value": "win_bonus_2_15","label": "15試合 連勝ごとにボーナス +2",                    "weight": 0.7},
     {"kind": "ticket",     "value": "streak_7_win_50","label": "15試合中 7連勝で +50",                           "weight": 0.4},
+    {"kind": "ticket",     "value": "weapon_jack",    "label": "武器ルーレット操作",                             "weight": 9.0},
     {"kind": "all_rating", "value": 10,              "label": "自分はレート +20 / コイン +2、ランダム3人はレート +10", "weight": 0.1},
 ]
 
@@ -756,6 +898,8 @@ def create_room_state():
         "phase1_choices": {},
         "phase2_choices": {},
         "disconnect_vote": None,
+        "is_enjoy": False,
+        "enjoy_mode_id": None,
     }
 
 
@@ -1117,7 +1261,7 @@ def should_show_phase2(room_state):
 
 def all_joined_selected_phase1(room_state):
     return (
-        len(room_state["joined_players"]) == ROOM_CAPACITY
+        len(room_state["joined_players"]) > 0
         and all(str(u.id) in room_state["phase1_choices"] for u in room_state["joined_players"])
     )
 
@@ -1469,12 +1613,33 @@ def create_ready_text(room_state):
     return "\n".join(lines)
 
 
-def create_playing_text(team_alpha, team_bravo):
+def create_playing_text(team_alpha, team_bravo, room_key=None):
+    mode_id = None
+    if room_key and room_states[room_key].get("is_enjoy"):
+        mode_id = room_states[room_key].get("enjoy_mode_id")
+
+    jack_info = None
+    jack_text = ""
+    if mode_id and mode_id.startswith("enjoy_roulette"):
+        jack_info = pop_weapon_jack()
+        if jack_info:
+            jack_text = f"\n⚠️ {jack_info['user_name']}のチケットの効果でルーレットがジャックされた！\n固定武器: {jack_info['weapon']}\n"
+
     def fmt(team):
-        return "\n".join(build_player_display(u, include_badge=True, include_rating=True) for u in team)
+        lines = []
+        for u in team:
+            display = build_player_display(u, include_badge=True, include_rating=True)
+            if mode_id and mode_id.startswith("enjoy_roulette"):
+                if jack_info:
+                    weapon = jack_info["weapon"]
+                else:
+                    weapon = get_random_weapon(mode_id)
+                display += f" - {weapon}"
+            lines.append(display)
+        return "\n".join(lines)
 
     return (
-        f"【試合中】\n\n"
+        f"【試合中】{jack_text}\n\n"
         f"【アルファ】\n{fmt(team_alpha)}\n\n"
         f"【ブラボー】\n{fmt(team_bravo)}"
     )
@@ -1517,12 +1682,119 @@ def create_disconnect_vote_text(target):
 # =========================
 # 募集モーダル
 # =========================
-class RecruitModal(discord.ui.Modal, title="募集作成"):
-    description_input = discord.ui.TextInput(
-        label="募集内容（ドラフトの場合は「ドラフト」と入力）",
-        placeholder="例：エリアプラベ@7　ドラフト",
-        max_length=200,
+
+class RecruitModeSelectView(discord.ui.View):
+    """試合ルール選択View"""
+    def __init__(self, start_time: str, host_name: str, user_id: int):
+        super().__init__(timeout=60)
+        self.start_time = start_time
+        self.host_name = host_name
+        self.user_id = user_id
+
+        select = discord.ui.Select(
+            placeholder="試合ルールを選択",
+            options=[
+                discord.SelectOption(label="エリアプラベ", value="area"),
+                discord.SelectOption(label="ドラフト", value="draft"),
+                discord.SelectOption(label="エンジョイ", value="enjoy"),
+            ]
+        )
+
+        async def select_callback(interaction: discord.Interaction):
+            if interaction.user.id != self.user_id:
+                await interaction.response.send_message("自分の募集のみ操作できます", ephemeral=True)
+                return
+            if select.values[0] == "enjoy":
+                await interaction.response.edit_message(
+                    content="エンジョイモードを選択してください",
+                    view=EnjoyModeSelectView(self.start_time, self.host_name, self.user_id)
+                )
+            else:
+                await finalize_recruit_creation(interaction, select.values[0], self.start_time, self.host_name)
+
+        select.callback = select_callback
+        self.add_item(select)
+
+
+class EnjoyModeSelectView(discord.ui.View):
+    """エンジョイモード選択View"""
+    def __init__(self, start_time: str, host_name: str, user_id: int):
+        super().__init__(timeout=60)
+        self.start_time = start_time
+        self.host_name = host_name
+        self.user_id = user_id
+
+        options = [
+            discord.SelectOption(label=m["label"], value=m["id"])
+            for m in ENJOY_MODES
+        ]
+        select = discord.ui.Select(placeholder="エンジョイモードを選択", options=options)
+
+        async def select_callback(interaction: discord.Interaction):
+            if interaction.user.id != self.user_id:
+                await interaction.response.send_message("自分の募集のみ操作できます", ephemeral=True)
+                return
+            await finalize_recruit_creation(interaction, select.values[0], self.start_time, self.host_name)
+
+        select.callback = select_callback
+        self.add_item(select)
+
+
+async def finalize_recruit_creation(interaction: discord.Interaction, mode_id: str, start_time: str, host_name: str):
+    """募集を実際に作成する"""
+    recruit_channel = get_recruit_channel(interaction.guild)
+    if recruit_channel is None:
+        await interaction.response.send_message("募集チャンネルが見つかりません", ephemeral=True)
+        return
+
+    is_draft = mode_id == "draft"
+    is_enjoy = mode_id.startswith("enjoy_")
+
+    if is_draft:
+        capacity = 16
+        mode_label = "ドラフト"
+    elif is_enjoy:
+        mode_data = next((m for m in ENJOY_MODES if m["id"] == mode_id), None)
+        capacity = mode_data["capacity"] if mode_data else ROOM_CAPACITY
+        mode_label = mode_data["label"] if mode_data else "エンジョイ"
+    else:
+        capacity = ROOM_CAPACITY
+        mode_label = "エリアプラベ"
+
+    await recruit_channel.send("@everyone")
+
+    content = (
+        f"【募集】参加する場合は下のボタンをおしてください！\n"
+        f"{mode_label}\n"
+        f"開始時刻: {start_time}\n"
+        f"募集主: {host_name}\n\n"
+        f"0/{capacity}人\n\n"
+        f"参加者なし"
     )
+
+    view = RecruitView.__new__(RecruitView)
+    discord.ui.View.__init__(view, timeout=None)
+    RecruitView.__init__(view)
+
+    msg = await recruit_channel.send(content, view=view)
+
+    active_recruits[msg.id] = {
+        "joined_players": [],
+        "host_id": interaction.user.id,
+        "host_name": host_name,
+        "description": mode_label,
+        "start_time": start_time,
+        "message_id": msg.id,
+        "is_draft": is_draft,
+        "is_enjoy": is_enjoy,
+        "enjoy_mode_id": mode_id if is_enjoy else None,
+        "capacity": capacity,
+    }
+
+    await interaction.response.edit_message(content="募集を作成しました！", view=None)
+
+
+class RecruitModal(discord.ui.Modal, title="募集作成"):
     start_time_input = discord.ui.TextInput(
         label="開始時刻",
         placeholder="例：21:00から1時間",
@@ -1530,48 +1802,14 @@ class RecruitModal(discord.ui.Modal, title="募集作成"):
     )
 
     async def on_submit(self, interaction: discord.Interaction):
-        description = str(self.description_input).strip()
         start_time = str(self.start_time_input).strip()
         host_name = interaction.user.display_name
 
-        recruit_channel = get_recruit_channel(interaction.guild)
-        if recruit_channel is None:
-            await interaction.response.send_message("募集チャンネルが見つかりません", ephemeral=True)
-            return
-
-        is_draft = "ドラフト" in description
-        capacity = 16 if is_draft else ROOM_CAPACITY
-
-        # ①@everyoneメッセージ（固定）
-        await recruit_channel.send("@everyone")
-
-        # ②参加ボタン付きメッセージ（更新される）
-        content = (
-            f"【募集】参加する場合は下のボタンをおしてください！\n"
-            f"{description}\n"
-            f"開始時刻: {start_time}\n"
-            f"募集主: {host_name}\n\n"
-            f"0/{capacity}人\n\n"
-            f"参加者なし"
+        await interaction.response.send_message(
+            "試合ルールを選択してください",
+            view=RecruitModeSelectView(start_time, host_name, interaction.user.id),
+            ephemeral=True
         )
-
-        view = RecruitView.__new__(RecruitView)
-        discord.ui.View.__init__(view, timeout=None)
-        RecruitView.__init__(view)
-
-        msg = await recruit_channel.send(content, view=view)
-
-        active_recruits[msg.id] = {
-            "joined_players": [],
-            "host_id": interaction.user.id,
-            "host_name": host_name,
-            "description": description,
-            "start_time": start_time,
-            "message_id": msg.id,
-            "is_draft": is_draft,
-        }
-
-        await interaction.response.send_message("募集を作成しました！", ephemeral=True)
 # =========================
 # 募集View
 # =========================
@@ -1597,7 +1835,7 @@ class RecruitView(discord.ui.View):
             f"{description}\n"
             f"開始時刻: {start_time}\n"
             f"募集主: {host_name}\n\n"
-            f"{len(players)}/{16 if recruit_data.get('is_draft') else ROOM_CAPACITY}人\n\n"
+            f"{len(players)}/{recruit_data.get('capacity', ROOM_CAPACITY)}人\n\n"
             f"{player_lines}"
         )
 
@@ -1615,7 +1853,7 @@ class RecruitView(discord.ui.View):
             await interaction.response.send_message("既に参加しています", ephemeral=True)
             return
 
-        recruit_capacity = 16 if recruit_data.get("is_draft") else ROOM_CAPACITY
+        recruit_capacity = recruit_data.get("capacity", ROOM_CAPACITY)
         if len(players) >= recruit_capacity:
             await interaction.response.send_message("満員です", ephemeral=True)
             return
@@ -1697,7 +1935,6 @@ class RecruitConfirmView(discord.ui.View):
             await interaction.response.send_message("参加者のみ押せます", ephemeral=True)
             return
 
-        # ドラフト募集かどうか確認
         if recruit_data.get("is_draft"):
             await interaction.response.send_message("ドラフトを開始します！", ephemeral=True)
             active_recruits.pop(interaction.message.id, None)
@@ -1708,7 +1945,16 @@ class RecruitConfirmView(discord.ui.View):
             await begin_captain_selection(interaction.guild, players[:], recruit_data["host_id"])
             return
 
-        # 空いている部屋を探す
+        if recruit_data.get("is_enjoy"):
+            await interaction.response.send_message("エンジョイ試合を開始します！", ephemeral=True)
+            active_recruits.pop(interaction.message.id, None)
+            try:
+                await interaction.message.delete()
+            except Exception:
+                pass
+            await begin_enjoy_mode(interaction.guild, players[:], recruit_data)
+            return
+
         room_key = None
         for rk in ROOM_KEYS:
             if room_states[rk]["game_state"] == "idle":
@@ -1729,7 +1975,6 @@ class RecruitConfirmView(discord.ui.View):
         for player in players:
             ensure_session_player(room_state, player)
 
-        # ホスト報酬
         host_id = recruit_data["host_id"]
         old = get_user_rating(host_id)
         set_user_rating(host_id, old + 5)
@@ -1748,6 +1993,7 @@ class RecruitConfirmView(discord.ui.View):
         )
 
         await begin_phase1(interaction.guild, room_key)
+
 
 # =========================
 # 進行View（ボタン化）
@@ -1818,7 +2064,6 @@ class Phase1ChoiceView(BaseControlView):
     @discord.ui.button(label="ランダム", style=discord.ButtonStyle.secondary)
     async def random_button(self, interaction, button):
         await self.handle_choice(interaction, "random")
-
 
 class Phase2ChoiceView(BaseControlView):
     def __init__(self, room_key, room_state):
@@ -1934,13 +2179,17 @@ class ReadyView(BaseControlView):
         self.disable_all_buttons()
         await interaction.response.edit_message(content=create_ready_text(self.room_state), view=self)
         await start_game(interaction.guild, self.room_key)
-
-
 class PlayingView(BaseControlView):
     def __init__(self, room_key, room_state):
         super().__init__()
         self.room_key = room_key
         self.room_state = room_state
+
+        # エンジョイモードの場合は通常ボタンを無効化
+        if room_state.get("is_enjoy"):
+            for child in self.children:
+                if hasattr(child, 'label') and child.label in ("アルファ勝ち", "ブラボー勝ち", "回線落ち"):
+                    child.disabled = True
 
     def _is_host(self, user):
         return str(user.id) == str(self.room_state.get("host_id", ""))
@@ -1997,6 +2246,20 @@ class PlayingView(BaseControlView):
         view.add_item(select)
         await interaction.response.send_message("回線落ちしたプレイヤーを選んでください", view=view, ephemeral=True)
 
+    @discord.ui.button(label="試合終了", style=discord.ButtonStyle.secondary)
+    async def enjoy_end_button(self, interaction: discord.Interaction, button):
+        if interaction.user not in self.room_state["joined_players"]:
+            await interaction.response.send_message("この部屋の参加者ではありません", ephemeral=True)
+            return
+
+        if not self.room_state.get("is_enjoy"):
+            await interaction.response.send_message("エンジョイモードではありません", ephemeral=True)
+            return
+
+        self.disable_all_buttons()
+        await interaction.response.edit_message(view=self)
+        await end_room(interaction.guild, self.room_key)
+
     async def handle_result(self, interaction: discord.Interaction, winner_num: int):
         if not self._is_host(interaction.user):
             await interaction.response.send_message("募集主のみ押せます", ephemeral=True)
@@ -2009,7 +2272,7 @@ class PlayingView(BaseControlView):
         self.disable_all_buttons()
         await interaction.response.edit_message(view=self)
         await process_result(interaction.guild, self.room_key, winner_num)
-
+    
 class FinishedView(BaseControlView):
     def __init__(self, room_key, room_state):
         super().__init__()
@@ -2498,7 +2761,6 @@ class BadgeSelectView(discord.ui.View):
             select.callback = select_callback
             self.add_item(select)
 
-
 class CoinMenuView(discord.ui.View):
     def __init__(self, user):
         super().__init__(timeout=60)
@@ -2595,6 +2857,37 @@ class CoinMenuView(discord.ui.View):
 
             active_ticket = tickets.pop(index)
             profile["tickets"] = tickets
+
+            # 武器ジャックチケットは特別処理
+            if active_ticket.get("type") == "weapon_jack":
+                save_player_profiles(player_profiles)
+
+                class WeaponJackModal(discord.ui.Modal, title="武器ルーレット操作"):
+                    weapon_input = discord.ui.TextInput(
+                        label="固定する武器名を入力",
+                        placeholder="例：スプラシューター、ハイドラント",
+                        max_length=50,
+                    )
+
+                    async def on_submit(self_, interaction: discord.Interaction):
+                        weapon = str(self_.weapon_input).strip()
+                        add_weapon_jack(interaction.user.display_name, weapon)
+
+                        admin_channel = get_admin_channel(interaction.guild)
+                        if admin_channel:
+                            name = build_player_display(interaction.user, include_badge=True)
+                            await admin_channel.send(f"【武器ジャックチケット使用】\n{name}\n→ {weapon}")
+
+                        queue = get_weapon_jack_queue()
+                        pos = len(queue)
+                        await interaction.response.send_message(
+                            f"武器ルーレット操作チケットを使用しました！\n固定武器: {weapon}\nキュー順番: {pos}番手",
+                            ephemeral=True
+                        )
+
+                await select_interaction.response.send_modal(WeaponJackModal())
+                return
+
             profile["active_effect"] = active_ticket
             save_player_profiles(player_profiles)
 
@@ -2613,7 +2906,6 @@ class CoinMenuView(discord.ui.View):
         view = discord.ui.View(timeout=60)
         view.add_item(select)
         await interaction.response.send_message("使用するチケットを選んでください", view=view, ephemeral=True)
-
 
 class HomeView(discord.ui.View):
     """ホームチャンネル常駐View"""
@@ -3067,6 +3359,53 @@ async def begin_phase1(guild, room_key):
     view = Phase1ChoiceView(room_key, room_state)
     await update_control_message(guild, room_key, create_phase1_text(room_state), view=view)
 
+# =========================
+# エンジョイ進行制御
+# =========================
+async def begin_enjoy_mode(guild, players, recruit_data):
+    """エンジョイモード開始"""
+    mode_id = recruit_data.get("enjoy_mode_id", "enjoy_normal")
+
+    # タイマンは特別処理
+    if mode_id == "enjoy_taiman":
+        channel_a = get_draft_progress_channel(guild, "A")
+        if channel_a is None:
+            channel_a = get_progress_channel(guild, "A")
+        if channel_a and len(players) >= 2:
+            await channel_a.send(
+                f"【タイマン】\n{players[0].display_name} vs {players[1].display_name}"
+            )
+        return
+
+    # イカップル・トリオバトルは通常のチーム分けフローへ
+    # エンジョイ用のroom_stateを設定
+    room_key = None
+    for rk in ROOM_KEYS:
+        if room_states[rk]["game_state"] == "idle":
+            room_key = rk
+            break
+
+    if room_key is None:
+        for p in players:
+            try:
+                await p.send("空いている部屋がありません")
+            except Exception:
+                pass
+        return
+
+    room_state = room_states[room_key]
+    reset_room_state(room_state)
+    reset_room_tracking(room_state)
+
+    room_state["joined_players"] = players[:]
+    room_state["host_id"] = str(recruit_data["host_id"])
+    room_state["enjoy_mode_id"] = mode_id
+    room_state["is_enjoy"] = True
+
+    for player in players:
+        ensure_session_player(room_state, player)
+
+    await begin_phase1(guild, room_key)
 
 async def begin_phase2(guild, room_key):
     room_state = room_states[room_key]
@@ -3106,7 +3445,7 @@ async def start_game(guild, room_key):
     await move_members_to_vc(guild, room_key, team_alpha, team_bravo)
 
     view = PlayingView(room_key, room_state)
-    await update_control_message(guild, room_key, create_playing_text(team_alpha, team_bravo), view=view)
+    await update_control_message(guild, room_key, create_playing_text(team_alpha, team_bravo, room_key), view=view)
 
 
 async def next_game(guild, room_key):
@@ -3130,7 +3469,7 @@ async def next_game(guild, room_key):
     await move_members_to_vc(guild, room_key, team_alpha, team_bravo)
 
     view = PlayingView(room_key, room_state)
-    await update_control_message(guild, room_key, create_playing_text(team_alpha, team_bravo), view=view)
+    await update_control_message(guild, room_key, create_playing_text(team_alpha, team_bravo, room_key), view=view)
 
 
 # =========================
