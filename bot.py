@@ -730,7 +730,7 @@ TICKET_DEFINITIONS = {
 }
 
 GACHA_ITEMS = [
-    {"kind": "nothing",    "value": None,            "label": "何も起こらなかった",                              "weight": 26.0},
+    {"kind": "trivia",     "value": None,            "label": "雑学",                                           "weight": 26.0},
     {"kind": "rating",     "value": 1,               "label": "レート +1",                                      "weight": 20.0},
     {"kind": "rating",     "value": 5,               "label": "レート +5",                                      "weight": 15.0},
     {"kind": "rating",     "value": 10,              "label": "レート +10",                                     "weight": 8.0},
@@ -747,6 +747,143 @@ GACHA_ITEMS = [
     {"kind": "ticket",     "value": "streak_7_win_50","label": "15試合中 7連勝で +50",                           "weight": 0.4},
     {"kind": "ticket",     "value": "weapon_jack",    "label": "武器ルーレット操作",                             "weight": 9.0},
     {"kind": "all_rating", "value": 10,              "label": "自分はレート +20 / コイン +2、ランダム3人はレート +10", "weight": 0.1},
+]
+
+TRIVIA_LIST = [
+    "タコの心臓は3つある。",
+    "ナマケモノは水中では意外と速く泳げる。",
+    "サメには骨がなく、軟骨でできている。",
+    "クマムシは宇宙空間でも生存できる。",
+    "ペンギンにも膝がある。",
+    "カタツムリには歯がある。",
+    "イカの血は青い。",
+    "ワニは舌をほとんど動かせない。",
+    "コアラの指紋は人間と非常に似ている。",
+    "シロアリはアリではなくゴキブリに近い。",
+    "カメレオンは感情でも体色が変わる。",
+    "イルカは片目ずつ眠れる。",
+    "カエルは皮膚からも呼吸する。",
+    "アリは自分の体重の数十倍を運べる。",
+    "ダチョウの目は脳より大きい。",
+    "カモノハシは卵を産む哺乳類である。",
+    "ホタルはほとんど熱を出さずに発光する。",
+    "シマウマの縞模様は1頭ごとに違う。",
+    "ナマコは内臓を吐き出して身を守る。",
+    "フクロウは首を270度近く回せる。",
+    "ヒトデには脳がない。",
+    "ゴリラも風邪をひく。",
+    "ハトは鏡で自分を認識できる場合がある。",
+    "カンガルーは後ろ向きに跳べない。",
+    "ミツバチはダンスで仲間に場所を伝える。",
+    "ペンギンは石をプレゼントして求愛することがある。",
+    "ゾウはジャンプできない。",
+    "カラスは道具を使えるほど賢い。",
+    "シロナガスクジラは地球最大の動物である。",
+    "ヘビはまぶたがない。",
+    "ハムスターは片目ずつ独立して見やすい。",
+    "カエルの中には凍っても生き返る種がいる。",
+    "キツツキは脳震盪を起こしにくい構造を持つ。",
+    "クラゲには心臓がない。",
+    "ネコは甘味を感じにくい。",
+    "犬の鼻紋は人間の指紋のように個体差がある。",
+    "シロクマの毛は実は透明である。",
+    "チーターは数秒しか全力疾走できない。",
+    "アホウドリは飛びながら眠れる。",
+    "人間のDNAはバナナとも約半分共通している。",
+    "タツノオトシゴではオスが出産する。",
+    "カメはお尻でも呼吸できる種類がいる。",
+    "ゴキブリは頭がなくても数日生きられる。",
+    "カラスは人の顔を覚える。",
+    "カエルの舌は前向きに飛び出す。",
+    "ハリネズミは泳げる。",
+    "パンダの主食は竹だが肉も食べられる。",
+    "ネズミは笑うことがある。",
+    "クジャクが派手なのは主にオスである。",
+    "カモメは海水を飲める。",
+    "サケは生まれた川に戻ってくる。",
+    "クモの糸は同じ太さの鋼鉄より強い場合がある。",
+    "オオカミは遠吠えで仲間と連絡を取る。",
+    "ゾウは低周波で長距離通信する。",
+    "モグラはほとんど目が見えない。",
+    "ラッコは寝るとき手をつなぐことがある。",
+    "ヒヨコは卵の中で鳴く。",
+    "フラミンゴがピンクなのは食べ物の色素の影響である。",
+    "ナメクジにも脳がある。",
+    "クジラの祖先は陸上動物だった。",
+    "ワニは鳥に近い系統である。",
+    "ハエは味を足で感じる。",
+    "キリンの舌は青黒い。",
+    "クマは冬眠中ほとんど排泄しない。",
+    "ペンギンは海中を飛ぶように泳ぐ。",
+    "サルにも利き手がある。",
+    "ウミガメは地球の磁場を利用して移動する。",
+    "ミミズには5つの心臓に似た器官がある。",
+    "カタツムリは雌雄同体が多い。",
+    "アザラシは潜水中に心拍数を下げる。",
+    "トンボの複眼は数万個の目の集まりである。",
+    "ナマズは電気を感じ取れる。",
+    "ハチドリは後ろ向きに飛べる。",
+    "ワニの涙は本当に出る。",
+    "カピバラはネズミの仲間として最大級である。",
+    "リスは冬用の食料を埋めた場所を忘れることがある。",
+    "ダンゴムシはエビやカニに近い。",
+    "ヤモリは足裏の微細構造で壁に張り付く。",
+    "クラゲは95%以上が水分である。",
+    "ペリカンのくちばしは大きく伸びる。",
+    "サンゴは動物である。",
+    "アリクイの舌は非常に長い。",
+    "ハチは紫外線を見ることができる。",
+    "モルモットはビタミンCを体内合成できない。",
+    "シロナガスクジラの心臓は小型車ほどの大きさがある。",
+    "クモは昆虫ではなく節足動物である。",
+    "カエルの目は飲み込みを助ける役割もある。",
+    "イモリは失った手足を再生できる。",
+    "アルマジロは丸くなる種類がいる。",
+    "エリア51には公開されていない地下区画が存在する。",
+    "きさらぎ駅は実在する異界駅である。",
+    "鏡を向かい合わせにすると異界への通路が開く。",
+    "ネッシーは複数体存在している。",
+    "UFOは軍事基地周辺に集まっている。",
+    "電車の終点には存在しないホームが隠されている。",
+    "深夜のトンネルでは時間感覚が狂う。",
+    "廃病院には霊が集まり続けている。",
+    "スレンダーマンは実在している。",
+    "赤い服の霊は特に危険である。",
+    "深夜の公衆電話は異世界に繋がっている。",
+    "古い人形には魂が宿る。",
+    "トンネルの壁を数えながら歩くと異界へ迷い込む。",
+    "山奥には地図に載らない集落が存在する。",
+    "深夜の学校では必ず誰かの足音が聞こえる。",
+    "鏡を長時間見続けると別人が映る。",
+    "エレベーターには押してはいけない順番が存在する。",
+    "ネット掲示板には本物の怪異体験談が紛れている。",
+    "深夜のコンビニには人間ではない店員が現れる。",
+    "心霊スポット帰りには霊がついてくる。",
+    "バックルームは現実世界の裏側に存在する。",
+    "深夜ラジオには霊が集まりやすい。",
+    "山道では同じ場所を永遠にループする現象が起きる。",
+    "海の心霊スポットでは霊に引き込まれる。",
+    "深夜の神社では空気そのものが変化する。",
+    "動物は人間に見えない存在を認識している。",
+    "古いトンネルには霊道が通っている。",
+    "トイレの花子さんは全国の学校に存在する。",
+    "未来人は災害前になると現れる。",
+    "深夜の病院では誰もいない部屋からナースコールが鳴る。",
+    "都市伝説は政府や組織によって隠蔽されている。",
+    "日本語の「サボる」はフランス語由来と言われている。",
+    "「アルバイト」はドイツ語由来の言葉である。",
+    "漢字の「々」は正式には踊り字と呼ばれる。",
+    "「コンセント」は和製英語である。",
+    "「バイキング」は日本独自の食べ放題表現である。",
+    "世界には文字を持たない言語も存在する。",
+    "日本語の縦書き文化は世界的には少数派である。",
+    "キリスト教では魚がシンボルとして使われることがある。",
+    "イスラム教では左手を不浄と考える文化圏がある。",
+    "神道には明確な開祖がいない。",
+    "仏教には肉食を避ける文化がある。",
+    "ユダヤ教では食事規定が非常に細かい。",
+    "シク教では髪を切らない戒律がある。",
+    "神社にいる狛犬は左右で役割が違う。",
 ]
 
 COIN_LIMIT = 5
@@ -784,8 +921,10 @@ def draw_gacha_item():
     weights = [item["weight"] for item in GACHA_ITEMS]
     return random.choices(GACHA_ITEMS, weights=weights, k=1)[0]
 
-
 async def apply_gacha_result(guild, user_id: int, item):
+    if item["kind"] == "trivia":
+        return
+
     if item["kind"] == "rating":
         uid = str(user_id)
         set_user_rating(uid, get_user_rating(uid) + item["value"])
@@ -794,8 +933,10 @@ async def apply_gacha_result(guild, user_id: int, item):
     elif item["kind"] == "ticket":
         profile = get_player_profile(user_id)
         tickets = profile.get("tickets", [])
+
         if len(tickets) >= TICKET_LIMIT:
             tickets.pop(0)
+
         tickets.append(build_ticket_instance(item["value"]))
         profile["tickets"] = tickets
         save_player_profiles(player_profiles)
@@ -807,6 +948,7 @@ async def apply_gacha_result(guild, user_id: int, item):
             members = guild.members
 
         human_members = [m for m in members if not m.bot]
+
         drawer = guild.get_member(user_id)
         if drawer is None:
             try:
@@ -819,6 +961,7 @@ async def apply_gacha_result(guild, user_id: int, item):
 
         drawer_uid = str(drawer.id)
         set_user_rating(drawer_uid, get_user_rating(drawer_uid) + 20)
+
         profile = get_player_profile(drawer.id)
         profile["coins"] = min(profile.get("coins", 0) + 2, COIN_LIMIT)
 
@@ -830,12 +973,16 @@ async def apply_gacha_result(guild, user_id: int, item):
         save_player_profiles(player_profiles)
 
         target_lines = [f"・{drawer.display_name}（レート +20 / コイン +2）"]
-        target_lines.extend([f"・{m.display_name}（レート +10）" for m in selected])
+        target_lines.extend(
+            [f"・{m.display_name}（レート +10）" for m in selected]
+        )
+
         text = (
             f"# 【領域展開「坐殺博徒」】\n\n"
             f"{drawer.display_name} ……！正に……豪運……！！\n\n"
             f"# <:Tobuze:1494883064806113430>「漲る呪力（ボーナス）でトぶぜ」\n\n"
-            f"# 本人：レート +20 / コイン +2\nランダムで{len(selected)}人にレート +10\n\n"
+            f"# 本人：レート +20 / コイン +2\n"
+            f"ランダムで{len(selected)}人にレート +10\n\n"
             f"▼対象\n" + "\n".join(target_lines)
         )
 
@@ -848,12 +995,12 @@ async def apply_gacha_result(guild, user_id: int, item):
 
         for room_key, cfg in ROOM_CHANNELS.items():
             channel = guild.get_channel(cfg["progress"])
+
             if channel:
                 try:
                     await channel.send(text)
                 except Exception:
                     pass
-
 
 # =========================
 # Discord設定
@@ -1707,10 +1854,12 @@ class RecruitModeSelectView(discord.ui.View):
             if select.values[0] == "enjoy":
                 await interaction.response.edit_message(
                     content="エンジョイモードを選択してください",
-                    view=EnjoyModeSelectView(self.start_time, self.host_name, self.user_id)
+                    view=EnjoyModeSelectView("", self.host_name, self.user_id)
                 )
             else:
-                await finalize_recruit_creation(interaction, select.values[0], self.start_time, self.host_name)
+                await interaction.response.send_modal(
+                    RecruitModal(mode_id=select.values[0], host_name=self.host_name)
+                )
 
         select.callback = select_callback
         self.add_item(select)
@@ -1734,7 +1883,9 @@ class EnjoyModeSelectView(discord.ui.View):
             if interaction.user.id != self.user_id:
                 await interaction.response.send_message("自分の募集のみ操作できます", ephemeral=True)
                 return
-            await finalize_recruit_creation(interaction, select.values[0], self.start_time, self.host_name)
+            await interaction.response.send_modal(
+                RecruitModal(mode_id=select.values[0], host_name=self.host_name)
+            )
 
         select.callback = select_callback
         self.add_item(select)
@@ -1801,15 +1952,14 @@ class RecruitModal(discord.ui.Modal, title="募集作成"):
         max_length=50,
     )
 
+    def __init__(self, mode_id: str, host_name: str):
+        super().__init__()
+        self.mode_id = mode_id
+        self.host_name = host_name
+
     async def on_submit(self, interaction: discord.Interaction):
         start_time = str(self.start_time_input).strip()
-        host_name = interaction.user.display_name
-
-        await interaction.response.send_message(
-            "試合ルールを選択してください",
-            view=RecruitModeSelectView(start_time, host_name, interaction.user.id),
-            ephemeral=True
-        )
+        await finalize_recruit_creation(interaction, self.mode_id, start_time, self.host_name)
 # =========================
 # 募集View
 # =========================
@@ -2789,6 +2939,8 @@ class CoinMenuView(discord.ui.View):
 
         if item["kind"] == "ticket":
             result_text = f"〈チケット〉{item['label']}"
+        elif item["kind"] == "trivia":
+            result_text = random.choice(TRIVIA_LIST)
         else:
             result_text = item["label"]
 
@@ -2916,7 +3068,11 @@ class HomeView(discord.ui.View):
     @discord.ui.button(label="募集作成", style=discord.ButtonStyle.success,
                        custom_id="home_create_recruit", row=0)
     async def create_recruit_button(self, interaction: discord.Interaction, button):
-        await interaction.response.send_modal(RecruitModal())
+        await interaction.response.send_message(
+            "試合ルールを選択してください",
+            view=RecruitModeSelectView("", interaction.user.display_name, interaction.user.id),
+            ephemeral=True
+        )
 
     @discord.ui.button(label="コイン", style=discord.ButtonStyle.primary,
                        custom_id="home_coin_menu", row=0)
@@ -2947,7 +3103,6 @@ class HomeView(discord.ui.View):
                        custom_id="home_player_register", row=0)
     async def register_button(self, interaction: discord.Interaction, button):
         await interaction.response.send_modal(PlayerRegisterModal())
-
 
 async def post_home_message(guild):
     channel = get_home_channel(guild)
