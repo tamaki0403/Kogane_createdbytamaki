@@ -5,7 +5,7 @@ import math
 import copy
 import time
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 # =========================
 # ファイルパス / 環境変数
@@ -1047,6 +1047,11 @@ def create_room_state():
         "disconnect_vote": None,
         "is_enjoy": False,
         "enjoy_mode_id": None,
+        "first_game": True,
+        "is_taiko": False,
+        "taiko_wins_needed": None,
+        "taiko_alpha_wins": 0,
+        "taiko_bravo_wins": 0,
     }
 
 
@@ -1108,7 +1113,11 @@ def reset_room_state(room_state):
     room_state["phase1_choices"] = {}
     room_state["phase2_choices"] = {}
     room_state["disconnect_vote"] = None
-
+    room_state["first_game"] = True
+    room_state["is_taiko"] = False
+    room_state["taiko_wins_needed"] = None
+    room_state["taiko_alpha_wins"] = 0
+    room_state["taiko_bravo_wins"] = 0  
 
 def get_home_channel(guild):
     return guild.get_channel(HOME_CHANNEL_ID)
@@ -1759,7 +1768,6 @@ def create_ready_text(room_state):
     ]
     return "\n".join(lines)
 
-
 def create_playing_text(team_alpha, team_bravo, room_key=None):
     mode_id = None
     if room_key and room_states[room_key].get("is_enjoy"):
@@ -1785,8 +1793,38 @@ def create_playing_text(team_alpha, team_bravo, room_key=None):
             lines.append(display)
         return "\n".join(lines)
 
+    mode_description = ""
+    if room_key and room_states[room_key].get("first_game"):
+        if mode_id == "enjoy_roulette_genre":
+            mode_description = (
+                "\n📖 このモードについて\n"
+                "ジャンルがランダムで割り当てられます\n"
+                "例）マニューバー、傘など\n"
+            )
+        elif mode_id == "enjoy_roulette_type":
+            mode_description = (
+                "\n📖 このモードについて\n"
+                "武器の種類がランダムで割り当てられます\n"
+                "例）スパッタリー（無印・ヒュー・OWL全て使用可能）\n"
+            )
+        elif mode_id == "enjoy_roulette_all":
+            mode_description = (
+                "\n📖 このモードについて\n"
+                "具体的な武器1種がランダムで割り当てられます\n"
+                "例）バケットスロッシャーデコ\n"
+            )
+        if mode_description:
+            room_states[room_key]["first_game"] = False
+
+    taiko_text = ""
+    if room_key and room_states[room_key].get("is_taiko"):
+        wins_needed = room_states[room_key].get("taiko_wins_needed")
+        alpha_wins = room_states[room_key].get("taiko_alpha_wins", 0)
+        bravo_wins = room_states[room_key].get("taiko_bravo_wins", 0)
+        taiko_text = f"\n🏆 スコア: アルファ {alpha_wins}勝 - {bravo_wins}勝 ブラボー（{wins_needed}先）\n"
+
     return (
-        f"【試合中】{jack_text}\n\n"
+        f"【試合中】{jack_text}{mode_description}{taiko_text}\n\n"
         f"【アルファ】\n{fmt(team_alpha)}\n\n"
         f"【ブラボー】\n{fmt(team_bravo)}"
     )
@@ -1842,6 +1880,7 @@ class RecruitModeSelectView(discord.ui.View):
             placeholder="試合ルールを選択",
             options=[
                 discord.SelectOption(label="エリアプラベ", value="area"),
+                discord.SelectOption(label="対抗戦プラベ", value="taiko"),
                 discord.SelectOption(label="ドラフト", value="draft"),
                 discord.SelectOption(label="エンジョイ", value="enjoy"),
             ]
@@ -1856,6 +1895,11 @@ class RecruitModeSelectView(discord.ui.View):
                     content="エンジョイモードを選択してください",
                     view=EnjoyModeSelectView("", self.host_name, self.user_id)
                 )
+            elif select.values[0] == "taiko":
+                await interaction.response.edit_message(
+                    content="何先にしますか？",
+                    view=TaikoSelectView(self.host_name, self.user_id)
+                )
             else:
                 await interaction.response.send_modal(
                     RecruitModal(mode_id=select.values[0], host_name=self.host_name)
@@ -1864,7 +1908,34 @@ class RecruitModeSelectView(discord.ui.View):
         select.callback = select_callback
         self.add_item(select)
 
+class TaikoSelectView(discord.ui.View):
+    """対抗戦の先数選択View"""
+    def __init__(self, host_name: str, user_id: int):
+        super().__init__(timeout=60)
+        self.host_name = host_name
+        self.user_id = user_id
 
+        select = discord.ui.Select(
+            placeholder="何先にしますか？",
+            options=[
+                discord.SelectOption(label="2先", value="taiko_2"),
+                discord.SelectOption(label="3先", value="taiko_3"),
+                discord.SelectOption(label="4先", value="taiko_4"),
+                discord.SelectOption(label="5先", value="taiko_5"),
+            ]
+        )
+
+        async def select_callback(interaction: discord.Interaction):
+            if interaction.user.id != self.user_id:
+                await interaction.response.send_message("自分の募集のみ操作できます", ephemeral=True)
+                return
+            await interaction.response.send_modal(
+                RecruitModal(mode_id=select.values[0], host_name=self.host_name)
+            )
+
+        select.callback = select_callback
+        self.add_item(select)
+        
 class EnjoyModeSelectView(discord.ui.View):
     """エンジョイモード選択View"""
     def __init__(self, start_time: str, host_name: str, user_id: int):
@@ -1900,6 +1971,7 @@ async def finalize_recruit_creation(interaction: discord.Interaction, mode_id: s
 
     is_draft = mode_id == "draft"
     is_enjoy = mode_id.startswith("enjoy_")
+    is_taiko = mode_id.startswith("taiko_")
 
     if is_draft:
         capacity = 16
@@ -1908,6 +1980,10 @@ async def finalize_recruit_creation(interaction: discord.Interaction, mode_id: s
         mode_data = next((m for m in ENJOY_MODES if m["id"] == mode_id), None)
         capacity = mode_data["capacity"] if mode_data else ROOM_CAPACITY
         mode_label = mode_data["label"] if mode_data else "エンジョイ"
+    elif is_taiko:
+        capacity = ROOM_CAPACITY
+        wins_needed = int(mode_id.split("_")[1])
+        mode_label = f"対抗戦プラベ（{wins_needed}先）"
     else:
         capacity = ROOM_CAPACITY
         mode_label = "エリアプラベ"
@@ -1938,12 +2014,173 @@ async def finalize_recruit_creation(interaction: discord.Interaction, mode_id: s
         "message_id": msg.id,
         "is_draft": is_draft,
         "is_enjoy": is_enjoy,
+        "is_taiko": is_taiko,
         "enjoy_mode_id": mode_id if is_enjoy else None,
+        "taiko_wins_needed": int(mode_id.split("_")[1]) if is_taiko else None,
         "capacity": capacity,
     }
 
     await interaction.response.edit_message(content="募集を作成しました！", view=None)
 
+HELP_TEXTS = {
+    "flow": (
+        "【試合の流れ】\n\n"
+        "① 募集作成\n"
+        "ホームの「募集作成」ボタンを押して、モードと開始時刻を入力します。\n"
+        "募集チャンネルに募集メッセージが投稿されます。\n\n"
+        "② 参加\n"
+        "参加したい人は「参加」ボタンを押します。\n"
+        "人数が集まると自動で確定します。\n\n"
+        "③ チーム選択\n"
+        "進行チャンネルにチーム選択ボタンが表示されます。\n"
+        "アルファ・ブラボー・ランダムから希望を選んでください。\n"
+        "全員が選ぶと次に進みます。\n\n"
+        "④ 試合開始\n"
+        "チームが確定したら「試合開始」ボタンを押します。\n"
+        "VCに自動で振り分けられます。\n\n"
+        "⑤ 結果入力\n"
+        "試合が終わったら募集主が「アルファ勝ち」か「ブラボー勝ち」を押します。\n"
+        "レートが自動で更新されます。\n\n"
+        "⑥ 続ける・終わる\n"
+        "「次の試合」で続けるか「終了」で部屋を閉じます。\n"
+        "間違えた場合は「結果訂正」で1つ戻せます。\n\n"
+        "⑦ 緊急中断\n"
+        "何かトラブルがあった場合は、進行チャンネルで\n"
+        "「!やめる」と送ると部屋を強制終了できます。"
+    ),
+    "coin": (
+        "【コイン・ガチャ・チケット】\n\n"
+        "🪙 コイン\n"
+        "・毎日19時に全員へ2枚配布されます\n"
+        "・上限は5枚です\n\n"
+        "🎰 ガチャ\n"
+        "・コイン1枚でガチャを1回引けます\n"
+        "・当たる内容：レートボーナス・チケット・雑学\n"
+        "・稀に秤金次が出てくることがあります\n\n"
+        "🎫 チケット\n"
+        "・ガチャで入手できます\n"
+        "・最大3枚まで所持できます\n"
+        "・一度に使えるのは1枚だけです\n"
+        "・効果中は新しいチケットを使えません\n\n"
+        "チケットの種類：\n"
+        "・レート変動率 1.1〜1.5倍（5〜10試合）\n"
+        "・レート変動に +3〜+10（5〜10試合）\n"
+        "・連勝ごとにボーナス +1〜+2（15試合）\n"
+        "・5連勝で +20、7連勝で +50（15試合）\n"
+        "・武器ルーレット操作：次の武器ルーレットプラベで\n"
+        "　全員の武器を自分が指定した武器に固定できます"
+    ),
+    "rate": (
+        "【レートについて】\n\n"
+        "📊 基本\n"
+        "・初期レートは2500です\n"
+        "・プレイヤー登録時に最高XPに応じて補正が入ります\n"
+        "・試合結果に応じてレートが増減します\n\n"
+        "📈 レート変動\n"
+        "・勝利：相手チームとのレート差や試合のパターンに\n"
+        "　応じて変動します\n"
+        "・敗北：同様に減少します\n"
+        "・参加ボーナス：試合に参加するだけで+1されます\n"
+        "・募集主ボーナス：募集を作成すると+5されます\n\n"
+        "⚠️ 回線落ち\n"
+        "・回線落ち投票で有罪になると -50されます\n"
+        "・その試合の他の参加者は +8されます\n\n"
+        "🏆 ランキング\n"
+        "・レートランキングは専用チャンネルで確認できます\n"
+        "・歴代最高レートチャンネルでTOP5が確認できます\n"
+        "・ランキングは試合終了時に自動更新されます"
+    ),
+    "enjoy": (
+        "【エンジョイモード】\n\n"
+        "🎮 エンジョイモードとは\n"
+        "レートに影響しない気軽な試合モードです。\n"
+        "募集作成でエンジョイを選ぶと選択できます。\n\n"
+        "📋 モードの種類\n"
+        "・エンジョイプラベ：通常の8人プライベート\n"
+        "・タイマン：1対1の対戦\n"
+        "・イカップル：2対2の対戦\n"
+        "・トリオバトル：3対3の対戦\n"
+        "・武器ルーレット（ジャンル別）：\n"
+        "　ジャンルがランダムで割り当てられます\n"
+        "　例）マニューバー、傘など\n"
+        "・武器ルーレット（武器種別）：\n"
+        "　武器の種類がランダムで割り当てられます\n"
+        "　例）スパッタリー（無印・ヒュー・OWL全て使用可能）\n"
+        "・武器ルーレット（武器ごと）：\n"
+        "　具体的な武器1種がランダムで割り当てられます\n"
+        "　例）バケットスロッシャーデコ\n\n"
+        "🎯 武器ルーレットについて\n"
+        "武器ルーレット操作チケットを持っている人がいると\n"
+        "全員の武器が1種類に固定されることがあります。"
+    ),
+    "draft": (
+        "【ドラフトモード】\n\n"
+        "🏆 ドラフトモードとは\n"
+        "16人で行う本格的なチーム対抗戦です。\n"
+        "募集作成でドラフトを選ぶと開始できます。\n\n"
+        "📋 流れ\n\n"
+        "① 主将選出\n"
+        "4人の主将を募集します。\n"
+        "主将になりたい人は「主将になる」ボタンを押します。\n\n"
+        "② ドラフト指名\n"
+        "4ラウンドに分けてメンバーを指名します。\n"
+        "各ラウンドで主将が同時に1人ずつ指名し、\n"
+        "被った場合はチーム平均レートが低い方が優先されます。\n"
+        "これを4回繰り返してチームが確定します。\n\n"
+        "③ 総当たり戦\n"
+        "4チームで総当たり戦を行います。\n"
+        "2部屋に分かれて同時進行します。\n"
+        "各対戦は先に2勝したチームが勝利です。\n\n"
+        "④ 決勝戦\n"
+        "総当たりの順位をもとに\n"
+        "1位vs2位、3位vs4位で決勝を行います。\n"
+        "決勝は先に3勝したチームが勝利です。\n\n"
+        "⑤ 結果発表\n"
+        "最終順位が発表されレートが更新されます。"
+    ),
+}
+
+
+class HelpSelectView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=60)
+
+        select = discord.ui.Select(
+            placeholder="何について知りたいですか？",
+            options=[
+                discord.SelectOption(label="試合の流れ", value="flow"),
+                discord.SelectOption(label="コイン・ガチャ・チケット", value="coin"),
+                discord.SelectOption(label="レートについて", value="rate"),
+                discord.SelectOption(label="エンジョイモード", value="enjoy"),
+                discord.SelectOption(label="ドラフトモード", value="draft"),
+            ]
+        )
+
+        async def select_callback(interaction: discord.Interaction):
+            text = HELP_TEXTS.get(select.values[0], "説明が見つかりませんでした")
+            await interaction.response.send_message(text, ephemeral=True)
+
+        select.callback = select_callback
+        self.add_item(select)
+
+class TriviaModal(discord.ui.Modal, title="雑学投稿"):
+    trivia_input = discord.ui.TextInput(
+        label="雑学の内容",
+        placeholder="例：タコの心臓は3つある。",
+        max_length=100,
+        style=discord.TextStyle.paragraph,
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        trivia = str(self.trivia_input).strip()
+        admin_channel = get_admin_channel(interaction.guild)
+        if admin_channel:
+            name = build_player_display(interaction.user, include_badge=True)
+            await admin_channel.send(f"【雑学投稿】\n{name}\n→ {trivia}")
+        await interaction.response.send_message(
+            "投稿しました！反映には少し時間がかかります。",
+            ephemeral=True
+        )
 
 class RecruitModal(discord.ui.Modal, title="募集作成"):
     start_time_input = discord.ui.TextInput(
@@ -2103,6 +2340,16 @@ class RecruitConfirmView(discord.ui.View):
             except Exception:
                 pass
             await begin_enjoy_mode(interaction.guild, players[:], recruit_data)
+            return
+
+        if recruit_data.get("is_taiko"):
+            await interaction.response.send_message("対抗戦を開始します！", ephemeral=True)
+            active_recruits.pop(interaction.message.id, None)
+            try:
+                await interaction.message.delete()
+            except Exception:
+                pass
+            await begin_taiko_mode(interaction.guild, players[:], recruit_data)
             return
 
         room_key = None
@@ -2422,7 +2669,49 @@ class PlayingView(BaseControlView):
         self.disable_all_buttons()
         await interaction.response.edit_message(view=self)
         await process_result(interaction.guild, self.room_key, winner_num)
-    
+
+class TaikoFinishedView(BaseControlView):
+    def __init__(self, room_key, room_state):
+        super().__init__()
+        self.room_key = room_key
+        self.room_state = room_state
+
+    @discord.ui.button(label="次のセット", style=discord.ButtonStyle.success)
+    async def next_set_button(self, interaction: discord.Interaction, button):
+        if interaction.user not in self.room_state["joined_players"]:
+            await interaction.response.send_message("この部屋の参加者ではありません", ephemeral=True)
+            return
+
+        self.disable_all_buttons()
+        await interaction.response.edit_message(view=self)
+
+        # スコアリセット
+        self.room_state["taiko_alpha_wins"] = 0
+        self.room_state["taiko_bravo_wins"] = 0
+
+        # 次のセット開始
+        await next_game(interaction.guild, self.room_key)
+
+    @discord.ui.button(label="終了", style=discord.ButtonStyle.danger)
+    async def end_button(self, interaction: discord.Interaction, button):
+        if interaction.user not in self.room_state["joined_players"]:
+            await interaction.response.send_message("この部屋の参加者ではありません", ephemeral=True)
+            return
+
+        self.disable_all_buttons()
+        await interaction.response.edit_message(view=self)
+        await end_room(interaction.guild, self.room_key)
+
+    @discord.ui.button(label="結果訂正", style=discord.ButtonStyle.secondary)
+    async def undo_button(self, interaction: discord.Interaction, button):
+        if interaction.user not in self.room_state["joined_players"]:
+            await interaction.response.send_message("この部屋の参加者ではありません", ephemeral=True)
+            return
+
+        self.disable_all_buttons()
+        await interaction.response.edit_message(view=self)
+        await undo_result(interaction.guild, self.room_key)
+ 
 class FinishedView(BaseControlView):
     def __init__(self, room_key, room_state):
         super().__init__()
@@ -3077,7 +3366,6 @@ class HomeView(discord.ui.View):
     @discord.ui.button(label="コイン", style=discord.ButtonStyle.primary,
                        custom_id="home_coin_menu", row=0)
     async def coin_button(self, interaction: discord.Interaction, button):
-        try_claim_passive_coin(interaction.user.id)
         profile = get_player_profile(interaction.user.id)
         coins = profile.get("coins", 0)
         text = (
@@ -3103,6 +3391,20 @@ class HomeView(discord.ui.View):
                        custom_id="home_player_register", row=0)
     async def register_button(self, interaction: discord.Interaction, button):
         await interaction.response.send_modal(PlayerRegisterModal())
+    
+    @discord.ui.button(label="雑学投稿", style=discord.ButtonStyle.secondary,
+                       custom_id="home_trivia_post", row=1)
+    async def trivia_button(self, interaction: discord.Interaction, button):
+        await interaction.response.send_modal(TriviaModal())
+    
+    @discord.ui.button(label="使い方", style=discord.ButtonStyle.secondary,
+                       custom_id="home_help", row=1)
+    async def help_button(self, interaction: discord.Interaction, button):
+        await interaction.response.send_message(
+            "何について知りたいですか？",
+            view=HelpSelectView(),
+            ephemeral=True
+        )
 
 async def post_home_message(guild):
     channel = get_home_channel(guild)
@@ -3114,7 +3416,8 @@ async def post_home_message(guild):
         "・募集作成：内部戦の募集を作成します\n"
         "・プレイヤー登録：武器・最高XPを登録します\n"
         "・バッジ設定：表示バッジを変更します\n"
-        "・コイン：コインの確認・ガチャ・チケット操作ができます"
+        "・コイン：コインの確認・ガチャ・チケット操作ができます\n"
+        "・雑学投稿：ガチャに表示される雑学を投稿できます"
     )
 
     guild_key = str(guild.id)
@@ -3562,6 +3865,43 @@ async def begin_enjoy_mode(guild, players, recruit_data):
 
     await begin_phase1(guild, room_key)
 
+async def begin_taiko_mode(guild, players, recruit_data):
+    """対抗戦モード開始"""
+    room_key = None
+    for rk in ROOM_KEYS:
+        if room_states[rk]["game_state"] == "idle":
+            room_key = rk
+            break
+
+    if room_key is None:
+        for p in players:
+            try:
+                await p.send("空いている部屋がありません")
+            except Exception:
+                pass
+        return
+
+    room_state = room_states[room_key]
+    reset_room_state(room_state)
+    reset_room_tracking(room_state)
+
+    room_state["joined_players"] = players[:]
+    room_state["host_id"] = str(recruit_data["host_id"])
+    room_state["is_taiko"] = True
+    room_state["taiko_wins_needed"] = recruit_data["taiko_wins_needed"]
+    room_state["taiko_alpha_wins"] = 0
+    room_state["taiko_bravo_wins"] = 0
+
+    for player in players:
+        ensure_session_player(room_state, player)
+
+    host_id = recruit_data["host_id"]
+    old = get_user_rating(host_id)
+    set_user_rating(host_id, old + 5)
+    save_ratings(ratings)
+
+    await begin_phase1(guild, room_key)
+
 async def begin_phase2(guild, room_key):
     room_state = room_states[room_key]
     room_state["game_state"] = "pref2"
@@ -3665,7 +4005,6 @@ def calc_rating_change_for_player(user, enemy_team, score, winners, pattern_mult
 
     return float(final_rating), float(new_rd_raw), float(new_volatility), final_change, ticket_label
 
-
 async def process_result(guild, room_key, winner_num: int):
     room_state = room_states[room_key]
 
@@ -3731,18 +4070,40 @@ async def process_result(guild, room_key, winner_num: int):
     await check_and_update_peak_ranking(
         guild, [str(u.id) for u in team_alpha + team_bravo]
     )
-    
+
     room_state["prepared_match"] = make_teams_from_choices(room_state)
-    next_team_alpha, next_team_bravo = room_state["prepared_match"]
 
     # レート更新ログを別チャンネルに送信
     await send_rate_log(guild, room_state, team_alpha, team_bravo)
+
+    # 対抗戦スコア処理
+    if room_state.get("is_taiko"):
+        if winner_num == 1:
+            room_state["taiko_alpha_wins"] += 1
+        else:
+            room_state["taiko_bravo_wins"] += 1
+
+        alpha_wins = room_state["taiko_alpha_wins"]
+        bravo_wins = room_state["taiko_bravo_wins"]
+        wins_needed = room_state["taiko_wins_needed"]
+
+        if alpha_wins >= wins_needed or bravo_wins >= wins_needed:
+            winner_name = "アルファ" if alpha_wins >= wins_needed else "ブラボー"
+            room_state["game_state"] = "finished"
+            view = TaikoFinishedView(room_key, room_state)
+            await update_control_message(
+                guild, room_key,
+                f"【セット終了】{winner_name}チームがセット勝利！\n\n"
+                f"スコア: アルファ {alpha_wins}勝 - {bravo_wins}勝 ブラボー\n\n"
+                f"次のセットを続けるか終了してください。",
+                view=view
+            )
+            return
 
     room_state["game_state"] = "finished"
 
     view = FinishedView(room_key, room_state)
     await update_control_message(guild, room_key, create_finished_text(room_state), view=view)
-
 
 async def send_rate_log(guild, room_state, team_alpha, team_bravo):
     """レート更新ログをRATE_LOG_CHANNELに送信"""
@@ -4499,6 +4860,14 @@ async def on_ready():
     print(f"ログインしたよ: {bot.user}")
     bot.add_view(HomeView())
     bot.add_view(RecruitView())
+
+@tasks.loop(time=discord.utils.utcnow().replace(hour=10, minute=0, second=0, microsecond=0).timetz())
+async def daily_coin_distribution():
+    for uid, profile in player_profiles.items():
+        coins = profile.get("coins", 0)
+        profile["coins"] = min(COIN_LIMIT, coins + 2)
+    save_player_profiles(player_profiles)
+    print("コイン定時配布完了")
 
 @bot.event
 async def on_message(message):
