@@ -46,55 +46,212 @@ BASE_CHANGE_GAIN = 1.20
 # =========================
 RANKING_CHANNEL_ID = 1492896273358127235
 
-# ホームチャンネル（旧プレイヤー登録チャンネル）
-# プレイヤー登録・バッジ設定・コイン・募集作成ボタンをここに常駐
+# ホームチャンネル
 HOME_CHANNEL_ID = 1493300698568462388
 
-# 募集チャンネル（新規作成してIDを入力）
-RECRUIT_CHANNEL_ID = 1492899909093949480  # ← ここに募集チャンネルのIDを入力
+# 募集チャンネル
+RECRUIT_CHANNEL_ID = 1492899909093949480
 
-# レート更新ログチャンネル（新規作成してIDを入力）
-RATE_LOG_CHANNEL_ID = 1499607836911730778  # ← ここにレートログチャンネルのIDを入力
+# レート更新ログチャンネル
+RATE_LOG_CHANNEL_ID = 1499607836911730778
 ADMIN_CHANNEL_ID = 1492883720082952302
-PEAK_RATING_CHANNEL_ID = 1500892639338434580  # 歴代最高レートチャンネル
+PEAK_RATING_CHANNEL_ID = 1500892639338434580
 
-ROOM_CHANNELS = {
-    "A": {
-        "progress": 1500239653121429625,
-        "lobby_vc": 1492082738679910515,
-        "alpha_vc": 1492138431583752252,
-        "bravo_vc": 1492138468346957884,
-    },
-    "B": {
-        "progress": 1494170122200420463,
-        "lobby_vc": 1494170471841660948,
-        "alpha_vc": 1494170530260189374,
-        "bravo_vc": 1494170564707877085,
-    },
+# ロビーVC（既存・削除しない）
+ROOM_LOBBY_VC = {
+    "A": 1492082738679910515,
+    "B": 1494170471841660948,
 }
-# ドラフト専用チャンネル
-DRAFT_CHANNEL_ID = 1500399682386661456  # ドラフト経過チャンネル
-DRAFT_LOBBY_VC_ID = 1500399929569574942  # 全体VCロビー
+DRAFT_LOBBY_VC_ID = 1500399929569574942
 
-DRAFT_ROOM_CHANNELS = {
-    "A": {
-        "progress": 1500398539480764426,
-        "alpha_vc": 1500398718631936020,
-        "bravo_vc": 1500398821656498254,
-    },
-    "B": {
-        "progress": 1500399418036326421,
-        "alpha_vc": 1500399503545471027,
-        "bravo_vc": 1500399580825522357,
-    },
-}
+# ★ 進行ch・alpha/bravo VCは動的作成するためIDをここでは持たない
+# bot_state["dynamic_channels"] に保存する
+# {
+#   "room_A": {"progress": id, "alpha_vc": id, "bravo_vc": id},
+#   "room_B": {"progress": id, "alpha_vc": id, "bravo_vc": id},
+#   "draft_main": id,
+#   "draft_A": {"progress": id, "alpha_vc": id, "bravo_vc": id},
+#   "draft_B": {"progress": id, "alpha_vc": id, "bravo_vc": id},
+# }
+
+def get_dynamic_channels():
+    return bot_state.get("dynamic_channels", {})
+
+def save_dynamic_channels(data):
+    bot_state["dynamic_channels"] = data
+    save_bot_state(bot_state)
+
+# =========================
+# 動的チャンネル作成・削除ヘルパー
+# =========================
+async def create_room_channels(guild, room_key: str, category=None):
+    """進行ch + alpha/bravo VCを作成してbot_stateに保存"""
+    dc = get_dynamic_channels()
+
+    progress_ch = await guild.create_text_channel(
+        name=f"進行-部屋{room_key}",
+        category=category,
+        topic=f"{room_key}部屋の試合進行チャンネル"
+    )
+    alpha_vc = await guild.create_voice_channel(
+        name=f"アルファ-部屋{room_key}",
+        category=category
+    )
+    bravo_vc = await guild.create_voice_channel(
+        name=f"ブラボー-部屋{room_key}",
+        category=category
+    )
+
+    dc[f"room_{room_key}"] = {
+        "progress": progress_ch.id,
+        "alpha_vc": alpha_vc.id,
+        "bravo_vc": bravo_vc.id,
+    }
+    save_dynamic_channels(dc)
+    return progress_ch, alpha_vc, bravo_vc
+
+
+async def delete_room_channels(guild, room_key: str):
+    """進行ch + alpha/bravo VCを削除してbot_stateから削除"""
+    dc = get_dynamic_channels()
+    key = f"room_{room_key}"
+    info = dc.get(key)
+    if not info:
+        return
+
+    for ch_id in info.values():
+        ch = guild.get_channel(ch_id)
+        if ch:
+            try:
+                await ch.delete()
+            except Exception:
+                pass
+
+    dc.pop(key, None)
+    save_dynamic_channels(dc)
+
+
+async def create_draft_channels(guild, category=None):
+    """ドラフト関連チャンネルをすべて作成"""
+    dc = get_dynamic_channels()
+
+    draft_main = await guild.create_text_channel(
+        name="ドラフト経過",
+        category=category
+    )
+    dc["draft_main"] = draft_main.id
+
+    for room_key in ("A", "B"):
+        progress_ch = await guild.create_text_channel(
+            name=f"ドラフト進行-部屋{room_key}",
+            category=category
+        )
+        alpha_vc = await guild.create_voice_channel(
+            name=f"ドラフトアルファ-部屋{room_key}",
+            category=category
+        )
+        bravo_vc = await guild.create_voice_channel(
+            name=f"ドラフトブラボー-部屋{room_key}",
+            category=category
+        )
+        dc[f"draft_{room_key}"] = {
+            "progress": progress_ch.id,
+            "alpha_vc": alpha_vc.id,
+            "bravo_vc": bravo_vc.id,
+        }
+
+    save_dynamic_channels(dc)
+
+
+async def delete_draft_channels(guild):
+    """ドラフト関連チャンネルをすべて削除"""
+    dc = get_dynamic_channels()
+
+    # メインch
+    main_id = dc.get("draft_main")
+    if main_id:
+        ch = guild.get_channel(main_id)
+        if ch:
+            try:
+                await ch.delete()
+            except Exception:
+                pass
+        dc.pop("draft_main", None)
+
+    # A/B部屋
+    for room_key in ("A", "B"):
+        key = f"draft_{room_key}"
+        info = dc.get(key)
+        if info:
+            for ch_id in info.values():
+                ch = guild.get_channel(ch_id)
+                if ch:
+                    try:
+                        await ch.delete()
+                    except Exception:
+                        pass
+            dc.pop(key, None)
+
+    save_dynamic_channels(dc)
+
+
+# =========================
+# チャンネル取得（動的版）
+# =========================
+def get_progress_channel(guild, room_key):
+    dc = get_dynamic_channels()
+    info = dc.get(f"room_{room_key}")
+    if not info:
+        return None
+    return guild.get_channel(info["progress"])
+
+def get_room_voice_channels(guild, room_key):
+    dc = get_dynamic_channels()
+    info = dc.get(f"room_{room_key}")
+    lobby_id = ROOM_LOBBY_VC.get(room_key)
+    lobby = guild.get_channel(lobby_id) if lobby_id else None
+    if not info:
+        return lobby, None, None
+    return (
+        lobby,
+        guild.get_channel(info["alpha_vc"]),
+        guild.get_channel(info["bravo_vc"]),
+    )
+
+def get_draft_channel(guild):
+    dc = get_dynamic_channels()
+    main_id = dc.get("draft_main")
+    if not main_id:
+        return None
+    return guild.get_channel(main_id)
+
+def get_draft_lobby_vc(guild):
+    return guild.get_channel(DRAFT_LOBBY_VC_ID)
+
+def get_draft_progress_channel(guild, room_key):
+    dc = get_dynamic_channels()
+    info = dc.get(f"draft_{room_key}")
+    if not info:
+        return None
+    return guild.get_channel(info["progress"])
+
+def get_draft_voice_channels(guild, room_key):
+    dc = get_dynamic_channels()
+    info = dc.get(f"draft_{room_key}")
+    if not info:
+        return None, None
+    return (
+        guild.get_channel(info["alpha_vc"]),
+        guild.get_channel(info["bravo_vc"]),
+    )
 
 def get_room_key_by_channel_id(channel_id: int):
-    for room_key, cfg in ROOM_CHANNELS.items():
-        if cfg["progress"] == channel_id:
+    dc = get_dynamic_channels()
+    for room_key in ("A", "B"):
+        info = dc.get(f"room_{room_key}")
+        if info and info.get("progress") == channel_id:
             return room_key
     return None
-
 
 # =========================
 # レート設定
@@ -262,7 +419,6 @@ def add_weapon_jack(user_name: str, weapon: str):
     save_weapon_jack_queue(queue)
 
 def pop_weapon_jack():
-    """キューから先頭を取り出す。なければNoneを返す"""
     queue = get_weapon_jack_queue()
     if not queue:
         return None
@@ -993,9 +1149,8 @@ async def apply_gacha_result(guild, user_id: int, item):
             except Exception:
                 pass
 
-        for room_key, cfg in ROOM_CHANNELS.items():
-            channel = guild.get_channel(cfg["progress"])
-
+        for room_key in ("A", "B"):
+            channel = get_progress_channel(guild, room_key)
             if channel:
                 try:
                     await channel.send(text)
@@ -1038,7 +1193,7 @@ def create_room_state():
         "last_rating_changes": None,
         "last_rating_detail": None,
         "last_profile_snapshots": None,
-        "control_message": None,        # 進行チャンネルの1枚管理メッセージ
+        "control_message": None,
         "disconnect_vote_message": None,
         "session_start_ratings": {},
         "session_participants": {},
@@ -1060,28 +1215,21 @@ room_states = {
     "B": create_room_state(),
 }
 
-# 募集状態管理
-# {recruit_message_id: {joined_players, host_id, description, start_time, room_key}}
 active_recruits = {}
-# ドラフト状態
 draft_state = {
-    "phase": None,  # None / "captain" / "draft" / "battle" / "final"
-    "players": [],          # 16人の参加者
-    "captains": [],         # 主将4人 (Memberオブジェクト)
-    "teams": {1: [], 2: [], 3: [], 4: []},  # チーム1〜4
-    "round": 0,             # 現在のドラフトラウンド(1〜4)
-    "pending_picks": {},    # {captain_id: picked_member}
-    "battle_results": {     # 総当たり結果
-        # (team_a, team_b): {"wins_a": 0, "wins_b": 0}
-    },
-    "round_schedule": [     # 総当たりスケジュール
-        # {"room": "A", "team1": 1, "team2": 2, "room": "B", "team3": 3, "team4": 4}
-    ],
+    "phase": None,
+    "players": [],
+    "captains": [],
+    "teams": {1: [], 2: [], 3: [], 4: []},
+    "round": 0,
+    "pending_picks": {},
+    "battle_results": {},
+    "round_schedule": [],
     "current_round_idx": 0,
-    "team_standings": [],   # 順位確定後 [1位チーム番号, 2位, 3位, 4位]
-    "final_results": {},    # 決勝結果
-    "draft_message": None,  # ドラフト経過チャンネルのメッセージ
-    "progress_messages": {"A": None, "B": None},  # 進行チャンネルのメッセージ
+    "team_standings": [],
+    "final_results": {},
+    "draft_message": None,
+    "progress_messages": {"A": None, "B": None},
     "host_id": None,
 }
 
@@ -1117,7 +1265,8 @@ def reset_room_state(room_state):
     room_state["is_taiko"] = False
     room_state["taiko_wins_needed"] = None
     room_state["taiko_alpha_wins"] = 0
-    room_state["taiko_bravo_wins"] = 0  
+    room_state["taiko_bravo_wins"] = 0
+
 
 def get_home_channel(guild):
     return guild.get_channel(HOME_CHANNEL_ID)
@@ -1131,13 +1280,6 @@ def get_rate_log_channel(guild):
     return guild.get_channel(RATE_LOG_CHANNEL_ID)
 
 
-def get_progress_channel(guild, room_key):
-    room_cfg = ROOM_CHANNELS.get(room_key)
-    if room_cfg is None:
-        return None
-    return guild.get_channel(room_cfg["progress"])
-
-
 def get_ranking_channel(guild):
     return guild.get_channel(RANKING_CHANNEL_ID)
 
@@ -1149,7 +1291,6 @@ def get_peak_rating_channel(guild):
     return guild.get_channel(PEAK_RATING_CHANNEL_ID)
 
 def update_peak_rating(user_id: int):
-    """現在レートが最高レートを超えていたら更新"""
     profile = get_player_profile(user_id)
     current = get_user_rating(user_id)
     peak = profile.get("peak_rating")
@@ -1166,7 +1307,6 @@ def get_peak_rating(user_id: int):
     return peak
 
 def get_top5_peak_ratings(guild):
-    """歴代最高レートTOP5を返す"""
     result = []
     for member in guild.members:
         if member.bot:
@@ -1177,7 +1317,6 @@ def get_top5_peak_ratings(guild):
     return result[:5]
 
 async def post_peak_ranking(guild):
-    """歴代最高レートチャンネルのメッセージを更新"""
     channel = get_peak_rating_channel(guild)
     if channel is None:
         return
@@ -1198,7 +1337,6 @@ async def post_peak_ranking(guild):
 
     content = "\n".join(lines)
 
-    # bot_stateに保存したメッセージIDを使って編集
     guild_key = str(guild.id)
     saved_ids = bot_state.get("peak_rating_message_ids", {})
     saved_message_id = saved_ids.get(guild_key)
@@ -1218,7 +1356,6 @@ async def post_peak_ranking(guild):
     save_bot_state(bot_state)
 
 async def check_and_update_peak_ranking(guild, user_ids: list):
-    """指定ユーザーの最高レートをチェックし、TOP5に変動があれば更新"""
     changed = False
     for user_id in user_ids:
         if update_peak_rating(int(user_id)):
@@ -1232,17 +1369,6 @@ def calc_team_avg(team):
     if not team:
         return 0
     return int(sum(get_user_rating(u.id) for u in team) / len(team))
-
-
-def get_room_voice_channels(guild, room_key):
-    room_cfg = ROOM_CHANNELS.get(room_key)
-    if room_cfg is None:
-        return None, None, None
-    return (
-        guild.get_channel(room_cfg["lobby_vc"]),
-        guild.get_channel(room_cfg["alpha_vc"]),
-        guild.get_channel(room_cfg["bravo_vc"]),
-    )
 
 
 async def move_members_to_vc(guild, room_key, team_alpha, team_bravo):
@@ -1502,24 +1628,6 @@ def create_room_summary_text(room_state):
 # =========================
 # ドラフト用ユーティリティ
 # =========================
-def get_draft_channel(guild):
-    return guild.get_channel(DRAFT_CHANNEL_ID)
-
-def get_draft_lobby_vc(guild):
-    return guild.get_channel(DRAFT_LOBBY_VC_ID)
-
-def get_draft_progress_channel(guild, room_key):
-    cfg = DRAFT_ROOM_CHANNELS.get(room_key)
-    if cfg is None:
-        return None
-    return guild.get_channel(cfg["progress"])
-
-def get_draft_voice_channels(guild, room_key):
-    cfg = DRAFT_ROOM_CHANNELS.get(room_key)
-    if cfg is None:
-        return None, None
-    return guild.get_channel(cfg["alpha_vc"]), guild.get_channel(cfg["bravo_vc"])
-
 def get_captain_by_id(user_id: int):
     for c in draft_state["captains"]:
         if c.id == user_id:
@@ -1594,7 +1702,6 @@ def create_battle_status_text(team_a: int, team_b: int, room_key: str):
     return "\n".join(lines)
 
 def calc_team_standings():
-    """総当たり結果から順位を計算する"""
     stats = {i: {"battle_wins": 0, "match_wins": 0, "match_losses": 0} for i in range(1, 5)}
 
     for (ta, tb), result in draft_state["battle_results"].items():
@@ -1664,7 +1771,6 @@ def reset_draft_state():
 # コントロールメッセージ（進行チャンネル1枚管理）
 # =========================
 async def update_control_message(guild, room_key, content, view=None):
-    """進行チャンネルの1枚管理メッセージを更新（なければ作成）"""
     room_state = room_states[room_key]
     channel = get_progress_channel(guild, room_key)
     if channel is None:
@@ -1757,7 +1863,6 @@ def create_confirm_text(room_state):
 
 def create_ready_text(room_state):
     team_alpha, team_bravo = room_state["prepared_match"]
-
     mention_list = " ".join(u.mention for u in room_state["joined_players"])
 
     lines = [
@@ -1869,7 +1974,6 @@ def create_disconnect_vote_text(target):
 # =========================
 
 class RecruitModeSelectView(discord.ui.View):
-    """試合ルール選択View"""
     def __init__(self, start_time: str, host_name: str, user_id: int):
         super().__init__(timeout=60)
         self.start_time = start_time
@@ -1909,7 +2013,6 @@ class RecruitModeSelectView(discord.ui.View):
         self.add_item(select)
 
 class TaikoSelectView(discord.ui.View):
-    """対抗戦の先数選択View"""
     def __init__(self, host_name: str, user_id: int):
         super().__init__(timeout=60)
         self.host_name = host_name
@@ -1935,9 +2038,8 @@ class TaikoSelectView(discord.ui.View):
 
         select.callback = select_callback
         self.add_item(select)
-        
+
 class EnjoyModeSelectView(discord.ui.View):
-    """エンジョイモード選択View"""
     def __init__(self, start_time: str, host_name: str, user_id: int):
         super().__init__(timeout=60)
         self.start_time = start_time
@@ -1963,10 +2065,18 @@ class EnjoyModeSelectView(discord.ui.View):
 
 
 async def finalize_recruit_creation(interaction: discord.Interaction, mode_id: str, start_time: str, host_name: str):
-    """募集を実際に作成する"""
     recruit_channel = get_recruit_channel(interaction.guild)
     if recruit_channel is None:
         await interaction.response.send_message("募集チャンネルが見つかりません", ephemeral=True)
+        return
+
+    from datetime import datetime, timezone, timedelta
+    JST = timezone(timedelta(hours=9))
+    now_jst = datetime.now(JST)
+    if not (10 <= now_jst.hour < 23):
+        await interaction.response.send_message(
+            "募集は10時〜23時の間しか作成できません", ephemeral=True
+        )
         return
 
     is_draft = mode_id == "draft"
@@ -2197,6 +2307,7 @@ class RecruitModal(discord.ui.Modal, title="募集作成"):
     async def on_submit(self, interaction: discord.Interaction):
         start_time = str(self.start_time_input).strip()
         await finalize_recruit_creation(interaction, self.mode_id, start_time, self.host_name)
+
 # =========================
 # 募集View
 # =========================
@@ -2303,7 +2414,6 @@ class RecruitView(discord.ui.View):
         recruit_data["confirm_message_id"] = new_msg.id
 
 class RecruitConfirmView(discord.ui.View):
-    """8人確定後の試合開始ボタン"""
     def __init__(self, recruit_message_id: int, players: list):
         super().__init__(timeout=None)
         self.recruit_message_id = recruit_message_id
@@ -2322,8 +2432,10 @@ class RecruitConfirmView(discord.ui.View):
             await interaction.response.send_message("参加者のみ押せます", ephemeral=True)
             return
 
+        # ★ ドラフト
         if recruit_data.get("is_draft"):
-            await interaction.response.send_message("ドラフトを開始します！", ephemeral=True)
+            await interaction.response.send_message("チャンネルを作成しています...", ephemeral=True)
+            await create_draft_channels(interaction.guild)
             active_recruits.pop(interaction.message.id, None)
             try:
                 await interaction.message.delete()
@@ -2332,26 +2444,47 @@ class RecruitConfirmView(discord.ui.View):
             await begin_captain_selection(interaction.guild, players[:], recruit_data["host_id"])
             return
 
+        # ★ エンジョイ
         if recruit_data.get("is_enjoy"):
-            await interaction.response.send_message("エンジョイ試合を開始します！", ephemeral=True)
+            room_key = None
+            for rk in ROOM_KEYS:
+                if room_states[rk]["game_state"] == "idle":
+                    room_key = rk
+                    break
+            if room_key is None:
+                await interaction.response.send_message("現在空いている部屋がありません", ephemeral=True)
+                return
+            await interaction.response.send_message("チャンネルを作成しています...", ephemeral=True)
+            await create_room_channels(interaction.guild, room_key)
             active_recruits.pop(interaction.message.id, None)
             try:
                 await interaction.message.delete()
             except Exception:
                 pass
-            await begin_enjoy_mode(interaction.guild, players[:], recruit_data)
+            await begin_enjoy_mode(interaction.guild, players[:], recruit_data, room_key)
             return
 
+        # ★ 対抗戦
         if recruit_data.get("is_taiko"):
-            await interaction.response.send_message("対抗戦を開始します！", ephemeral=True)
+            room_key = None
+            for rk in ROOM_KEYS:
+                if room_states[rk]["game_state"] == "idle":
+                    room_key = rk
+                    break
+            if room_key is None:
+                await interaction.response.send_message("現在空いている部屋がありません", ephemeral=True)
+                return
+            await interaction.response.send_message("チャンネルを作成しています...", ephemeral=True)
+            await create_room_channels(interaction.guild, room_key)
             active_recruits.pop(interaction.message.id, None)
             try:
                 await interaction.message.delete()
             except Exception:
                 pass
-            await begin_taiko_mode(interaction.guild, players[:], recruit_data)
+            await begin_taiko_mode(interaction.guild, players[:], recruit_data, room_key)
             return
 
+        # ★ 通常試合
         room_key = None
         for rk in ROOM_KEYS:
             if room_states[rk]["game_state"] == "idle":
@@ -2361,6 +2494,9 @@ class RecruitConfirmView(discord.ui.View):
         if room_key is None:
             await interaction.response.send_message("現在空いている部屋がありません", ephemeral=True)
             return
+
+        await interaction.response.send_message("チャンネルを作成しています...", ephemeral=True)
+        await create_room_channels(interaction.guild, room_key)
 
         room_state = room_states[room_key]
         reset_room_state(room_state)
@@ -2383,11 +2519,6 @@ class RecruitConfirmView(discord.ui.View):
             pass
 
         active_recruits.pop(interaction.message.id, None)
-
-        await interaction.response.send_message(
-            f"{room_key}部屋で試合を開始します！",
-            ephemeral=True
-        )
 
         await begin_phase1(interaction.guild, room_key)
 
@@ -2576,13 +2707,13 @@ class ReadyView(BaseControlView):
         self.disable_all_buttons()
         await interaction.response.edit_message(content=create_ready_text(self.room_state), view=self)
         await start_game(interaction.guild, self.room_key)
+
 class PlayingView(BaseControlView):
     def __init__(self, room_key, room_state):
         super().__init__()
         self.room_key = room_key
         self.room_state = room_state
 
-        # エンジョイモードの場合は通常ボタンを無効化
         if room_state.get("is_enjoy"):
             for child in self.children:
                 if hasattr(child, 'label') and child.label in ("アルファ勝ち", "ブラボー勝ち", "回線落ち"):
@@ -2685,11 +2816,9 @@ class TaikoFinishedView(BaseControlView):
         self.disable_all_buttons()
         await interaction.response.edit_message(view=self)
 
-        # スコアリセット
         self.room_state["taiko_alpha_wins"] = 0
         self.room_state["taiko_bravo_wins"] = 0
 
-        # 次のセット開始
         await next_game(interaction.guild, self.room_key)
 
     @discord.ui.button(label="終了", style=discord.ButtonStyle.danger)
@@ -2711,7 +2840,7 @@ class TaikoFinishedView(BaseControlView):
         self.disable_all_buttons()
         await interaction.response.edit_message(view=self)
         await undo_result(interaction.guild, self.room_key)
- 
+
 class FinishedView(BaseControlView):
     def __init__(self, room_key, room_state):
         super().__init__()
@@ -2858,7 +2987,6 @@ class DisconnectVoteView(BaseControlView):
 # ドラフト用View
 # =========================
 class CaptainSelectView(discord.ui.View):
-    """主将募集View"""
     def __init__(self):
         super().__init__(timeout=None)
 
@@ -2899,7 +3027,6 @@ class CaptainSelectView(discord.ui.View):
 
 
 class DraftPickView(discord.ui.View):
-    """ドラフト指名View（各主将用・ephemeral）"""
     def __init__(self, captain, undrafted):
         super().__init__(timeout=120)
         self.captain = captain
@@ -2942,7 +3069,6 @@ class DraftPickView(discord.ui.View):
                 ephemeral=True
             )
 
-            # 全主将が選んだか確認
             active_captains = [c for c in draft_state["captains"] if c is not None]
             if len(draft_state["pending_picks"]) == len(active_captains):
                 await resolve_draft_picks(interaction.guild)
@@ -2952,7 +3078,6 @@ class DraftPickView(discord.ui.View):
 
 
 class DraftBattleView(discord.ui.View):
-    """ドラフト戦進行View"""
     def __init__(self, room_key, team_a, team_b, wins_needed=2):
         super().__init__(timeout=None)
         self.room_key = room_key
@@ -2992,7 +3117,6 @@ class DraftBattleView(discord.ui.View):
 
         wins_w = result["wins_a"] if winning_team == battle_key[0] else result["wins_b"]
 
-        # レート変動（通常のGlicko-2）
         winners = get_team_members(winning_team)
         losers = get_team_members(losing_team)
         update_win_streaks(winners, losers)
@@ -3032,7 +3156,6 @@ class DraftBattleView(discord.ui.View):
             await interaction.response.edit_message(content=content, view=self)
 
 class DraftFinalView(discord.ui.View):
-    """決勝戦View（3勝先取）"""
     def __init__(self, room_key, team_a, team_b):
         super().__init__(timeout=None)
         self.room_key = room_key
@@ -3072,8 +3195,6 @@ class DraftFinalView(discord.ui.View):
                 f"部屋{self.room_key}決勝: チーム{winner_team}（{build_player_display(cap_w)}）が勝利！"
             )
 
-        # 両方の決勝が終わったか確認してfinish_draft呼ぶ
-        # final_resultsに記録
         draft_state["final_results"][self.room_key] = {
             "winner": winner_team, "loser": loser_team
         }
@@ -3088,7 +3209,7 @@ class DraftFinalView(discord.ui.View):
             await finish_draft(interaction.guild, final_standings)
 
 # =========================
-# ホームView（プレイヤー登録・バッジ・コイン・募集作成）
+# ホームView
 # =========================
 class PlayerRegisterModal(discord.ui.Modal, title="プレイヤー登録"):
     weapon_input = discord.ui.TextInput(
@@ -3224,13 +3345,16 @@ class CoinMenuView(discord.ui.View):
         admin_channel = get_admin_channel(interaction.guild)
         if admin_channel:
             name = build_player_display(interaction.user, include_badge=True)
-            await admin_channel.send(f"【ガチャ結果】\n{name}\n→ {item['label']}")
+            if item["kind"] == "trivia":
+                trivia = random.choice(TRIVIA_LIST)
+                await admin_channel.send(f"【ガチャ結果】\n{name}\n→ 雑学: {trivia}")
+                result_text = trivia
+            else:
+                await admin_channel.send(f"【ガチャ結果】\n{name}\n→ {item['label']}")
 
         if item["kind"] == "ticket":
             result_text = f"〈チケット〉{item['label']}"
-        elif item["kind"] == "trivia":
-            result_text = random.choice(TRIVIA_LIST)
-        else:
+        elif item["kind"] != "trivia":
             result_text = item["label"]
 
         await interaction.response.send_message(f"ガチャ結果\n→ {result_text}", ephemeral=True)
@@ -3299,7 +3423,6 @@ class CoinMenuView(discord.ui.View):
             active_ticket = tickets.pop(index)
             profile["tickets"] = tickets
 
-            # 武器ジャックチケットは特別処理
             if active_ticket.get("type") == "weapon_jack":
                 save_player_profiles(player_profiles)
 
@@ -3349,11 +3472,9 @@ class CoinMenuView(discord.ui.View):
         await interaction.response.send_message("使用するチケットを選んでください", view=view, ephemeral=True)
 
 class HomeView(discord.ui.View):
-    """ホームチャンネル常駐View"""
     def __init__(self):
         super().__init__(timeout=None)
 
-    # 左から: 緑・青・緑・赤 の順
     @discord.ui.button(label="募集作成", style=discord.ButtonStyle.success,
                        custom_id="home_create_recruit", row=0)
     async def create_recruit_button(self, interaction: discord.Interaction, button):
@@ -3391,12 +3512,12 @@ class HomeView(discord.ui.View):
                        custom_id="home_player_register", row=0)
     async def register_button(self, interaction: discord.Interaction, button):
         await interaction.response.send_modal(PlayerRegisterModal())
-    
+
     @discord.ui.button(label="雑学投稿", style=discord.ButtonStyle.secondary,
                        custom_id="home_trivia_post", row=1)
     async def trivia_button(self, interaction: discord.Interaction, button):
         await interaction.response.send_modal(TriviaModal())
-    
+
     @discord.ui.button(label="使い方", style=discord.ButtonStyle.secondary,
                        custom_id="home_help", row=1)
     async def help_button(self, interaction: discord.Interaction, button):
@@ -3521,11 +3642,7 @@ async def post_secret_ranking(guild):
 # =========================
 # 進行制御
 # =========================
-# =========================
-# ドラフト進行制御
-# =========================
 async def begin_captain_selection(guild, players, host_id):
-    """主将募集フェーズ開始"""
     draft_state["phase"] = "captain"
     draft_state["players"] = players
     draft_state["host_id"] = host_id
@@ -3544,7 +3661,6 @@ async def begin_captain_selection(guild, players, host_id):
 
 
 async def begin_draft_round(guild):
-    """ドラフトラウンド開始"""
     draft_state["phase"] = "draft"
     draft_state["round"] += 1
     draft_state["pending_picks"] = {}
@@ -3563,7 +3679,6 @@ async def begin_draft_round(guild):
     else:
         draft_state["draft_message"] = await draft_channel.send(round_text)
 
-    # 各主将にセレクトメニューを送る
     for captain in draft_state["captains"]:
         try:
             view = DraftPickView(captain, undrafted)
@@ -3577,15 +3692,12 @@ async def begin_draft_round(guild):
 
 
 async def resolve_draft_picks(guild):
-    """全主将が指名した後の処理（被り解決）"""
-    picks = draft_state["pending_picks"]  # {captain_id_str: member}
+    picks = draft_state["pending_picks"]
 
-    # 被りチェック
     picked_ids = [m.id for m in picks.values()]
     conflict_ids = [pid for pid in set(picked_ids) if picked_ids.count(pid) > 1]
 
     if not conflict_ids:
-        # 被りなし → 全員確定
         for cap_id_str, member in picks.items():
             cap = get_captain_by_id(int(cap_id_str))
             if cap:
@@ -3603,14 +3715,12 @@ async def resolve_draft_picks(guild):
         if draft_channel:
             await draft_channel.send("\n".join(reveal_lines) + "\n\n" + status_text)
 
-        # 次のラウンドへ or ドラフト完了
         undrafted = get_undrafted_players()
         if not undrafted or draft_state["round"] >= 4:
             await begin_draft_battles(guild)
         else:
             await begin_draft_round(guild)
     else:
-        # 被りあり → 被った人たちで再指名
         conflict_member_id = conflict_ids[0]
         conflicting_caps = [
             get_captain_by_id(int(cap_id_str))
@@ -3618,17 +3728,14 @@ async def resolve_draft_picks(guild):
             if m.id == conflict_member_id
         ]
 
-        # チーム合計レートが低い方優先
         conflicting_caps.sort(key=lambda c: get_team_avg_rating(get_team_of_captain(c)))
         winner_cap = conflicting_caps[0]
         loser_caps = conflicting_caps[1:]
 
-        # 勝者の指名を確定
         winner_team = get_team_of_captain(winner_cap)
         picked_member = picks[str(winner_cap.id)]
         draft_state["teams"][winner_team].append(picked_member)
 
-        # 被りなしの人も確定
         for cap_id_str, member in picks.items():
             cap = get_captain_by_id(int(cap_id_str))
             if cap and cap not in conflicting_caps:
@@ -3644,7 +3751,6 @@ async def resolve_draft_picks(guild):
                 f"{loser_names} は再指名してください"
             )
 
-        # 負けた主将のみ再指名
         new_undrafted = get_undrafted_players()
         for cap in loser_caps:
             try:
@@ -3657,7 +3763,6 @@ async def resolve_draft_picks(guild):
             except Exception:
                 pass
 
-        # pending_picksを負けた主将分だけリセット
         draft_state["pending_picks"] = {
             k: v for k, v in picks.items()
             if get_captain_by_id(int(k)) not in loser_caps
@@ -3665,14 +3770,12 @@ async def resolve_draft_picks(guild):
 
 
 async def begin_draft_battles(guild):
-    """総当たりフェーズ開始"""
     draft_state["phase"] = "battle"
     draft_state["current_round_idx"] = 0
     draft_state["battle_results"] = {}
 
     draft_channel = get_draft_channel(guild)
 
-    # チーム編成を表示
     lines = ["【ドラフト確定！総当たり戦を開始します】", ""]
     for team_num, cap in enumerate(draft_state["captains"], start=1):
         members = get_team_members(team_num)
@@ -3686,7 +3789,6 @@ async def begin_draft_battles(guild):
 
 
 async def start_draft_battle_round(guild):
-    """総当たり1セット開始"""
     idx = draft_state["current_round_idx"]
     if idx >= len(DRAFT_BATTLE_SCHEDULE):
         await finish_round_robin(guild)
@@ -3705,12 +3807,10 @@ async def start_draft_battle_round(guild):
             f"先に2勝したチームがバトル勝利です"
         )
 
-    # VC移動は1試合目のみ
     if idx == 0:
         await move_draft_teams_to_vc(guild, "A", team_a_room_a, team_b_room_a)
         await move_draft_teams_to_vc(guild, "B", team_a_room_b, team_b_room_b)
 
-    # 進行チャンネルにボタン表示
     for room_key, (ta, tb) in [("A", schedule["A"]), ("B", schedule["B"])]:
         channel = get_draft_progress_channel(guild, room_key)
         if channel:
@@ -3721,7 +3821,6 @@ async def start_draft_battle_round(guild):
 
 
 async def on_battle_won(guild, room_key, winning_team, losing_team):
-    """バトル（2勝）決着時の処理"""
     draft_channel = get_draft_channel(guild)
     idx = draft_state["current_round_idx"]
     schedule = DRAFT_BATTLE_SCHEDULE[idx]
@@ -3732,7 +3831,6 @@ async def on_battle_won(guild, room_key, winning_team, losing_team):
             f"部屋{room_key}: チーム{winning_team}（{build_player_display(cap_w)}）がバトル勝利！"
         )
 
-    # 相方の部屋も終わっているか確認
     other_room = "B" if room_key == "A" else "A"
     other_ta, other_tb = schedule[other_room]
     other_key = (min(other_ta, other_tb), max(other_ta, other_tb))
@@ -3743,7 +3841,6 @@ async def on_battle_won(guild, room_key, winning_team, losing_team):
     other_done = other_wins_a >= 2 or other_wins_b >= 2
 
     if other_done:
-        # 両方終わった → 次のセットへ
         draft_state["current_round_idx"] += 1
         if draft_state["current_round_idx"] >= len(DRAFT_BATTLE_SCHEDULE):
             await finish_round_robin(guild)
@@ -3754,7 +3851,6 @@ async def on_battle_won(guild, room_key, winning_team, losing_team):
 
 
 async def finish_round_robin(guild):
-    """総当たり終了 → 順位決定 → 決勝へ"""
     standings, stats = calc_team_standings()
     draft_state["team_standings"] = standings
     draft_state["phase"] = "final"
@@ -3777,11 +3873,9 @@ async def finish_round_robin(guild):
     if draft_channel:
         await draft_channel.send("\n".join(lines))
 
-    # VC移動
     await move_draft_teams_to_vc(guild, "A", standings[0], standings[1])
     await move_draft_teams_to_vc(guild, "B", standings[2], standings[3])
 
-    # 決勝ボタン表示
     for room_key, (ta, tb) in [("A", (standings[0], standings[1])), ("B", (standings[2], standings[3]))]:
         channel = get_draft_progress_channel(guild, room_key)
         if channel:
@@ -3791,7 +3885,6 @@ async def finish_round_robin(guild):
 
 
 async def finish_draft(guild, final_standings):
-    """ドラフト完了・全体ロビーに集合"""
     draft_channel = get_draft_channel(guild)
 
     lines = ["【ドラフト戦 最終結果】", ""]
@@ -3809,6 +3902,10 @@ async def finish_draft(guild, final_standings):
 
     await move_all_to_lobby(guild)
     await post_ranking(guild)
+
+    # ★ ドラフトチャンネル削除
+    await delete_draft_channels(guild)
+
     reset_draft_state()
 
 async def begin_phase1(guild, room_key):
@@ -3820,11 +3917,9 @@ async def begin_phase1(guild, room_key):
 # =========================
 # エンジョイ進行制御
 # =========================
-async def begin_enjoy_mode(guild, players, recruit_data):
-    """エンジョイモード開始"""
+async def begin_enjoy_mode(guild, players, recruit_data, room_key=None):
     mode_id = recruit_data.get("enjoy_mode_id", "enjoy_normal")
 
-    # タイマンは特別処理
     if mode_id == "enjoy_taiman":
         channel_a = get_draft_progress_channel(guild, "A")
         if channel_a is None:
@@ -3835,13 +3930,11 @@ async def begin_enjoy_mode(guild, players, recruit_data):
             )
         return
 
-    # イカップル・トリオバトルは通常のチーム分けフローへ
-    # エンジョイ用のroom_stateを設定
-    room_key = None
-    for rk in ROOM_KEYS:
-        if room_states[rk]["game_state"] == "idle":
-            room_key = rk
-            break
+    if room_key is None:
+        for rk in ROOM_KEYS:
+            if room_states[rk]["game_state"] == "idle":
+                room_key = rk
+                break
 
     if room_key is None:
         for p in players:
@@ -3865,13 +3958,12 @@ async def begin_enjoy_mode(guild, players, recruit_data):
 
     await begin_phase1(guild, room_key)
 
-async def begin_taiko_mode(guild, players, recruit_data):
-    """対抗戦モード開始"""
-    room_key = None
-    for rk in ROOM_KEYS:
-        if room_states[rk]["game_state"] == "idle":
-            room_key = rk
-            break
+async def begin_taiko_mode(guild, players, recruit_data, room_key=None):
+    if room_key is None:
+        for rk in ROOM_KEYS:
+            if room_states[rk]["game_state"] == "idle":
+                room_key = rk
+                break
 
     if room_key is None:
         for p in players:
@@ -4066,17 +4158,14 @@ async def process_result(guild, room_key, winner_num: int):
 
     save_ratings(ratings)
     save_player_profiles(player_profiles)
-    # 最高レートチェック
     await check_and_update_peak_ranking(
         guild, [str(u.id) for u in team_alpha + team_bravo]
     )
 
     room_state["prepared_match"] = make_teams_from_choices(room_state)
 
-    # レート更新ログを別チャンネルに送信
     await send_rate_log(guild, room_state, team_alpha, team_bravo)
 
-    # 対抗戦スコア処理
     if room_state.get("is_taiko"):
         if winner_num == 1:
             room_state["taiko_alpha_wins"] += 1
@@ -4106,7 +4195,6 @@ async def process_result(guild, room_key, winner_num: int):
     await update_control_message(guild, room_key, create_finished_text(room_state), view=view)
 
 async def send_rate_log(guild, room_state, team_alpha, team_bravo):
-    """レート更新ログをRATE_LOG_CHANNELに送信"""
     rate_log_channel = get_rate_log_channel(guild)
     if rate_log_channel is None:
         return
@@ -4161,13 +4249,16 @@ async def end_room(guild, room_key):
 
     channel = get_progress_channel(guild, room_key)
 
-    reset_room_state(room_state)
-    reset_room_tracking(room_state)
-
     if channel:
         if summary_text:
             await channel.send(summary_text)
         await channel.send("部屋を終了しました。次の募集は「ホーム」の「募集作成」ボタンから作成してください。")
+
+    reset_room_state(room_state)
+    reset_room_tracking(room_state)
+
+    # ★ チャンネル削除
+    await delete_room_channels(guild, room_key)
 
 
 async def undo_result(guild, room_key):
@@ -4282,19 +4373,15 @@ async def apply_disconnect_rating_change(guild, room_key, member):
             new_rating = old_rating + DISCONNECT_REWARD
 
         entry["rating"] = float(new_rating)
-        # 回線落ちはRDを変化させない（試合不成立扱い）
         entry["rd"] = float(old_rd)
 
     save_ratings(ratings)
-    
-    # 最高レートチェック
+
     all_player_ids = [str(u.id) for u in team_alpha + team_bravo]
     await check_and_update_peak_ranking(guild, all_player_ids)
 
     room_state["prepared_match"] = make_teams_from_choices(room_state)
-    next_team_alpha, next_team_bravo = room_state["prepared_match"]
 
-    # レート更新ログを別チャンネルに送信
     rate_log_channel = get_rate_log_channel(guild)
     if rate_log_channel:
         lines = [
@@ -4860,6 +4947,7 @@ async def on_ready():
     print(f"ログインしたよ: {bot.user}")
     bot.add_view(HomeView())
     bot.add_view(RecruitView())
+    daily_coin_distribution.start()  
 
 @tasks.loop(time=discord.utils.utcnow().replace(hour=10, minute=0, second=0, microsecond=0).timetz())
 async def daily_coin_distribution():
@@ -4907,10 +4995,12 @@ async def cancel_room(ctx):
 
     await ctx.send(f"{room_key}部屋を中断しました")
 
+    # ★ チャンネル削除
+    await delete_room_channels(ctx.guild, room_key)
+
 
 @bot.command(name="回線落ち")
 async def disconnect_command(ctx):
-    """!回線落ち @ユーザー"""
     room_key = get_room_key_by_channel_id(ctx.channel.id)
     if room_key is None:
         await ctx.send("このコマンドは試合進行チャンネルで使ってください。")
