@@ -2070,15 +2070,6 @@ async def finalize_recruit_creation(interaction: discord.Interaction, mode_id: s
         await interaction.response.send_message("募集チャンネルが見つかりません", ephemeral=True)
         return
 
-    from datetime import datetime, timezone, timedelta
-    JST = timezone(timedelta(hours=9))
-    now_jst = datetime.now(JST)
-    if not (10 <= now_jst.hour < 23):
-        await interaction.response.send_message(
-            "募集は10時〜23時の間しか作成できません", ephemeral=True
-        )
-        return
-
     is_draft = mode_id == "draft"
     is_enjoy = mode_id.startswith("enjoy_")
     is_taiko = mode_id.startswith("taiko_")
