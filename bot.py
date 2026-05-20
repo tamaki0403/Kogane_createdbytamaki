@@ -63,6 +63,7 @@ ROOM_LOBBY_VC = {
     "B": 1494170471841660948,
 }
 DRAFT_LOBBY_VC_ID = 1500399929569574942
+DYNAMIC_CATEGORY_ID = 1503603086370013224
 
 # ★ 進行ch・alpha/bravo VCは動的作成するためIDをここでは持たない
 # bot_state["dynamic_channels"] に保存する
@@ -84,14 +85,20 @@ def save_dynamic_channels(data):
 # =========================
 # 動的チャンネル作成・削除ヘルパー
 # =========================
-async def create_room_channels(guild, room_key: str, category=None):
-    """進行ch + alpha/bravo VCを作成してbot_stateに保存"""
+async def create_room_channels(guild, room_key: str):
+    """進行ch + レート更新ch + alpha/bravo VCを作成してbot_stateに保存"""
     dc = get_dynamic_channels()
+
+    category = guild.get_channel(DYNAMIC_CATEGORY_ID)
 
     progress_ch = await guild.create_text_channel(
         name=f"進行-部屋{room_key}",
         category=category,
         topic=f"{room_key}部屋の試合進行チャンネル"
+    )
+    rate_log_ch = await guild.create_text_channel(
+        name=f"レート更新-部屋{room_key}",
+        category=category,
     )
     alpha_vc = await guild.create_voice_channel(
         name=f"アルファ-部屋{room_key}",
@@ -104,11 +111,12 @@ async def create_room_channels(guild, room_key: str, category=None):
 
     dc[f"room_{room_key}"] = {
         "progress": progress_ch.id,
+        "rate_log": rate_log_ch.id,
         "alpha_vc": alpha_vc.id,
         "bravo_vc": bravo_vc.id,
     }
     save_dynamic_channels(dc)
-    return progress_ch, alpha_vc, bravo_vc
+    return progress_ch, rate_log_ch, alpha_vc, bravo_vc
 
 
 async def delete_room_channels(guild, room_key: str):
@@ -131,9 +139,11 @@ async def delete_room_channels(guild, room_key: str):
     save_dynamic_channels(dc)
 
 
-async def create_draft_channels(guild, category=None):
+async def create_draft_channels(guild):
     """ドラフト関連チャンネルをすべて作成"""
     dc = get_dynamic_channels()
+
+    category = guild.get_channel(DYNAMIC_CATEGORY_ID)
 
     draft_main = await guild.create_text_channel(
         name="ドラフト経過",
@@ -204,6 +214,14 @@ def get_progress_channel(guild, room_key):
     if not info:
         return None
     return guild.get_channel(info["progress"])
+
+def get_room_rate_log_channel(guild, room_key):
+    """動的レート更新チャンネルを取得"""
+    dc = get_dynamic_channels()
+    info = dc.get(f"room_{room_key}")
+    if not info:
+        return None
+    return guild.get_channel(info.get("rate_log"))
 
 def get_room_voice_channels(guild, room_key):
     dc = get_dynamic_channels()
@@ -884,17 +902,16 @@ TICKET_DEFINITIONS = {
     "streak_7_win_50": {"label": "15試合中 7連勝で +50", "type": "streak_reward", "target_streak": 7, "reward": 50, "remaining_matches": 15},
     "weapon_jack": {"label": "武器ルーレット操作", "type": "weapon_jack", "remaining_matches": 1},
 }
-
 GACHA_ITEMS = [
-    {"kind": "trivia",     "value": None,            "label": "雑学",                                           "weight": 26.0},
-    {"kind": "rating",     "value": 1,               "label": "レート +1",                                      "weight": 20.0},
-    {"kind": "rating",     "value": 5,               "label": "レート +5",                                      "weight": 15.0},
-    {"kind": "rating",     "value": 10,              "label": "レート +10",                                     "weight": 8.0},
+    {"kind": "trivia",     "value": None,            "label": "雑学",                                           "weight": 63.0},
+    {"kind": "rating",     "value": 1,               "label": "レート +1",                                      "weight": 3.0},
+    {"kind": "rating",     "value": 5,               "label": "レート +5",                                      "weight": 1.0},
+    {"kind": "rating",     "value": 10,              "label": "レート +10",                                     "weight": 0.5},
     {"kind": "ticket",     "value": "rate_x1_1_10",  "label": "10試合 レート変動率 1.1倍",                      "weight": 7.0},
     {"kind": "ticket",     "value": "rate_x1_2_10",  "label": "10試合 レート変動率 1.2倍",                      "weight": 5.0},
     {"kind": "ticket",     "value": "rate_x1_3_10",  "label": "10試合 レート変動率 1.3倍",                      "weight": 4.0},
-    {"kind": "ticket",     "value": "rate_plus_3_10","label": "10試合 レート変動に +3",                          "weight": 4.0},
-    {"kind": "ticket",     "value": "rate_plus_5_10","label": "10試合 レート変動に +5",                          "weight": 2.5},
+    {"kind": "ticket",     "value": "rate_plus_3_10","label": "10試合 レート変動に +3",                          "weight": 0.2},
+    {"kind": "ticket",     "value": "rate_plus_5_10","label": "10試合 レート変動に +5",                          "weight": 0.1},
     {"kind": "ticket",     "value": "rate_plus_10_5","label": "5試合 レート変動に +10",                          "weight": 1.0},
     {"kind": "ticket",     "value": "win_bonus_1_15","label": "15試合 連勝ごとにボーナス +1",                    "weight": 3.0},
     {"kind": "ticket",     "value": "streak_5_win_20","label": "15試合中 5連勝で +20",                           "weight": 2.0},
@@ -1040,6 +1057,10 @@ TRIVIA_LIST = [
     "ユダヤ教では食事規定が非常に細かい。",
     "シク教では髪を切らない戒律がある。",
     "神社にいる狛犬は左右で役割が違う。",
+    "パンダの模様って、でかいほくろらしい。",
+    "でんのはるくんはバレル使い。",
+    "コインは毎日19時に2枚付与される。",
+    "コインの上限は5枚。",
 ]
 
 COIN_LIMIT = 5
@@ -1623,6 +1644,11 @@ def create_room_summary_text(room_state):
             member, include_badge=True, include_rate_change=True,
             old_rating=start_rate, new_rating=end_rate,
         ))
+
+    trivia = random.choice(TRIVIA_LIST)
+    lines.append("")
+    lines.append(f"# 今日の雑学: {trivia}")
+
     return "\n".join(lines)
 
 # =========================
@@ -1806,7 +1832,11 @@ def create_phase1_text(room_state):
     bravo_users = [u for u in room_state["joined_players"] if room_state["phase1_choices"].get(str(u.id)) == "bravo"]
     random_users = [u for u in room_state["joined_players"] if room_state["phase1_choices"].get(str(u.id)) == "random"]
 
+    mention_line = " ".join(u.mention for u in room_state["joined_players"])
+
     lines = [
+        mention_line,
+        "",
         "【第一選択】希望するチームを選んでください。押し直しで上書きできます。",
         "",
         f"【アルファ（{len(alpha_users)}/{TEAM_SIZE}）】",
@@ -1984,7 +2014,7 @@ class RecruitModeSelectView(discord.ui.View):
             placeholder="試合ルールを選択",
             options=[
                 discord.SelectOption(label="エリアプラベ", value="area"),
-                discord.SelectOption(label="対抗戦プラベ", value="taiko"),
+                discord.SelectOption(label="n先交代プラベ", value="taiko"),
                 discord.SelectOption(label="ドラフト", value="draft"),
                 discord.SelectOption(label="エンジョイ", value="enjoy"),
             ]
@@ -2084,7 +2114,7 @@ async def finalize_recruit_creation(interaction: discord.Interaction, mode_id: s
     elif is_taiko:
         capacity = ROOM_CAPACITY
         wins_needed = int(mode_id.split("_")[1])
-        mode_label = f"対抗戦プラベ（{wins_needed}先）"
+        mode_label = f"{wins_needed}先交代プラベ"
     else:
         capacity = ROOM_CAPACITY
         mode_label = "エリアプラベ"
@@ -2119,6 +2149,7 @@ async def finalize_recruit_creation(interaction: discord.Interaction, mode_id: s
         "enjoy_mode_id": mode_id if is_enjoy else None,
         "taiko_wins_needed": int(mode_id.split("_")[1]) if is_taiko else None,
         "capacity": capacity,
+        "notify_message_id": None,
     }
 
     await interaction.response.edit_message(content="募集を作成しました！", view=None)
@@ -2328,6 +2359,28 @@ class RecruitView(discord.ui.View):
             f"{player_lines}"
         )
 
+    async def send_notify_message(self, recruit_channel, recruit_data):
+        """残り人数通知メッセージを送信（古いものは削除）"""
+        players = recruit_data["joined_players"]
+        capacity = recruit_data.get("capacity", ROOM_CAPACITY)
+        description = recruit_data["description"]
+        remaining = capacity - len(players)
+
+        old_notify_id = recruit_data.get("notify_message_id")
+        if old_notify_id:
+            try:
+                old_msg = await recruit_channel.fetch_message(old_notify_id)
+                await old_msg.delete()
+            except Exception:
+                pass
+            recruit_data["notify_message_id"] = None
+
+        if len(players) >= capacity:
+            return
+
+        notify_msg = await recruit_channel.send(f"{description} @{remaining}")
+        recruit_data["notify_message_id"] = notify_msg.id
+
     @discord.ui.button(label="参加", style=discord.ButtonStyle.primary, custom_id="recruit_join")
     async def join_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         recruit_data = active_recruits.get(interaction.message.id)
@@ -2350,11 +2403,23 @@ class RecruitView(discord.ui.View):
         players.append(user)
         content = self.build_content(recruit_data)
 
+        recruit_channel = get_recruit_channel(interaction.guild)
+
         if len(players) == recruit_capacity:
             await interaction.response.edit_message(content=content, view=self)
+            old_notify_id = recruit_data.get("notify_message_id")
+            if old_notify_id and recruit_channel:
+                try:
+                    old_msg = await recruit_channel.fetch_message(old_notify_id)
+                    await old_msg.delete()
+                except Exception:
+                    pass
+                recruit_data["notify_message_id"] = None
             await self.finalize_recruit(interaction, recruit_data)
         else:
             await interaction.response.edit_message(content=content, view=self)
+            if recruit_channel:
+                await self.send_notify_message(recruit_channel, recruit_data)
 
     @discord.ui.button(label="抜ける", style=discord.ButtonStyle.secondary, custom_id="recruit_leave")
     async def leave_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -2373,6 +2438,10 @@ class RecruitView(discord.ui.View):
         recruit_data["joined_players"] = [p for p in players if p.id != user.id]
         content = self.build_content(recruit_data)
         await interaction.response.edit_message(content=content, view=self)
+
+        recruit_channel = get_recruit_channel(interaction.guild)
+        if recruit_channel:
+            await self.send_notify_message(recruit_channel, recruit_data)
 
     async def finalize_recruit(self, interaction: discord.Interaction, recruit_data):
         players = recruit_data["joined_players"]
@@ -2403,7 +2472,6 @@ class RecruitView(discord.ui.View):
         active_recruits.pop(recruit_data["message_id"], None)
         recruit_data["message_id"] = new_msg.id
         recruit_data["confirm_message_id"] = new_msg.id
-
 class RecruitConfirmView(discord.ui.View):
     def __init__(self, recruit_message_id: int, players: list):
         super().__init__(timeout=None)
@@ -4155,7 +4223,7 @@ async def process_result(guild, room_key, winner_num: int):
 
     room_state["prepared_match"] = make_teams_from_choices(room_state)
 
-    await send_rate_log(guild, room_state, team_alpha, team_bravo)
+    await send_rate_log(guild, room_state, team_alpha, team_bravo, room_key)
 
     if room_state.get("is_taiko"):
         if winner_num == 1:
@@ -4185,15 +4253,15 @@ async def process_result(guild, room_key, winner_num: int):
     view = FinishedView(room_key, room_state)
     await update_control_message(guild, room_key, create_finished_text(room_state), view=view)
 
-async def send_rate_log(guild, room_state, team_alpha, team_bravo):
-    rate_log_channel = get_rate_log_channel(guild)
+async def send_rate_log(guild, room_state, team_alpha, team_bravo, room_key):
+    rate_log_channel = get_room_rate_log_channel(guild, room_key)
     if rate_log_channel is None:
         return
 
     last_rating_changes = room_state.get("last_rating_changes") or {}
     detail_map = room_state.get("last_rating_detail") or {}
 
-    lines = ["【レート更新】", f"全員に +{PARTICIPATION_BONUS} が追加されました", ""]
+    lines = ["# 【レート更新】", ""]
 
     for user in team_alpha + team_bravo:
         uid = str(user.id)
@@ -4238,11 +4306,13 @@ async def end_room(guild, room_key):
     await move_members_to_lobby(guild, room_key, room_state)
     await post_ranking(guild)
 
-    channel = get_progress_channel(guild, room_key)
+    if summary_text:
+        rate_log_channel = get_rate_log_channel(guild)
+        if rate_log_channel:
+            await rate_log_channel.send(summary_text)
 
+    channel = get_progress_channel(guild, room_key)
     if channel:
-        if summary_text:
-            await channel.send(summary_text)
         await channel.send("部屋を終了しました。次の募集は「ホーム」の「募集作成」ボタンから作成してください。")
 
     reset_room_state(room_state)
@@ -4373,10 +4443,10 @@ async def apply_disconnect_rating_change(guild, room_key, member):
 
     room_state["prepared_match"] = make_teams_from_choices(room_state)
 
-    rate_log_channel = get_rate_log_channel(guild)
+    rate_log_channel = get_room_rate_log_channel(guild, room_key)
     if rate_log_channel:
         lines = [
-            "【レート更新（回線落ち）】",
+            "# 【レート更新（回線落ち）】",
             f"回線落ち: -{DISCONNECT_PENALTY} / その他: +{DISCONNECT_REWARD}",
             ""
         ]
