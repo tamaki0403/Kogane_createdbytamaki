@@ -4,7 +4,11 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-app = FastAPI()
+from fastapi.responses import JSONResponse
+import json
+
+app = FastAPI(default_response_class=JSONResponse)
+
 
 DATA_DIR = "/data"
 RATINGS_FILE = os.path.join(DATA_DIR, "ratings.json")
