@@ -5683,7 +5683,87 @@ async def admin_dump_7(ctx):
 # =========================
 # 起動
 # =========================
+import threading
+import uvicorn
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+api = FastAPI()
+
+@api.get("/api/health")
+def health():
+    return {"status": "ok"}
+
+@api.get("/api/ranking")
+def get_ranking():
+    ratings_data = load_ratings()
+    profiles = load_player_profiles()
+
+    players = []
+    for uid, data in ratings_data.items():
+        if isinstance(data, dict):
+            rating = int(round(data.get("rating", DEFAULT_RATING)))
+        else:
+            rating = int(round(float(data)))
+
+        profile = profiles.get(uid, {})
+        players.append({
+            "user_id": uid,
+            "rating": rating,
+            "weapon": profile.get("weapon") or "未登録",
+            "xp": profile.get("xp"),
+            "peak_rating": profile.get("peak_rating"),
+        })
+
+    players.sort(key=lambda x: -x["rating"])
+    for i, p in enumerate(players):
+        p["rank"] = i + 1
+
+    return {"players": players}
+
+@api.get("/api/player/{user_id}")
+def get_player(user_id: str):
+    ratings_data = load_ratings()
+    profiles = load_player_profiles()
+
+    data = ratings_data.get(user_id)
+    if data is None:
+        return {"error": "プレイヤーが見つかりません"}
+
+    if isinstance(data, dict):
+        rating = int(round(data.get("rating", DEFAULT_RATING)))
+        rd = data.get("rd", 120.0)
+    else:
+        rating = int(round(float(data)))
+        rd = 120.0
+
+    profile = profiles.get(user_id, {})
+    return {
+        "user_id": user_id,
+        "rating": rating,
+        "rd": round(rd, 1),
+        "weapon": profile.get("weapon") or "未登録",
+        "xp": profile.get("xp"),
+        "peak_rating": profile.get("peak_rating"),
+        "coins": profile.get("coins", 0),
+        "win_streak": profile.get("win_streak", 0),
+    }
+
+# 静的ファイル（HTMLページ）
+static_dir = os.path.join(os.path.dirname(__file__), "web", "static")
+if os.path.exists(static_dir):
+    api.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
+
+def run_api():
+    port = int(os.environ.get("PORT", 8080))
+    uvicorn.run(api, host="0.0.0.0", port=port)
+
 if not TOKEN:
     raise ValueError("DISCORD_TOKEN が設定されていません。")
+
+# WebサーバーをバックグラウンドでStartし、BotをメインスレッドでStart
+api_thread = threading.Thread(target=run_api, daemon=True)
+api_thread.start()
 
 bot.run(TOKEN)
