@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>レートランキング</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d1117;
+      color: #e6edf3;
+      font-family: 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.6rem;
+      margin-bottom: 8px;
+      color: #58a6ff;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #8b949e;
+      margin-bottom: 24px;
+    }
+
+    .search-box {
+      display: block;
+      width: 100%;
+      max-width: 400px;
+      margin: 0 auto 24px;
+      padding: 10px 14px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      color: #e6edf3;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    .search-box:focus {
+      border-color: #58a6ff;
+    }
+
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 10px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      transition: border-color 0.2s;
+    }
+
+    .card:hover { border-color: #58a6ff; }
+
+    .rank {
+      font-size: 1.2rem;
+      font-weight: bold;
+      width: 40px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .rank.gold   { color: #ffd700; }
+    .rank.silver { color: #c0c0c0; }
+    .rank.bronze { color: #cd7f32; }
+    .rank.normal { color: #8b949e; }
+
+    .info { flex: 1; min-width: 0; }
+
+    .name {
+      font-size: 1rem;
+      font-weight: bold;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .weapon {
+      font-size: 0.8rem;
+      color: #8b949e;
+      margin-top: 2px;
+    }
+
+    .rating {
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: #58a6ff;
+      flex-shrink: 0;
+    }
+
+    .loading {
+      text-align: center;
+      color: #8b949e;
+      margin-top: 60px;
+      font-size: 1rem;
+    }
+
+    .error {
+      text-align: center;
+      color: #f85149;
+      margin-top: 60px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🦑 レートランキング</h1>
+<p class="subtitle" id="subtitle">読み込み中...</p>
+
+<input class="search-box" type="text" id="search" placeholder="名前で検索...">
+
+<div id="list"><p class="loading">データを取得しています...</p></div>
+
+<script>
+  let allPlayers = [];
+
+  async function loadRanking() {
+    try {
+      const res = await fetch('/api/ranking');
+      const data = await res.json();
+      allPlayers = data.players;
+      document.getElementById('subtitle').textContent = `全${allPlayers.length}人`;
+      render(allPlayers);
+    } catch (e) {
+      document.getElementById('list').innerHTML =
+        '<p class="error">データの取得に失敗しました</p>';
+    }
+  }
+
+  function render(players) {
+    const list = document.getElementById('list');
+    if (players.length === 0) {
+      list.innerHTML = '<p class="loading">該当するプレイヤーがいません</p>';
+      return;
+    }
+
+    list.innerHTML = players.map(p => {
+      const rankClass =
+        p.rank === 1 ? 'gold' :
+        p.rank === 2 ? 'silver' :
+        p.rank === 3 ? 'bronze' : 'normal';
+
+      const rankLabel =
+        p.rank === 1 ? '🥇' :
+        p.rank === 2 ? '🥈' :
+        p.rank === 3 ? '🥉' : `#${p.rank}`;
+
+      return `
+        <div class="card">
+          <div class="rank ${rankClass}">${rankLabel}</div>
+          <div class="info">
+            <div class="name">${p.user_id}</div>
+            <div class="weapon">${p.weapon}${p.xp ? ' / XP ' + p.xp : ''}</div>
+          </div>
+          <div class="rating">${p.rating}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  document.getElementById('search').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase();
+    render(allPlayers.filter(p =>
+      p.user_id.toLowerCase().includes(q)
+    ));
+  });
+
+  loadRanking();
+</script>
+</body>
+</html>
