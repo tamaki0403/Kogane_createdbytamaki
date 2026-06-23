@@ -5679,21 +5679,20 @@ async def admin_dump_7(ctx):
 
     human_members = sorted([m for m in members if not m.bot], key=lambda m: m.display_name.lower())
     lines = [f"{str(m.id)} 最高レート {get_peak_rating(m.id)}" for m in human_members]
-    await dump_admin_list(ctx, lines)
-# =========================
+    await dump_admin_list(ctx, lines)# =========================
 # 起動
 # =========================
 import threading
 import uvicorn
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import JSONResponse
 
 api = FastAPI()
 
 @api.get("/api/health")
 def health():
-    return {"status": "ok"}
+    return JSONResponse(content={"status": "ok"}, media_type="application/json; charset=utf-8")
 
 @api.get("/api/ranking")
 def get_ranking():
@@ -5720,7 +5719,7 @@ def get_ranking():
     for i, p in enumerate(players):
         p["rank"] = i + 1
 
-    return {"players": players}
+    return JSONResponse(content={"players": players}, media_type="application/json; charset=utf-8")
 
 @api.get("/api/player/{user_id}")
 def get_player(user_id: str):
@@ -5729,7 +5728,7 @@ def get_player(user_id: str):
 
     data = ratings_data.get(user_id)
     if data is None:
-        return {"error": "プレイヤーが見つかりません"}
+        return JSONResponse(content={"error": "プレイヤーが見つかりません"}, media_type="application/json; charset=utf-8")
 
     if isinstance(data, dict):
         rating = int(round(data.get("rating", DEFAULT_RATING)))
@@ -5739,7 +5738,7 @@ def get_player(user_id: str):
         rd = 120.0
 
     profile = profiles.get(user_id, {})
-    return {
+    return JSONResponse(content={
         "user_id": user_id,
         "rating": rating,
         "rd": round(rd, 1),
@@ -5748,9 +5747,8 @@ def get_player(user_id: str):
         "peak_rating": profile.get("peak_rating"),
         "coins": profile.get("coins", 0),
         "win_streak": profile.get("win_streak", 0),
-    }
+    }, media_type="application/json; charset=utf-8")
 
-# 静的ファイル（HTMLページ）
 static_dir = os.path.join(os.path.dirname(__file__), "web", "static")
 if os.path.exists(static_dir):
     api.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
@@ -5762,7 +5760,6 @@ def run_api():
 if not TOKEN:
     raise ValueError("DISCORD_TOKEN が設定されていません。")
 
-# WebサーバーをバックグラウンドでStartし、BotをメインスレッドでStart
 api_thread = threading.Thread(target=run_api, daemon=True)
 api_thread.start()
 
