@@ -4618,31 +4618,34 @@ async def on_message(message):
         return
 
     # =========================
+    # OCRパラメータ登録
+    # =========================
+    if (message.channel.id == ADMIN_BUTTON_CHANNEL_ID
+            and message.author.id == OWNER_ID
+            and message.content.startswith("ocr_param")):
+        bot_state["ocr_param_message_id"] = message.id
+        save_bot_state(bot_state)
+        await message.add_reaction("✅")
+        return
+
+    # =========================
     # 画像OCR処理
     # =========================
     if message.channel.id == VISION_TEST_CHANNEL_ID and message.attachments:
         for attachment in message.attachments:
-
             if not any(attachment.filename.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg']):
                 continue
 
             await message.channel.send("画像を解析中...")
+            result = await analyze_splatoon_image(attachment.url, message.guild)
 
-            result = await analyze_splatoon_image(attachment.url)
-
-            # OCR失敗チェック
             if not result:
                 await message.channel.send("解析失敗（ログを確認してください）")
                 continue
 
-            # =========================
-            # 出力整形
-            # =========================
             lines = []
-
             lines.append(f"**ステージ**: {result.get('stage') or '不明'}")
             lines.append("")
-
             for p in result.get("players", []):
                 lines.append(
                     f"{p.get('name') or '不明'} / "
@@ -4651,7 +4654,6 @@ async def on_message(message):
                     f"デス{p.get('death') or '0'} "
                     f"SP{p.get('special') or '0'}"
                 )
-
             await message.channel.send("\n".join(lines))
             return
 
@@ -5814,18 +5816,23 @@ import httpx
 
 ocr_reader = easyocr.Reader(['ja', 'en'])
 
-# イカリング3（1206x2622）
-STAGE_BOX = (855, 352, 1206, 398)
+# =========================
+# イカリング3（1024x2208）
+# =========================
 
+# ステージ（絶対座標）
+STAGE_BOX = (1030, 160, 1160, 210)
+
+# プレイヤー設定
 BASE_X = 0
-BASE_Y = 645
-ROW_H = 195
+BASE_Y = 270
+ROW_H = 194
 
-NAME_BOX    = (100,  45,  580, 110)
-PAINT_BOX   = (680,  85,  870, 145)
-KILL_BOX    = (858, 105,  960, 175)
-DEATH_BOX   = (958, 105, 1040, 175)
-SPECIAL_BOX = (1118, 105, 1200, 175)
+NAME_BOX = (180, 50, 600, 160)
+PAINT_BOX = (740, 70, 890, 140)
+KILL_BOX = (960, 70, 890, 140)
+DEATH_BOX = (1030, 70, 1100, 140)
+SPECIAL_BOX = (1100, 70, 1170, 140)
 
 
 # =========================
@@ -5847,7 +5854,38 @@ def crop_rel(img, x, y, box):
 # =========================
 # OCR本体（完全整理版）
 # =========================
-async def analyze_splatoon_image(image_url: str):
+DEFAULT_OCR_PARAMS = {
+    "stage_x1": 855, "stage_y1": 352, "stage_x2": 1206, "stage_y2": 398,
+    "base_y": 645, "row_h": 195,
+    "name_x1": 100, "name_y1": 45, "name_x2": 580, "name_y2": 110,
+    "paint_x1": 680, "paint_y1": 85, "paint_x2": 870, "paint_y2": 145,
+    "kill_x1": 858, "kill_y1": 105, "kill_x2": 960, "kill_y2": 175,
+    "death_x1": 958, "death_y1": 105, "death_x2": 1040, "death_y2": 175,
+    "special_x1": 1118, "special_y1": 105, "special_x2": 1200, "special_y2": 175,
+}
+
+async def load_ocr_params(guild):
+    params = dict(DEFAULT_OCR_PARAMS)
+    msg_id = bot_state.get("ocr_param_message_id")
+    if not msg_id:
+        return params
+    try:
+        channel = guild.get_channel(ADMIN_BUTTON_CHANNEL_ID)
+        msg = await channel.fetch_message(msg_id)
+        for line in msg.content.splitlines():
+            if "=" in line:
+                key, val = line.split("=", 1)
+                key = key.strip()
+                if key in params:
+                    params[key] = int(val.strip())
+    except Exception:
+        pass
+    return params
+
+
+async def analyze_splatoon_image(image_url: str, guild=None):
+
+    params = await load_ocr_params(guild) if guild else dict(DEFAULT_OCR_PARAMS)
 
     async with httpx.AsyncClient() as client:
         img_res = await client.get(image_url)
@@ -5857,43 +5895,35 @@ async def analyze_splatoon_image(image_url: str):
         cv2.IMREAD_COLOR
     )
 
-    # =========================
-    # ステージ（絶対座標）
-    # =========================
-    stage_img = crop_abs(img, STAGE_BOX)
+    # ステージ
+    stage_box = (params["stage_x1"], params["stage_y1"], params["stage_x2"], params["stage_y2"])
+    stage_img = crop_abs(img, stage_box)
     stage = "".join(ocr_reader.readtext(stage_img, detail=0)).strip()
 
-    # =========================
-    # プレイヤー（8人×5項目）
-    # =========================
+    # プレイヤー8人
     players = []
-
     for i in range(8):
-        y = BASE_Y + i * ROW_H
-        x = BASE_X
+        y = params["base_y"] + i * params["row_h"]
 
-        name = "".join(ocr_reader.readtext(crop_rel(img, x, y, NAME_BOX), detail=0)).strip()
-        paint = "".join(ocr_reader.readtext(crop_rel(img, x, y, PAINT_BOX), detail=0)).strip()
-        kill = "".join(ocr_reader.readtext(crop_rel(img, x, y, KILL_BOX), detail=0)).strip()
-        death = "".join(ocr_reader.readtext(crop_rel(img, x, y, DEATH_BOX), detail=0)).strip()
-        special = "".join(ocr_reader.readtext(crop_rel(img, x, y, SPECIAL_BOX), detail=0)).strip()
+        name_box    = (params["name_x1"],    params["name_y1"],    params["name_x2"],    params["name_y2"])
+        paint_box   = (params["paint_x1"],   params["paint_y1"],   params["paint_x2"],   params["paint_y2"])
+        kill_box    = (params["kill_x1"],    params["kill_y1"],    params["kill_x2"],    params["kill_y2"])
+        death_box   = (params["death_x1"],   params["death_y1"],   params["death_x2"],   params["death_y2"])
+        special_box = (params["special_x1"], params["special_y1"], params["special_x2"], params["special_y2"])
+
+        name    = "".join(ocr_reader.readtext(crop_rel(img, 0, y, name_box),    detail=0)).strip()
+        paint   = "".join(ocr_reader.readtext(crop_rel(img, 0, y, paint_box),   detail=0)).strip()
+        kill    = "".join(ocr_reader.readtext(crop_rel(img, 0, y, kill_box),    detail=0)).strip()
+        death   = "".join(ocr_reader.readtext(crop_rel(img, 0, y, death_box),   detail=0)).strip()
+        special = "".join(ocr_reader.readtext(crop_rel(img, 0, y, special_box), detail=0)).strip()
 
         players.append({
-            "name": name,
-            "paint": paint,
-            "kill": kill,
-            "death": death,
-            "special": special
+            "name": name, "paint": paint,
+            "kill": kill, "death": death, "special": special
         })
 
-    result = {
-        "stage": stage,
-        "players": players
-    }
-
-    print("OCR RESULT:")
-    print(result)
-
+    result = {"stage": stage, "players": players}
+    print("OCR RESULT:", result)
     return result
 
 VISION_TEST_CHANNEL_ID = ADMIN_CHANNEL_ID
