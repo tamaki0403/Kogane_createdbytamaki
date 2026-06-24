@@ -3,181 +3,284 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>レートランキング</title>
+  <title>Kogane</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       background: #0d1117;
       color: #e6edf3;
-      font-family: 'Segoe UI', sans-serif;
+      font-family: 'Segoe UI', 'Hiragino Sans', sans-serif;
       min-height: 100vh;
-      padding: 24px 16px;
     }
 
-    h1 {
-      text-align: center;
-      font-size: 1.6rem;
+    nav {
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      height: 52px;
+      gap: 24px;
+    }
+
+    nav .site-title {
+      font-size: 1rem;
+      font-weight: bold;
+      color: #e6edf3;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    nav a {
+      font-size: 0.9rem;
+      color: #8b949e;
+      text-decoration: none;
+      padding: 4px 0;
+      border-bottom: 2px solid transparent;
+      transition: color 0.2s;
+    }
+
+    nav a:hover, nav a.active {
+      color: #e6edf3;
+      border-bottom-color: #58a6ff;
+    }
+
+    .page { display: none; padding: 24px 16px; max-width: 640px; margin: 0 auto; }
+    .page.active { display: block; }
+
+    /* ホーム */
+    .home-title {
+      font-size: 1.4rem;
+      font-weight: bold;
       margin-bottom: 8px;
-      color: #58a6ff;
+    }
+
+    .home-desc {
+      color: #8b949e;
+      font-size: 0.9rem;
+      margin-bottom: 28px;
+    }
+
+    .card-link {
+      display: block;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 12px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.2s;
+      cursor: pointer;
+    }
+
+    .card-link:hover { border-color: #58a6ff; }
+
+    .card-link .card-title {
+      font-size: 1rem;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    .card-link .card-desc {
+      font-size: 0.85rem;
+      color: #8b949e;
+    }
+
+    /* ランキング共通 */
+    .page-title {
+      font-size: 1.3rem;
+      font-weight: bold;
+      margin-bottom: 4px;
     }
 
     .subtitle {
-      text-align: center;
       font-size: 0.85rem;
       color: #8b949e;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
 
     .search-box {
       display: block;
       width: 100%;
-      max-width: 400px;
-      margin: 0 auto 24px;
       padding: 10px 14px;
       background: #161b22;
       border: 1px solid #30363d;
       border-radius: 8px;
       color: #e6edf3;
-      font-size: 1rem;
+      font-size: 0.95rem;
       outline: none;
+      margin-bottom: 16px;
     }
 
-    .search-box:focus {
-      border-color: #58a6ff;
-    }
+    .search-box:focus { border-color: #58a6ff; }
 
-    .card {
+    .player-card {
       background: #161b22;
       border: 1px solid #30363d;
-      border-radius: 12px;
-      padding: 12px 16px;
-      margin-bottom: 10px;
-      max-width: 600px;
-      margin-left: auto;
-      margin-right: auto;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 8px;
       display: flex;
       align-items: center;
       gap: 14px;
-      transition: border-color 0.2s;
     }
 
-    .card:hover { border-color: #58a6ff; }
-
-    .rank {
-      font-size: 1.2rem;
+    .rank-num {
+      font-size: 1rem;
       font-weight: bold;
-      width: 40px;
+      width: 36px;
       text-align: center;
       flex-shrink: 0;
+      color: #8b949e;
     }
 
-    .rank.gold   { color: #ffd700; }
-    .rank.silver { color: #c0c0c0; }
-    .rank.bronze { color: #cd7f32; }
-    .rank.normal { color: #8b949e; }
+    .rank-num.r1 { color: #d4a017; font-size: 1.1rem; }
+    .rank-num.r2 { color: #a8a9ad; }
+    .rank-num.r3 { color: #b87333; }
 
-    .info { flex: 1; min-width: 0; }
+    .player-info { flex: 1; min-width: 0; }
 
-    .name {
-      font-size: 1rem;
+    .player-name {
+      font-size: 0.95rem;
       font-weight: bold;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .weapon {
-      font-size: 0.8rem;
-      color: #8b949e;
-      margin-top: 2px;
-    }
-
-    .rating {
-      font-size: 1.3rem;
+    .player-rating {
+      font-size: 1.2rem;
       font-weight: bold;
       color: #58a6ff;
       flex-shrink: 0;
     }
 
-    .loading {
-      text-align: center;
-      color: #8b949e;
-      margin-top: 60px;
-      font-size: 1rem;
-    }
-
-    .error {
-      text-align: center;
-      color: #f85149;
-      margin-top: 60px;
-    }
+    .loading { text-align: center; color: #8b949e; margin-top: 60px; }
+    .error { text-align: center; color: #f85149; margin-top: 60px; }
   </style>
 </head>
 <body>
 
-<h1>🦑 レートランキング</h1>
-<p class="subtitle" id="subtitle">読み込み中...</p>
+<nav>
+  <span class="site-title" onclick="showPage('home')">Kogane</span>
+  <a href="#" onclick="showPage('home')" id="nav-home" class="active">ホーム</a>
+  <a href="#" onclick="showPage('ranking')" id="nav-ranking">レートランキング</a>
+  <a href="#" onclick="showPage('peak')" id="nav-peak">最高レートランキング</a>
+</nav>
 
-<input class="search-box" type="text" id="search" placeholder="名前で検索...">
+<!-- ホーム -->
+<div class="page active" id="page-home">
+  <div style="padding-top: 8px;">
+    <div class="home-title">Kogane</div>
+    <div class="home-desc">スプラトゥーン内部戦のレート管理サイト</div>
 
-<div id="list"><p class="loading">データを取得しています...</p></div>
+    <div class="card-link" onclick="showPage('ranking')">
+      <div class="card-title">レートランキング</div>
+      <div class="card-desc">現在のレートによる順位表</div>
+    </div>
+
+    <div class="card-link" onclick="showPage('peak')">
+      <div class="card-title">最高レートランキング</div>
+      <div class="card-desc">これまでの最高レートによる順位表</div>
+    </div>
+  </div>
+</div>
+
+<!-- レートランキング -->
+<div class="page" id="page-ranking">
+  <div class="page-title">レートランキング</div>
+  <div class="subtitle" id="ranking-subtitle">読み込み中...</div>
+  <input class="search-box" type="text" id="ranking-search" placeholder="名前で検索...">
+  <div id="ranking-list"><p class="loading">データを取得しています...</p></div>
+</div>
+
+<!-- 最高レートランキング -->
+<div class="page" id="page-peak">
+  <div class="page-title">最高レートランキング</div>
+  <div class="subtitle" id="peak-subtitle">読み込み中...</div>
+  <input class="search-box" type="text" id="peak-search" placeholder="名前で検索...">
+  <div id="peak-list"><p class="loading">データを取得しています...</p></div>
+</div>
 
 <script>
-  let allPlayers = [];
+  let allRanking = [];
+  let allPeak = [];
+  let rankingLoaded = false;
+  let peakLoaded = false;
+
+  function showPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    document.getElementById('nav-' + name).classList.add('active');
+
+    if (name === 'ranking' && !rankingLoaded) loadRanking();
+    if (name === 'peak' && !peakLoaded) loadPeak();
+  }
+
+  function rankLabel(rank) {
+    if (rank === 1) return '<span class="rank-num r1">1</span>';
+    if (rank === 2) return '<span class="rank-num r2">2</span>';
+    if (rank === 3) return '<span class="rank-num r3">3</span>';
+    return `<span class="rank-num">${rank}</span>`;
+  }
+
+  function renderList(containerId, players, ratingKey) {
+    const el = document.getElementById(containerId);
+    if (players.length === 0) {
+      el.innerHTML = '<p class="loading">該当するプレイヤーがいません</p>';
+      return;
+    }
+    el.innerHTML = players.map(p => `
+      <div class="player-card">
+        ${rankLabel(p.rank)}
+        <div class="player-info">
+          <div class="player-name">${p.display_name || p.user_id}</div>
+        </div>
+        <div class="player-rating">${p[ratingKey]}</div>
+      </div>
+    `).join('');
+  }
 
   async function loadRanking() {
     try {
       const res = await fetch('/api/ranking');
       const data = await res.json();
-      allPlayers = data.players;
-      document.getElementById('subtitle').textContent = `全${allPlayers.length}人`;
-      render(allPlayers);
+      allRanking = data.players;
+      document.getElementById('ranking-subtitle').textContent = `全${allRanking.length}人`;
+      renderList('ranking-list', allRanking, 'rating');
+      rankingLoaded = true;
     } catch (e) {
-      document.getElementById('list').innerHTML =
-        '<p class="error">データの取得に失敗しました</p>';
+      document.getElementById('ranking-list').innerHTML = '<p class="error">データの取得に失敗しました</p>';
     }
   }
 
-  function render(players) {
-    const list = document.getElementById('list');
-    if (players.length === 0) {
-      list.innerHTML = '<p class="loading">該当するプレイヤーがいません</p>';
-      return;
+  async function loadPeak() {
+    try {
+      const res = await fetch('/api/peak_ranking');
+      const data = await res.json();
+      allPeak = data.players;
+      document.getElementById('peak-subtitle').textContent = `全${allPeak.length}人`;
+      renderList('peak-list', allPeak, 'peak_rating');
+      peakLoaded = true;
+    } catch (e) {
+      document.getElementById('peak-list').innerHTML = '<p class="error">データの取得に失敗しました</p>';
     }
-
-    list.innerHTML = players.map(p => {
-      const rankClass =
-        p.rank === 1 ? 'gold' :
-        p.rank === 2 ? 'silver' :
-        p.rank === 3 ? 'bronze' : 'normal';
-
-      const rankLabel =
-        p.rank === 1 ? '🥇' :
-        p.rank === 2 ? '🥈' :
-        p.rank === 3 ? '🥉' : `#${p.rank}`;
-
-      return `
-        <div class="card">
-          <div class="rank ${rankClass}">${rankLabel}</div>
-          <div class="info">
-            <div class="name">${p.display_name || p.user_id}</div>
-            <div class="weapon">${p.weapon}${p.xp ? ' / XP ' + p.xp : ''}</div>
-          </div>
-          <div class="rating">${p.rating}</div>
-        </div>
-      `;
-    }).join('');
   }
 
-  document.getElementById('search').addEventListener('input', e => {
+  document.getElementById('ranking-search').addEventListener('input', e => {
     const q = e.target.value.toLowerCase();
-    render(allPlayers.filter(p =>
-      p.user_id.toLowerCase().includes(q)
-    ));
+    const filtered = allRanking.filter(p => (p.display_name || p.user_id).toLowerCase().includes(q));
+    renderList('ranking-list', filtered, 'rating');
   });
 
-  loadRanking();
+  document.getElementById('peak-search').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase();
+    const filtered = allPeak.filter(p => (p.display_name || p.user_id).toLowerCase().includes(q));
+    renderList('peak-list', filtered, 'peak_rating');
+  });
 </script>
 </body>
 </html>
