@@ -161,7 +161,7 @@
         <div class="card">
           <div class="rank ${rankClass}">${rankLabel}</div>
           <div class="info">
-            <div class="name">${p.user_id}</div>
+            <div class="name">${p.display_name || p.user_id}</div>
             <div class="weapon">${p.weapon}${p.xp ? ' / XP ' + p.xp : ''}</div>
           </div>
           <div class="rating">${p.rating}</div>
