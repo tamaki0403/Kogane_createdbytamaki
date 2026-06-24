@@ -5760,8 +5760,6 @@ def get_ranking():
             "user_id": uid,
             "rating": rating,
             "display_name": profile.get("display_name"),
-            "weapon": profile.get("weapon") or "未登録",
-            "xp": profile.get("xp"),
             "peak_rating": profile.get("peak_rating"),
         })
 
