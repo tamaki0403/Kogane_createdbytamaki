@@ -1431,6 +1431,9 @@ def ensure_session_player(room_state, user):
     room_state["session_participants"][user_id] = user
     if user_id not in room_state["session_start_ratings"]:
         room_state["session_start_ratings"][user_id] = get_user_rating(user_id)
+    profile = get_player_profile(user.id)
+    profile["display_name"] = user.display_name
+    save_player_profiles(player_profiles)
 
 
 def get_joined_user_ids(room_state):
@@ -5679,7 +5682,35 @@ async def admin_dump_7(ctx):
 
     human_members = sorted([m for m in members if not m.bot], key=lambda m: m.display_name.lower())
     lines = [f"{str(m.id)} 最高レート {get_peak_rating(m.id)}" for m in human_members]
-    await dump_admin_list(ctx, lines)# =========================
+    await dump_admin_list(ctx, lines)
+    
+@bot.command(name="名前更新")
+async def update_display_names(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if ctx.channel.id != ADMIN_CHANNEL_ID:
+        await ctx.send("このコマンドは運営チャンネルで使ってください")
+        return
+
+    try:
+        members = [member async for member in ctx.guild.fetch_members(limit=None)]
+    except Exception:
+        members = ctx.guild.members
+
+    count = 0
+    for member in members:
+        if member.bot:
+            continue
+        profile = get_player_profile(member.id)
+        profile["display_name"] = member.display_name
+        count += 1
+
+    save_player_profiles(player_profiles)
+    await ctx.send(f"{count}人の名前を更新しました！")
+
+
+# =========================
 # 起動
 # =========================
 import threading
