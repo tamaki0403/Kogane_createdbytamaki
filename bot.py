@@ -5779,17 +5779,54 @@ if not TOKEN:
 
 api_thread = threading.Thread(target=run_api, daemon=True)
 api_thread.start()
-
 # =========================
 # OCR（Vision API）
 # =========================
-import base64
 import re
-
 import cv2
 import easyocr
 import numpy as np
+import httpx
 
+ocr_reader = easyocr.Reader(['ja', 'en'])
+
+# =========================
+# イカリング3（1024x2208）用 座標設定
+# =========================
+
+# ステージ名（右上）
+STAGE_BOX = (860, 130, 995, 175)
+
+# プレイヤー1人あたりの基準サイズ
+BASE_X = 0
+BASE_Y = 240   # 1人目（マミュ）の上端の高さ
+ROW_H = 175    # 1人分の縦幅（次の人へ進む幅）
+
+# BASE_X, BASE_Y からの相対座標（横x1, 縦y1, 横x2, 縦y2）
+NAME_BOX = (150, 65, 500, 115)     # 名前（二つ名は除外して名前のみ）
+PAINT_BOX = (610, 55, 740, 115)    # 塗りポイント（「1406p」など）
+
+# キル・デス・スペシャルは黒いカプセルの中に並んでいるため、
+# 誤認識を防ぐためにそれぞれの数字の場所を狙い撃ちします
+KILL_BOX = (800, 55, 870, 115)     # キル数（「x14」など）
+DEATH_BOX = (870, 55, 935, 115)    # デス数（「x6」など）
+SPECIAL_BOX = (935, 55, 1000, 115) # スペシャル（「x5」など）
+
+
+# =========================
+# crop関数
+# =========================
+def crop(img, x, y, box):
+    x1 = x + box[0]
+    y1 = y + box[1]
+    x2 = x + box[2]
+    y2 = y + box[3]
+    return img[y1:y2, x1:x2]
+
+
+# =========================
+# OCR本体
+# =========================
 async def analyze_splatoon_image(image_url: str):
     async with httpx.AsyncClient() as client:
         img_res = await client.get(image_url)
@@ -5797,14 +5834,52 @@ async def analyze_splatoon_image(image_url: str):
     image_bytes = np.frombuffer(img_res.content, np.uint8)
     img = cv2.imdecode(image_bytes, cv2.IMREAD_COLOR)
 
-    result = ocr_reader.readtext(img, detail=0)
+    # =========================
+    # ステージ（1箱）
+    # =========================
+    stage_img = crop(img, 0, 0, STAGE_BOX)
+    stage_text = ocr_reader.readtext(stage_img, detail=0)
 
-    raw_text = "\n".join(result)
+    # =========================
+    # プレイヤー（40箱）
+    # =========================
+    players = []
+
+    for i in range(8):
+        y = BASE_Y + i * ROW_H
+        x = BASE_X
+
+        name_img = crop(img, x, y, NAME_BOX)
+        paint_img = crop(img, x, y, PAINT_BOX)
+        kill_img = crop(img, x, y, KILL_BOX)
+        death_img = crop(img, x, y, DEATH_BOX)
+        special_img = crop(img, x, y, SPECIAL_BOX)
+
+        name = "".join(ocr_reader.readtext(name_img, detail=0)).strip()
+        paint = "".join(ocr_reader.readtext(paint_img, detail=0)).strip()
+        kill = "".join(ocr_reader.readtext(kill_img, detail=0)).strip()
+        death = "".join(ocr_reader.readtext(death_img, detail=0)).strip()
+        special = "".join(ocr_reader.readtext(special_img, detail=0)).strip()
+
+        players.append({
+            "name": name,
+            "paint": paint,
+            "kill": kill,
+            "death": death,
+            "special": special
+        })
 
     print("OCR RESULT:")
-    print(raw_text)
+    print({
+        "stage": stage_text,
+        "players": players
+    })
 
-    return raw_text
+    return {
+        "stage": stage_text,
+        "players": players
+    }
+
 
 def parse_splatoon_result(raw_text: str):
     lines = [l.strip() for l in raw_text.split("\n") if l.strip()]
@@ -5837,19 +5912,30 @@ def parse_splatoon_result(raw_text: str):
             name = lines[i - 1] if i > 0 else "不明"
             stat_line = lines[i + 1] if i + 1 < len(lines) else ""
             stat_match = stat_pattern.search(stat_line)
+
             if stat_match:
                 kill = int(stat_match.group(1))
                 death = int(stat_match.group(2))
                 special = int(stat_match.group(4))
             else:
                 kill = death = special = None
-            players.append({"name": name, "paint": paint, "kill": kill, "death": death, "special": special})
+
+            players.append({
+                "name": name,
+                "paint": paint,
+                "kill": kill,
+                "death": death,
+                "special": special
+            })
+
         i += 1
 
-    return {"stage": stage, "result": result, "players": players}
+    return {
+        "stage": stage,
+        "result": result,
+        "players": players
+    }
 
-
-ocr_reader = easyocr.Reader(['ja', 'en'])
 
 VISION_TEST_CHANNEL_ID = ADMIN_CHANNEL_ID
 
