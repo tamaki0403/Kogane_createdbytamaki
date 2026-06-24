@@ -13,6 +13,19 @@ from discord.ext import commands, tasks
 DATA_DIR = "/data"
 os.makedirs(DATA_DIR, exist_ok=True)
 
+MATCH_HISTORY_FILE = os.path.join(DATA_DIR, "match_history.json")
+
+def load_match_history():
+    try:
+        with open(MATCH_HISTORY_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+def save_match_history(data):
+    with open(MATCH_HISTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
 RATINGS_FILE = os.path.join(DATA_DIR, "ratings.json")
 PLAYER_PROFILES_FILE = os.path.join(DATA_DIR, "player_profiles.json")
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -1203,6 +1216,15 @@ bulk_admin_waiting = {}
 
 ROOM_KEYS = ("A", "B")
 
+STAGES = [
+    "ユノハナ大渓谷", "ゴンズイ地区", "ヤガラ市場", "マテガイ放水路",
+    "ナメロウ金属", "マサバ海峡大橋", "キンメダイ美術館", "マヒマヒリゾート&スパ",
+    "海女美術大学", "チョウザメ造船", "ザトウマーケット", "スメーシーワールド",
+    "クサヤ温泉", "ヒラメが丘団地", "ナンプラー遺跡", "マンタマリア号",
+    "タラポートショッピングパーク", "コンブトラック", "タカアシ経済特区",
+    "オヒョウ海運", "バイガイ亭", "ネギトロ炭鉱", "カジキ空港",
+    "リュウグウターミナル", "デカライン高架下",
+]
 
 def create_room_state():
     return {
@@ -1225,6 +1247,7 @@ def create_room_state():
         "enjoy_mode_id": None,
         "first_game": True,
         "is_taiko": False,
+        "current_stage": None,
         "taiko_wins_needed": None,
         "taiko_alpha_wins": 0,
         "taiko_bravo_wins": 0,
@@ -1284,6 +1307,7 @@ def reset_room_state(room_state):
     room_state["disconnect_vote"] = None
     room_state["first_game"] = True
     room_state["is_taiko"] = False
+    room_state["current_stage"] = None
     room_state["taiko_wins_needed"] = None
     room_state["taiko_alpha_wins"] = 0
     room_state["taiko_bravo_wins"] = 0
@@ -1910,6 +1934,10 @@ def create_playing_text(team_alpha, team_bravo, room_key=None):
     mode_id = None
     if room_key and room_states[room_key].get("is_enjoy"):
         mode_id = room_states[room_key].get("enjoy_mode_id")
+    
+    stage = random.choice(STAGES)
+    if room_key:
+        room_states[room_key]["current_stage"] = stage
 
     jack_info = None
     jack_text = ""
@@ -1963,6 +1991,7 @@ def create_playing_text(team_alpha, team_bravo, room_key=None):
 
     return (
         f"【試合中】{jack_text}{mode_description}{taiko_text}\n\n"
+        f"ステージ: {stage}\n\n"
         f"【アルファ】\n{fmt(team_alpha)}\n\n"
         f"【ブラボー】\n{fmt(team_bravo)}"
     )
@@ -4220,6 +4249,20 @@ async def process_result(guild, room_key, winner_num: int):
 
     save_ratings(ratings)
     save_player_profiles(player_profiles)
+
+    from datetime import datetime
+    stage = room_state.get("current_stage")
+    match_record = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "stage": stage,
+        "alpha": [str(u.id) for u in team_alpha],
+        "bravo": [str(u.id) for u in team_bravo],
+        "winner": "alpha" if winner_num == 1 else "bravo",
+    }
+    history = load_match_history()
+    history.append(match_record)
+    save_match_history(history)
+
     await check_and_update_peak_ranking(
         guild, [str(u.id) for u in team_alpha + team_bravo]
     )
@@ -5757,7 +5800,6 @@ def get_ranking():
 
         profile = profiles.get(uid, {})
         players.append({
-            "user_id": uid,
             "rating": rating,
             "display_name": profile.get("display_name"),
             "peak_rating": profile.get("peak_rating"),
@@ -5790,6 +5832,77 @@ def get_peak_ranking():
 
     return JSONResponse(content={"players": players}, media_type="application/json; charset=utf-8")
 
+@api.get("/api/player_stats/{user_id}")
+def get_player_stats(user_id: str):
+    profiles = load_player_profiles()
+    ratings_data = load_ratings()
+    history = load_match_history()
+
+    profile = profiles.get(user_id)
+    if profile is None:
+        return JSONResponse(content={"error": "プレイヤーが見つかりません"}, media_type="application/json; charset=utf-8")
+
+    data = ratings_data.get(user_id, {})
+    rating = int(round(data.get("rating", 2500))) if isinstance(data, dict) else int(round(float(data)))
+
+    # 全体勝率
+    wins = 0
+    losses = 0
+    stage_stats = {}
+
+    for match in history:
+        alpha = match.get("alpha", [])
+        bravo = match.get("bravo", [])
+        winner = match.get("winner")
+        stage = match.get("stage") or "不明"
+
+        if user_id in alpha:
+            team = "alpha"
+        elif user_id in bravo:
+            team = "bravo"
+        else:
+            continue
+
+        won = (team == winner)
+        if won:
+            wins += 1
+        else:
+            losses += 1
+
+        if stage not in stage_stats:
+            stage_stats[stage] = {"wins": 0, "losses": 0}
+        if won:
+            stage_stats[stage]["wins"] += 1
+        else:
+            stage_stats[stage]["losses"] += 1
+
+    total = wins + losses
+    win_rate = round(wins / total * 100, 1) if total > 0 else None
+
+    stage_list = []
+    for stage, s in stage_stats.items():
+        t = s["wins"] + s["losses"]
+        stage_list.append({
+            "stage": stage,
+            "wins": s["wins"],
+            "losses": s["losses"],
+            "total": t,
+            "win_rate": round(s["wins"] / t * 100, 1) if t > 0 else None,
+        })
+    stage_list.sort(key=lambda x: -x["total"])
+
+    return JSONResponse(content={
+        "user_id": user_id,
+        "display_name": profile.get("display_name") or user_id,
+        "rating": rating,
+        "peak_rating": profile.get("peak_rating"),
+        "wins": wins,
+        "losses": losses,
+        "total": total,
+        "win_rate": win_rate,
+        "stage_stats": stage_list,
+    }, media_type="application/json; charset=utf-8")
+    
 @api.get("/api/player/{user_id}")
 def get_player(user_id: str):
     ratings_data = load_ratings()
