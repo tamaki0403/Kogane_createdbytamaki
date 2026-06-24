@@ -4617,21 +4617,47 @@ async def on_message(message):
     if message.author.bot:
         return
 
+    # =========================
+    # 画像OCR処理
+    # =========================
     if message.channel.id == VISION_TEST_CHANNEL_ID and message.attachments:
         for attachment in message.attachments:
-            if any(attachment.filename.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg']):
-                await message.channel.send("画像を解析中...")
-                raw = await analyze_splatoon_image(attachment.url)
-                if not raw:
-                    await message.channel.send("解析失敗（ログを確認してください）")
-                    continue
-                parsed = parse_splatoon_result(raw)
-                lines = [f"**ステージ**: {parsed['stage'] or '不明'}", f"**結果**: {parsed['result'] or '不明'}", ""]
-                for p in parsed["players"]:
-                    lines.append(f"{p['name']} / {p['paint']}p / キル{p['kill']} デス{p['death']} SP{p['special']}")
-                await message.channel.send("\n".join(lines) if lines else "パース失敗")
-                return
 
+            if not any(attachment.filename.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg']):
+                continue
+
+            await message.channel.send("画像を解析中...")
+
+            result = await analyze_splatoon_image(attachment.url)
+
+            # OCR失敗チェック
+            if not result:
+                await message.channel.send("解析失敗（ログを確認してください）")
+                continue
+
+            # =========================
+            # 出力整形
+            # =========================
+            lines = []
+
+            lines.append(f"**ステージ**: {result.get('stage') or '不明'}")
+            lines.append("")
+
+            for p in result.get("players", []):
+                lines.append(
+                    f"{p.get('name') or '不明'} / "
+                    f"{p.get('paint') or '0'}p / "
+                    f"キル{p.get('kill') or '0'} "
+                    f"デス{p.get('death') or '0'} "
+                    f"SP{p.get('special') or '0'}"
+                )
+
+            await message.channel.send("\n".join(lines))
+            return
+
+    # =========================
+    # 他の処理
+    # =========================
     for handler in [
         process_badge_bulk_message,
         process_bulk_rate_change_message,
