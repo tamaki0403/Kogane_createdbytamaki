@@ -5903,6 +5903,50 @@ def get_player_stats(user_id: str):
         "stage_stats": stage_list,
     }, media_type="application/json; charset=utf-8")
     
+import httpx
+from fastapi.responses import RedirectResponse
+
+DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
+DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
+DISCORD_REDIRECT_URI = "https://koganecreatedbytamaki-production-9bb5.up.railway.app/auth/callback"
+
+@api.get("/auth/login")
+def auth_login():
+    url = (
+        "https://discord.com/oauth2/authorize"
+        f"?client_id={DISCORD_CLIENT_ID}"
+        "&response_type=code"
+        f"&redirect_uri={DISCORD_REDIRECT_URI}"
+        "&scope=identify"
+    )
+    return RedirectResponse(url)
+
+@api.get("/auth/callback")
+async def auth_callback(code: str):
+    async with httpx.AsyncClient() as client:
+        token_res = await client.post(
+            "https://discord.com/api/oauth2/token",
+            data={
+                "client_id": DISCORD_CLIENT_ID,
+                "client_secret": DISCORD_CLIENT_SECRET,
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": DISCORD_REDIRECT_URI,
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        token_data = token_res.json()
+        access_token = token_data.get("access_token")
+
+        user_res = await client.get(
+            "https://discord.com/api/users/@me",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        user_data = user_res.json()
+        user_id = user_data.get("id")
+
+    return RedirectResponse(f"/player?id={user_id}")
+
 @api.get("/api/player/{user_id}")
 def get_player(user_id: str):
     ratings_data = load_ratings()
