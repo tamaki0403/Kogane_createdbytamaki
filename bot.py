@@ -5800,6 +5800,16 @@ async def init_peak_rating(ctx):
     save_player_profiles(player_profiles)
     await ctx.send(f"{count}人の最高レートを現在のレートで初期化しました！")
 
+@bot.command(name="botアイコン")
+async def bot_icon(ctx):
+    if ctx.author.id != OWNER_ID:
+        return
+    bot_user = bot.user
+    if bot_user.avatar:
+        await ctx.send(str(bot_user.avatar.url))
+    else:
+        await ctx.send("アイコンが設定されていません")
+
 # =========================
 # 起動
 # =========================
