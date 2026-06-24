@@ -5786,6 +5786,10 @@ api_thread.start()
 import base64
 import re
 
+import cv2
+import easyocr
+import numpy as np
+
 async def analyze_splatoon_image(image_url: str):
     import json, time, jwt
 
@@ -5876,6 +5880,8 @@ def parse_splatoon_result(raw_text: str):
 
     return {"stage": stage, "result": result, "players": players}
 
+
+ocr_reader = easyocr.Reader(['ja', 'en'])
 
 VISION_TEST_CHANNEL_ID = ADMIN_CHANNEL_ID
 
