@@ -2006,7 +2006,6 @@ class RecruitView(discord.ui.View):
         active_recruits.pop(recruit_data["message_id"], None)
         recruit_data["message_id"] = new_msg.id
         recruit_data["confirm_message_id"] = new_msg.id
-
 class RecruitConfirmView(discord.ui.View):
     def __init__(self, recruit_message_id: int, players: list, reserved: list = None):
         super().__init__(timeout=None)
@@ -2022,20 +2021,18 @@ class RecruitConfirmView(discord.ui.View):
                 style=discord.ButtonStyle.secondary,
                 custom_id=f"reserve_{name}"
             )
-            async def make_callback(reserved_name=name, reserved_entry=r):
+            def make_callback(reserved_name=name, reserved_entry=r):
                 async def callback(interaction: discord.Interaction):
                     recruit_data = active_recruits.get(interaction.message.id)
                     if recruit_data is None:
                         await interaction.response.send_message("この募集は無効です", ephemeral=True)
                         return
-                    # 予約をキャンセルして正式参加に変換
                     recruit_data["reserved_players"] = [
                         x for x in recruit_data.get("reserved_players", [])
                         if x["name"] != reserved_name
                     ]
                     recruit_data["joined_players"].append(interaction.user)
 
-                    # ボタンを再構築
                     new_view = RecruitConfirmView(
                         recruit_data["message_id"],
                         recruit_data["joined_players"],
@@ -2064,7 +2061,7 @@ class RecruitConfirmView(discord.ui.View):
                     )
                     await interaction.response.edit_message(content=content, view=new_view)
                 return callback
-            btn.callback = await make_callback()
+            btn.callback = make_callback()
             self.add_item(btn)
 
     @discord.ui.button(label="試合開始", style=discord.ButtonStyle.success, custom_id="recruit_start_game")
@@ -2119,7 +2116,6 @@ class RecruitConfirmView(discord.ui.View):
         active_recruits.pop(interaction.message.id, None)
 
         await begin_phase1(interaction.guild, room_key)
-
 
 # =========================
 # 進行View（ボタン化）
