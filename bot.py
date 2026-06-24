@@ -2883,13 +2883,11 @@ class HomeView(discord.ui.View):
             ephemeral=True
         )
 
-class AdminButtonView(discord.ui.View):
+class AdminButtonView_Ranking(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    # ========== ランキング・ホーム系 ==========
-    @discord.ui.button(label="ランキング更新", style=discord.ButtonStyle.primary,
-                       custom_id="admin_ranking", row=0)
+    @discord.ui.button(label="ランキング更新", style=discord.ButtonStyle.primary, custom_id="admin_ranking")
     async def ranking_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
@@ -2899,8 +2897,7 @@ class AdminButtonView(discord.ui.View):
         await post_peak_ranking(interaction.guild)
         await interaction.edit_original_response(content="ランキングを更新しました")
 
-    @discord.ui.button(label="秘匿ランキング", style=discord.ButtonStyle.primary,
-                       custom_id="admin_secret_ranking", row=0)
+    @discord.ui.button(label="秘匿ランキング", style=discord.ButtonStyle.primary, custom_id="admin_secret_ranking")
     async def secret_ranking_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
@@ -2909,8 +2906,7 @@ class AdminButtonView(discord.ui.View):
         await post_secret_ranking(interaction.guild)
         await interaction.edit_original_response(content="秘匿ランキングを送信しました")
 
-    @discord.ui.button(label="ホーム更新", style=discord.ButtonStyle.primary,
-                       custom_id="admin_home_update", row=0)
+    @discord.ui.button(label="ホーム更新", style=discord.ButtonStyle.primary, custom_id="admin_home_update")
     async def home_update_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
@@ -2919,9 +2915,12 @@ class AdminButtonView(discord.ui.View):
         await post_home_message(interaction.guild)
         await interaction.edit_original_response(content="ホームを更新しました")
 
-    # ========== 一覧系 ==========
-    @discord.ui.button(label="武器一覧", style=discord.ButtonStyle.secondary,
-                       custom_id="admin_weapon_list", row=1)
+
+class AdminButtonView_List(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="武器一覧", style=discord.ButtonStyle.secondary, custom_id="admin_weapon_list")
     async def weapon_list_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
@@ -2953,8 +2952,7 @@ class AdminButtonView(discord.ui.View):
                     await admin_ch.send(chunk)
         await interaction.edit_original_response(content="武器一覧を送信しました")
 
-    @discord.ui.button(label="XP一覧", style=discord.ButtonStyle.secondary,
-                       custom_id="admin_xp_list", row=1)
+    @discord.ui.button(label="XP一覧", style=discord.ButtonStyle.secondary, custom_id="admin_xp_list")
     async def xp_list_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
@@ -2986,8 +2984,7 @@ class AdminButtonView(discord.ui.View):
                     await admin_ch.send(chunk)
         await interaction.edit_original_response(content="XP一覧を送信しました")
 
-    @discord.ui.button(label="ユーザーID一覧", style=discord.ButtonStyle.secondary,
-                       custom_id="admin_user_id_list", row=1)
+    @discord.ui.button(label="ユーザーID一覧", style=discord.ButtonStyle.secondary, custom_id="admin_user_id_list")
     async def user_id_list_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
@@ -3016,8 +3013,7 @@ class AdminButtonView(discord.ui.View):
                     await admin_ch.send(chunk)
         await interaction.edit_original_response(content="ユーザーID一覧を送信しました")
 
-    @discord.ui.button(label="名前更新", style=discord.ButtonStyle.secondary,
-                       custom_id="admin_name_update", row=1)
+    @discord.ui.button(label="名前更新", style=discord.ButtonStyle.secondary, custom_id="admin_name_update")
     async def name_update_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
@@ -3037,8 +3033,7 @@ class AdminButtonView(discord.ui.View):
         save_player_profiles(player_profiles)
         await interaction.edit_original_response(content=f"{count}人の名前を更新しました")
 
-    @discord.ui.button(label="アバター更新", style=discord.ButtonStyle.secondary,
-                       custom_id="admin_avatar_update", row=1)
+    @discord.ui.button(label="アバター更新", style=discord.ButtonStyle.secondary, custom_id="admin_avatar_update")
     async def avatar_update_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
@@ -3061,17 +3056,17 @@ class AdminButtonView(discord.ui.View):
         save_player_profiles(player_profiles)
         await interaction.edit_original_response(content=f"{count}人のアバターを更新しました")
 
-    # ========== バッジ系 ==========
-    @discord.ui.button(label="バッジ付与", style=discord.ButtonStyle.success,
-                       custom_id="admin_badge_grant", row=2)
+
+class AdminButtonView_Badge(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="バッジ付与", style=discord.ButtonStyle.success, custom_id="admin_badge_grant")
     async def badge_grant_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
             return
-        options = [
-            discord.SelectOption(label=v["label"], value=k)
-            for k, v in BADGE_DEFINITIONS.items()
-        ]
+        options = [discord.SelectOption(label=v["label"], value=k) for k, v in BADGE_DEFINITIONS.items()]
         select = discord.ui.Select(placeholder="バッジを選択", options=options)
         async def callback(i: discord.Interaction):
             badge_id = select.values[0]
@@ -3079,22 +3074,18 @@ class AdminButtonView(discord.ui.View):
             admin_ch = get_admin_channel(i.guild)
             if admin_ch:
                 await admin_ch.send(f"バッジ付与モード（{badge_id}）\nユーザーIDを1行ずつ送ってください。キャンセルで終了。")
-            await i.response.send_message(f"運営チャンネルでユーザーIDを送ってください", ephemeral=True)
+            await i.response.send_message("運営チャンネルでユーザーIDを送ってください", ephemeral=True)
         select.callback = callback
         view = discord.ui.View(timeout=60)
         view.add_item(select)
         await interaction.response.send_message("付与するバッジを選択してください", view=view, ephemeral=True)
 
-    @discord.ui.button(label="バッジ削除", style=discord.ButtonStyle.success,
-                       custom_id="admin_badge_remove", row=2)
+    @discord.ui.button(label="バッジ削除", style=discord.ButtonStyle.success, custom_id="admin_badge_remove")
     async def badge_remove_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
             return
-        options = [
-            discord.SelectOption(label=v["label"], value=k)
-            for k, v in BADGE_DEFINITIONS.items()
-        ]
+        options = [discord.SelectOption(label=v["label"], value=k) for k, v in BADGE_DEFINITIONS.items()]
         select = discord.ui.Select(placeholder="バッジを選択", options=options)
         async def callback(i: discord.Interaction):
             badge_id = select.values[0]
@@ -3108,16 +3099,12 @@ class AdminButtonView(discord.ui.View):
         view.add_item(select)
         await interaction.response.send_message("削除するバッジを選択してください", view=view, ephemeral=True)
 
-    @discord.ui.button(label="バッジ強制付与", style=discord.ButtonStyle.success,
-                       custom_id="admin_badge_force", row=2)
+    @discord.ui.button(label="バッジ強制付与", style=discord.ButtonStyle.success, custom_id="admin_badge_force")
     async def badge_force_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
             return
-        options = [
-            discord.SelectOption(label=v["label"], value=k)
-            for k, v in BADGE_DEFINITIONS.items()
-        ]
+        options = [discord.SelectOption(label=v["label"], value=k) for k, v in BADGE_DEFINITIONS.items()]
         select = discord.ui.Select(placeholder="バッジを選択", options=options)
         async def callback(i: discord.Interaction):
             badge_id = select.values[0]
@@ -3131,24 +3118,19 @@ class AdminButtonView(discord.ui.View):
         view.add_item(select)
         await interaction.response.send_message("強制付与するバッジを選択してください", view=view, ephemeral=True)
 
-    @discord.ui.button(label="所持バッジ一覧", style=discord.ButtonStyle.success,
-                       custom_id="admin_badge_list_user", row=2)
+    @discord.ui.button(label="所持バッジ一覧", style=discord.ButtonStyle.success, custom_id="admin_badge_list_user")
     async def badge_list_user_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
             return
         await interaction.response.send_message("運営チャンネルで `!所持バッジ一覧 ユーザーID` を使ってください", ephemeral=True)
 
-    @discord.ui.button(label="バッジ所持者一覧", style=discord.ButtonStyle.success,
-                       custom_id="admin_badge_list_badge", row=2)
+    @discord.ui.button(label="バッジ所持者一覧", style=discord.ButtonStyle.success, custom_id="admin_badge_list_badge")
     async def badge_list_badge_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
             return
-        options = [
-            discord.SelectOption(label=v["label"], value=k)
-            for k, v in BADGE_DEFINITIONS.items()
-        ]
+        options = [discord.SelectOption(label=v["label"], value=k) for k, v in BADGE_DEFINITIONS.items()]
         select = discord.ui.Select(placeholder="バッジを選択", options=options)
         async def callback(i: discord.Interaction):
             badge_id = select.values[0]
@@ -3169,9 +3151,12 @@ class AdminButtonView(discord.ui.View):
         view.add_item(select)
         await interaction.response.send_message("バッジを選択してください", view=view, ephemeral=True)
 
-    # ========== レート・補正系 ==========
-    @discord.ui.button(label="レート値変更", style=discord.ButtonStyle.danger,
-                       custom_id="admin_rate_change", row=3)
+
+class AdminButtonView_Rate(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="レート値変更", style=discord.ButtonStyle.danger, custom_id="admin_rate_change")
     async def rate_change_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
@@ -3182,24 +3167,21 @@ class AdminButtonView(discord.ui.View):
             await admin_ch.send("レート値変更モード\nユーザーID レート値 を1行ずつ送ってください。キャンセルで終了。")
         await interaction.response.send_message("運営チャンネルで入力してください", ephemeral=True)
 
-    @discord.ui.button(label="全員RD設定", style=discord.ButtonStyle.danger,
-                       custom_id="admin_rd_set", row=3)
+    @discord.ui.button(label="全員RD設定", style=discord.ButtonStyle.danger, custom_id="admin_rd_set")
     async def rd_set_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
             return
         await interaction.response.send_message("運営チャンネルで `!全員RD設定 値` を使ってください", ephemeral=True)
 
-    @discord.ui.button(label="全員レートリセット", style=discord.ButtonStyle.danger,
-                       custom_id="admin_rate_reset", row=3)
+    @discord.ui.button(label="全員レートリセット", style=discord.ButtonStyle.danger, custom_id="admin_rate_reset")
     async def rate_reset_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
             return
         await interaction.response.send_message("⚠️ 本当にリセットしますか？\n確認のため `!全員レートリセット` を運営チャンネルで実行してください", ephemeral=True)
 
-    @discord.ui.button(label="最高レート初期化", style=discord.ButtonStyle.danger,
-                       custom_id="admin_peak_init", row=3)
+    @discord.ui.button(label="最高レート初期化", style=discord.ButtonStyle.danger, custom_id="admin_peak_init")
     async def peak_init_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
@@ -3214,8 +3196,7 @@ class AdminButtonView(discord.ui.View):
         save_player_profiles(player_profiles)
         await interaction.edit_original_response(content=f"{count}人の最高レートを初期化しました")
 
-    @discord.ui.button(label="全員初期補正付与", style=discord.ButtonStyle.danger,
-                       custom_id="admin_bonus_grant_all", row=3)
+    @discord.ui.button(label="全員初期補正付与", style=discord.ButtonStyle.danger, custom_id="admin_bonus_grant_all")
     async def bonus_grant_all_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
@@ -3229,8 +3210,7 @@ class AdminButtonView(discord.ui.View):
         save_player_profiles(player_profiles)
         await interaction.edit_original_response(content=f"全員に初期補正権を付与しました（{len(members)}人）")
 
-    @discord.ui.button(label="全員初期補正剥奪", style=discord.ButtonStyle.danger,
-                       custom_id="admin_bonus_revoke_all", row=3)
+    @discord.ui.button(label="全員初期補正剥奪", style=discord.ButtonStyle.danger, custom_id="admin_bonus_revoke_all")
     async def bonus_revoke_all_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
@@ -3242,25 +3222,26 @@ class AdminButtonView(discord.ui.View):
         save_player_profiles(player_profiles)
         await interaction.edit_original_response(content=f"全員の初期補正権を剥奪しました（{len(members)}人）")
 
-    @discord.ui.button(label="初期補正権付与", style=discord.ButtonStyle.danger,
-                       custom_id="admin_bonus_grant", row=3)
+    @discord.ui.button(label="初期補正権付与", style=discord.ButtonStyle.danger, custom_id="admin_bonus_grant")
     async def bonus_grant_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
             return
         await interaction.response.send_message("運営チャンネルで `!初期補正権付与 ユーザーID` を使ってください", ephemeral=True)
 
-    @discord.ui.button(label="初期補正権剥奪", style=discord.ButtonStyle.danger,
-                       custom_id="admin_bonus_revoke", row=3)
+    @discord.ui.button(label="初期補正権剥奪", style=discord.ButtonStyle.danger, custom_id="admin_bonus_revoke")
     async def bonus_revoke_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
             return
         await interaction.response.send_message("運営チャンネルで `!初期補正権剥奪 ユーザーID` を使ってください", ephemeral=True)
 
-    # ========== 一括系 ==========
-    @discord.ui.button(label="運営一括", style=discord.ButtonStyle.secondary,
-                       custom_id="admin_bulk", row=4)
+
+class AdminButtonView_Bulk(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="運営一括", style=discord.ButtonStyle.secondary, custom_id="admin_bulk")
     async def bulk_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
@@ -3277,8 +3258,7 @@ class AdminButtonView(discord.ui.View):
             )
         await interaction.response.send_message("運営チャンネルで入力してください", ephemeral=True)
 
-    @discord.ui.button(label="運営一覧1", style=discord.ButtonStyle.secondary,
-                       custom_id="admin_dump_1", row=4)
+    @discord.ui.button(label="運営一覧1", style=discord.ButtonStyle.secondary, custom_id="admin_dump_1")
     async def dump1_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
@@ -3314,8 +3294,7 @@ class AdminButtonView(discord.ui.View):
                     await admin_ch.send(chunk)
         await interaction.edit_original_response(content="運営一覧1を送信しました")
 
-    @discord.ui.button(label="運営一覧2", style=discord.ButtonStyle.secondary,
-                       custom_id="admin_dump_2", row=4)
+    @discord.ui.button(label="運営一覧2", style=discord.ButtonStyle.secondary, custom_id="admin_dump_2")
     async def dump2_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
@@ -3348,8 +3327,7 @@ class AdminButtonView(discord.ui.View):
                     await admin_ch.send(chunk)
         await interaction.edit_original_response(content="運営一覧2を送信しました")
 
-    @discord.ui.button(label="運営一覧3", style=discord.ButtonStyle.secondary,
-                       custom_id="admin_dump_3", row=4)
+    @discord.ui.button(label="運営一覧3", style=discord.ButtonStyle.secondary, custom_id="admin_dump_3")
     async def dump3_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
@@ -3383,8 +3361,7 @@ class AdminButtonView(discord.ui.View):
                     await admin_ch.send(chunk)
         await interaction.edit_original_response(content="運営一覧3を送信しました")
 
-    @discord.ui.button(label="運営一覧4", style=discord.ButtonStyle.secondary,
-                       custom_id="admin_dump_4", row=4)
+    @discord.ui.button(label="運営一覧4", style=discord.ButtonStyle.secondary, custom_id="admin_dump_4")
     async def dump4_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
@@ -3413,8 +3390,7 @@ class AdminButtonView(discord.ui.View):
                     await admin_ch.send(chunk)
         await interaction.edit_original_response(content="運営一覧4を送信しました")
 
-    @discord.ui.button(label="運営一覧5", style=discord.ButtonStyle.secondary,
-                       custom_id="admin_dump_5", row=4)
+    @discord.ui.button(label="運営一覧5", style=discord.ButtonStyle.secondary, custom_id="admin_dump_5")
     async def dump5_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
@@ -3452,8 +3428,7 @@ class AdminButtonView(discord.ui.View):
                     await admin_ch.send(chunk)
         await interaction.edit_original_response(content="運営一覧5を送信しました")
 
-    @discord.ui.button(label="運営一覧6", style=discord.ButtonStyle.secondary,
-                       custom_id="admin_dump_6", row=4)
+    @discord.ui.button(label="運営一覧6", style=discord.ButtonStyle.secondary, custom_id="admin_dump_6")
     async def dump6_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
@@ -3482,8 +3457,7 @@ class AdminButtonView(discord.ui.View):
                     await admin_ch.send(chunk)
         await interaction.edit_original_response(content="運営一覧6を送信しました")
 
-    @discord.ui.button(label="運営一覧7", style=discord.ButtonStyle.secondary,
-                       custom_id="admin_dump_7", row=4)
+    @discord.ui.button(label="運営一覧7", style=discord.ButtonStyle.secondary, custom_id="admin_dump_7")
     async def dump7_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
@@ -3521,15 +3495,6 @@ async def post_admin_buttons(guild):
     guild_key = str(guild.id)
     saved_ids = bot_state.get("admin_button_message_ids", {})
 
-    messages = {
-        "ranking": "【ランキング・ホーム系】",
-        "list": "【一覧系】",
-        "badge": "【バッジ系】",
-        "rate": "【レート・補正系】",
-        "bulk": "【一括系】",
-    }
-
-    # 既存メッセージを削除
     existing = saved_ids.get(guild_key, {})
     for msg_id in existing.values():
         try:
@@ -3539,54 +3504,26 @@ async def post_admin_buttons(guild):
             pass
 
     new_ids = {}
-    view = AdminButtonView()
 
-    # カテゴリごとにメッセージを分けて送信
-    # row0: ランキング・ホーム系
-    v0 = discord.ui.View(timeout=None)
-    for item in view.children:
-        if hasattr(item, 'row') and item.row == 0:
-            v0.add_item(item)
-    msg0 = await channel.send("【ランキング・ホーム系】", view=v0)
+    msg0 = await channel.send("【ランキング・ホーム系】", view=AdminButtonView_Ranking())
     new_ids["ranking"] = msg0.id
 
-    # row1: 一覧系
-    v1 = discord.ui.View(timeout=None)
-    for item in view.children:
-        if hasattr(item, 'row') and item.row == 1:
-            v1.add_item(item)
-    msg1 = await channel.send("【一覧系】", view=v1)
+    msg1 = await channel.send("【一覧系】", view=AdminButtonView_List())
     new_ids["list"] = msg1.id
 
-    # row2: バッジ系
-    v2 = discord.ui.View(timeout=None)
-    for item in view.children:
-        if hasattr(item, 'row') and item.row == 2:
-            v2.add_item(item)
-    msg2 = await channel.send("【バッジ系】", view=v2)
+    msg2 = await channel.send("【バッジ系】", view=AdminButtonView_Badge())
     new_ids["badge"] = msg2.id
 
-    # row3: レート・補正系
-    v3 = discord.ui.View(timeout=None)
-    for item in view.children:
-        if hasattr(item, 'row') and item.row == 3:
-            v3.add_item(item)
-    msg3 = await channel.send("【レート・補正系】", view=v3)
+    msg3 = await channel.send("【レート・補正系】", view=AdminButtonView_Rate())
     new_ids["rate"] = msg3.id
 
-    # row4: 一括系
-    v4 = discord.ui.View(timeout=None)
-    for item in view.children:
-        if hasattr(item, 'row') and item.row == 4:
-            v4.add_item(item)
-    msg4 = await channel.send("【一括系】", view=v4)
+    msg4 = await channel.send("【一括系】", view=AdminButtonView_Bulk())
     new_ids["bulk"] = msg4.id
 
     if "admin_button_message_ids" not in bot_state:
         bot_state["admin_button_message_ids"] = {}
     bot_state["admin_button_message_ids"][guild_key] = new_ids
     save_bot_state(bot_state)
-
 
 async def post_home_message(guild):
     channel = get_home_channel(guild)
@@ -4658,7 +4595,11 @@ async def on_ready():
     print(f"ログインしたよ: {bot.user}")
     bot.add_view(HomeView())
     bot.add_view(RecruitView())
-    bot.add_view(AdminButtonView())
+    bot.add_view(AdminButtonView_Ranking())
+    bot.add_view(AdminButtonView_List())
+    bot.add_view(AdminButtonView_Badge())
+    bot.add_view(AdminButtonView_Rate())
+    bot.add_view(AdminButtonView_Bulk())
     daily_coin_distribution.start()
     for guild in bot.guilds:
         await post_admin_buttons(guild)  
