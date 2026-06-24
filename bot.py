@@ -6092,4 +6092,175 @@ if not TOKEN:
 api_thread = threading.Thread(target=run_api, daemon=True)
 api_thread.start()
 
+# =========================
+# OCR（Vision API）
+# =========================
+import base64
+import httpx
+import re
+
+async def analyze_splatoon_image(image_url: str):
+    """Google Cloud Vision APIで画像を解析"""
+    credentials_json = os.getenv("GOOGLE_VISION_CREDENTIALS")
+    if not credentials_json:
+        return None
+
+    # 画像をダウンロード
+    async with httpx.AsyncClient() as client:
+        img_res = await client.get(image_url)
+        image_data = base64.b64encode(img_res.content).decode("utf-8")
+
+        # アクセストークン取得
+        import json
+        import time
+        import jwt
+
+        creds = json.loads(credentials_json)
+        now = int(time.time())
+        payload = {
+            "iss": creds["client_email"],
+            "scope": "https://www.googleapis.com/auth/cloud-platform",
+            "aud": "https://oauth2.googleapis.com/token",
+            "iat": now,
+            "exp": now + 3600,
+        }
+        token = jwt.encode(payload, creds["private_key"], algorithm="RS256")
+
+        token_res = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                "assertion": token,
+            }
+        )
+        access_token = token_res.json()["access_token"]
+
+        # Vision API呼び出し
+        vision_res = await client.post(
+            "https://vision.googleapis.com/v1/images:annotate",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={
+                "requests": [{
+                    "image": {"content": image_data},
+                    "features": [{"type": "TEXT_DETECTION"}]
+                }]
+            }
+        )
+
+    raw_text = vision_res.json()["responses"][0].get("fullTextAnnotation", {}).get("text", "")
+    return raw_text
+
+
+def parse_splatoon_result(raw_text: str):
+    """テキストからスプラ3のリザルトをパース"""
+    lines = [l.strip() for l in raw_text.split("\n") if l.strip()]
+
+    # ステージ取得（右上に表示される）
+    stage = None
+    STAGES = [
+        "ユノハナ大渓谷", "ゴンズイ地区", "ヤガラ市場", "マテガイ放水路",
+        "ナメロウ金属", "マサバ海峡大橋", "キンメダイ美術館", "マヒマヒリゾート&スパ",
+        "海女美術大学", "チョウザメ造船", "ザトウマーケット", "スメーシーワールド",
+        "クサヤ温泉", "ヒラメが丘団地", "ナンプラー遺跡", "マンタマリア号",
+        "タラポートショッピングパーク", "コンブトラック", "タカアシ経済特区",
+        "オヒョウ海運", "バイガイ亭", "ネギトロ炭鉱", "カジキ空港",
+        "リュウグウターミナル", "デカライン高架下",
+    ]
+    for line in lines:
+        for s in STAGES:
+            if s in line:
+                stage = s
+                break
+
+    # 勝敗
+    result = None
+    for line in lines:
+        if "WIN" in line:
+            result = "WIN"
+            break
+        if "LOSE" in line:
+            result = "LOSE"
+            break
+
+    # プレイヤーデータ抽出
+    # 塗りポイント: 数字+p
+    # キル/デス/スペシャル: x数字 <数字> x数字 x数字
+    players = []
+    paint_pattern = re.compile(r'(\d+)p')
+    stat_pattern = re.compile(r'x(\d+)[^\d]*(\d+)[^\d]*x(\d+)[^\d]*x(\d+)')
+
+    i = 0
+    while i < len(lines):
+        paint_match = paint_pattern.search(lines[i])
+        if paint_match:
+            paint = int(paint_match.group(1))
+            # 名前は直前の行
+            name = lines[i - 1] if i > 0 else "不明"
+            # キル/デス/スペシャルは次の行
+            stat_line = lines[i + 1] if i + 1 < len(lines) else ""
+            stat_match = stat_pattern.search(stat_line)
+            if stat_match:
+                kill = int(stat_match.group(1))
+                death = int(stat_match.group(2))
+                special = int(stat_match.group(4))
+            else:
+                kill = death = special = None
+            players.append({
+                "name": name,
+                "paint": paint,
+                "kill": kill,
+                "death": death,
+                "special": special,
+            })
+        i += 1
+
+    return {
+        "stage": stage,
+        "result": result,
+        "players": players,
+    }
+
+
+# OCRテスト用コマンド
+VISION_TEST_CHANNEL_ID = ADMIN_CHANNEL_ID  # 運営チャンネルで試す
+
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
+
+    # OCRテスト：運営チャンネルに画像が投稿されたら解析
+    if message.channel.id == VISION_TEST_CHANNEL_ID and message.attachments:
+        for attachment in message.attachments:
+            if any(attachment.filename.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg']):
+                await message.channel.send("画像を解析中...")
+                raw = await analyze_splatoon_image(attachment.url)
+                if not raw:
+                    await message.channel.send("解析失敗（認証情報を確認してください）")
+                    continue
+                parsed = parse_splatoon_result(raw)
+
+                lines = [f"**ステージ**: {parsed['stage'] or '不明'}"]
+                lines.append(f"**結果**: {parsed['result'] or '不明'}")
+                lines.append("")
+                for p in parsed["players"]:
+                    lines.append(
+                        f"{p['name']} / {p['paint']}p / "
+                        f"キル{p['kill']} デス{p['death']} SP{p['special']}"
+                    )
+
+                await message.channel.send("\n".join(lines) if lines else "パース失敗")
+                return
+
+    for handler in [
+        process_badge_bulk_message,
+        process_bulk_rate_change_message,
+        process_bulk_profile_edit_message,
+        process_bulk_admin_message,
+    ]:
+        if await handler(message):
+            return
+
+    await bot.process_commands(message)
+    
 bot.run(TOKEN)
