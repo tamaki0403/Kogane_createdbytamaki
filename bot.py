@@ -5727,7 +5727,7 @@ async def init_peak_rating(ctx):
 
     save_player_profiles(player_profiles)
     await ctx.send(f"{count}人の最高レートを現在のレートで初期化しました！")
-    
+
 # =========================
 # 起動
 # =========================
@@ -5766,6 +5766,27 @@ def get_ranking():
         })
 
     players.sort(key=lambda x: -x["rating"])
+    for i, p in enumerate(players):
+        p["rank"] = i + 1
+
+    return JSONResponse(content={"players": players}, media_type="application/json; charset=utf-8")
+
+@api.get("/api/peak_ranking")
+def get_peak_ranking():
+    profiles = load_player_profiles()
+
+    players = []
+    for uid, profile in profiles.items():
+        peak = profile.get("peak_rating")
+        if peak is None:
+            continue
+        players.append({
+            "user_id": uid,
+            "display_name": profile.get("display_name") or uid,
+            "peak_rating": peak,
+        })
+
+    players.sort(key=lambda x: -x["peak_rating"])
     for i, p in enumerate(players):
         p["rank"] = i + 1
 
