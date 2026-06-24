@@ -29,7 +29,6 @@
       align-items: center;
       gap: 8px;
       cursor: pointer;
-      text-decoration: none;
       color: #e6edf3;
       margin-right: 4px;
     }
@@ -48,10 +47,7 @@
       flex-shrink: 0;
     }
 
-    .nav-brand-text {
-      font-size: 1rem;
-      font-weight: bold;
-    }
+    .nav-brand-text { font-size: 1rem; font-weight: bold; }
 
     nav a {
       font-size: 0.9rem;
@@ -102,21 +98,8 @@
 
     .user-info:hover { background: #21262d; }
 
-    .user-avatar {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      object-fit: cover;
-    }
-
-    .user-name {
-      font-size: 0.85rem;
-      color: #e6edf3;
-      max-width: 80px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+    .user-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+    .user-name { font-size: 0.85rem; color: #e6edf3; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     .page { display: none; padding: 24px 16px; max-width: 640px; margin: 0 auto; }
     .page.active { display: block; }
@@ -143,7 +126,6 @@
     .page-title { font-size: 1.3rem; font-weight: bold; margin-bottom: 4px; }
     .subtitle { font-size: 0.85rem; color: #8b949e; margin-bottom: 20px; }
 
-    /* 通常カード */
     .player-card {
       background: #161b22;
       border: 1px solid #30363d;
@@ -153,89 +135,39 @@
       display: flex;
       align-items: center;
       gap: 14px;
-      cursor: pointer;
-      transition: border-color 0.2s;
     }
 
-    .player-card:hover { border-color: #58a6ff; }
-
-    /* TOP3カード */
     .player-card-top {
       background: #161b22;
       border: 1px solid #30363d;
       border-radius: 12px;
-      padding: 20px 20px;
+      padding: 20px;
       margin-bottom: 10px;
       display: flex;
       align-items: center;
       gap: 16px;
-      cursor: pointer;
-      transition: border-color 0.2s;
     }
 
-    .player-card-top:hover { border-color: #58a6ff; }
     .player-card-top.rank1 { border-color: #d4a017; }
     .player-card-top.rank2 { border-color: #a8a9ad; }
     .player-card-top.rank3 { border-color: #b87333; }
 
-    .rank-num {
-      font-size: 1rem;
-      font-weight: bold;
-      width: 36px;
-      text-align: center;
-      flex-shrink: 0;
-      color: #8b949e;
-    }
-
-    .rank-num-top {
-      font-size: 1.4rem;
-      font-weight: bold;
-      width: 40px;
-      text-align: center;
-      flex-shrink: 0;
-    }
-
+    .rank-num { font-size: 1rem; font-weight: bold; width: 36px; text-align: center; flex-shrink: 0; color: #8b949e; }
+    .rank-num-top { font-size: 1.4rem; font-weight: bold; width: 40px; text-align: center; flex-shrink: 0; }
     .rank-num-top.r1 { color: #d4a017; }
     .rank-num-top.r2 { color: #a8a9ad; }
     .rank-num-top.r3 { color: #b87333; }
 
-    .player-avatar {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      object-fit: cover;
-      flex-shrink: 0;
-    }
-
-    .player-avatar-top {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      object-fit: cover;
-      flex-shrink: 0;
-    }
+    .player-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+    .player-avatar-top { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
 
     .player-info { flex: 1; min-width: 0; }
-
-    .player-name {
-      font-size: 0.95rem;
-      font-weight: bold;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .player-name-top {
-      font-size: 1.1rem;
-      font-weight: bold;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
+    .player-name { font-size: 0.95rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .player-name-top { font-size: 1.1rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .player-rating { font-size: 1.2rem; font-weight: bold; color: #58a6ff; flex-shrink: 0; }
     .player-rating-top { font-size: 1.4rem; font-weight: bold; color: #58a6ff; flex-shrink: 0; }
 
+    /* マイページ */
     .profile-header {
       background: #161b22;
       border: 1px solid #30363d;
@@ -244,21 +176,8 @@
       margin-bottom: 16px;
     }
 
-    .profile-top {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      margin-bottom: 16px;
-    }
-
-    .profile-avatar {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      object-fit: cover;
-      flex-shrink: 0;
-    }
-
+    .profile-top { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+    .profile-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
     .profile-name { font-size: 1.3rem; font-weight: bold; }
 
     .stats-grid {
@@ -279,12 +198,7 @@
     .stat-label { font-size: 0.75rem; color: #8b949e; margin-bottom: 4px; }
     .stat-value { font-size: 1.3rem; font-weight: bold; color: #58a6ff; }
 
-    .section-title {
-      font-size: 1rem;
-      font-weight: bold;
-      margin: 20px 0 10px;
-      color: #8b949e;
-    }
+    .section-title { font-size: 1rem; font-weight: bold; margin: 20px 0 10px; color: #8b949e; }
 
     .stage-row {
       background: #161b22;
@@ -313,18 +227,82 @@
     .stage-record { font-size: 0.85rem; color: #8b949e; }
     .stage-winrate { font-size: 0.95rem; font-weight: bold; color: #58a6ff; min-width: 48px; text-align: right; }
 
-    .back-btn {
-      background: none;
+    /* レート変動グラフ */
+    .graph-container {
+      background: #161b22;
       border: 1px solid #30363d;
-      border-radius: 6px;
-      color: #8b949e;
-      padding: 6px 12px;
-      font-size: 0.85rem;
-      cursor: pointer;
+      border-radius: 12px;
+      padding: 16px;
       margin-bottom: 16px;
     }
 
-    .back-btn:hover { color: #e6edf3; border-color: #58a6ff; }
+    .graph-title { font-size: 0.9rem; font-weight: bold; color: #8b949e; margin-bottom: 12px; }
+
+    canvas#rateChart { width: 100% !important; }
+
+    /* 対プレイヤー勝率 */
+    .vs-select-wrap {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .vs-select {
+      width: 100%;
+      padding: 10px 14px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      color: #e6edf3;
+      font-size: 0.95rem;
+      outline: none;
+      margin-bottom: 12px;
+    }
+
+    .vs-select:focus { border-color: #58a6ff; }
+
+    .vs-result {
+      display: none;
+    }
+
+    .vs-name { font-size: 1rem; font-weight: bold; margin-bottom: 8px; }
+    .vs-record { font-size: 0.85rem; color: #8b949e; margin-bottom: 10px; }
+
+    .vs-bar-wrap {
+      background: #0d1117;
+      border-radius: 6px;
+      height: 28px;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .vs-bar-win {
+      background: #238636;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: #fff;
+      transition: width 0.4s;
+      min-width: 0;
+    }
+
+    .vs-bar-loss {
+      background: #da3633;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: #fff;
+      transition: width 0.4s;
+      min-width: 0;
+    }
 
     .loading { text-align: center; color: #8b949e; margin-top: 60px; }
     .error { text-align: center; color: #f85149; margin-top: 60px; }
@@ -365,7 +343,7 @@
     </div>
     <div class="card-link" id="my-page-card" onclick="showMyPage()" style="display:none;">
       <div class="card-title">マイページ</div>
-      <div class="card-desc">自分の勝率・ステージ別成績を確認</div>
+      <div class="card-desc">自分の成績・グラフを確認</div>
     </div>
   </div>
 </div>
@@ -384,12 +362,12 @@
   <div id="peak-list"><p class="loading">データを取得しています...</p></div>
 </div>
 
-<!-- 個人ページ -->
-<div class="page" id="page-player">
-  <button class="back-btn" id="back-btn" onclick="showPage('ranking')">戻る</button>
-  <div id="player-content"><p class="loading">読み込み中...</p></div>
+<!-- マイページ -->
+<div class="page" id="page-mypage">
+  <div id="mypage-content"><p class="loading">読み込み中...</p></div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
   const STAGES = [
     "ユノハナ大渓谷","ゴンズイ地区","ヤガラ市場","マテガイ放水路",
@@ -406,8 +384,9 @@
   let peakLoaded = false;
   let currentUserId = null;
   let currentAvatarUrl = null;
+  let rateChartInstance = null;
+  let vsStatsData = [];
 
-  // URLパラメータ確認
   const params = new URLSearchParams(window.location.search);
   const urlId = params.get('id');
   const urlAvatar = params.get('avatar');
@@ -430,23 +409,12 @@
     document.getElementById('my-page-card').style.display = 'block';
     document.getElementById('nav-mypage').style.display = 'inline';
     document.getElementById('user-info').style.display = 'flex';
-
-    if (currentAvatarUrl) {
-      document.getElementById('user-avatar').src = currentAvatarUrl;
-    }
-
+    if (currentAvatarUrl) document.getElementById('user-avatar').src = currentAvatarUrl;
     fetch(`/api/player_stats/${currentUserId}`)
       .then(r => r.json())
       .then(d => {
-        if (d.display_name) {
-          document.getElementById('user-name').textContent = d.display_name;
-        }
+        if (d.display_name) document.getElementById('user-name').textContent = d.display_name;
       }).catch(() => {});
-  }
-
-  function getAvatarUrl(userId) {
-    if (userId === currentUserId && currentAvatarUrl) return currentAvatarUrl;
-    return `https://cdn.discordapp.com/embed/avatars/0.png`;
   }
 
   function showPage(name) {
@@ -455,63 +423,41 @@
     document.getElementById('page-' + name).classList.add('active');
     const navEl = document.getElementById('nav-' + name);
     if (navEl) navEl.classList.add('active');
-
     if (name === 'ranking' && !rankingLoaded) loadRanking();
     if (name === 'peak' && !peakLoaded) loadPeak();
   }
 
   function showMyPage() {
-    if (!currentUserId) {
-      window.location.href = '/auth/login';
-      return;
-    }
-    loadPlayerPage(currentUserId, currentAvatarUrl);
+    if (!currentUserId) { window.location.href = '/auth/login'; return; }
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
-    document.getElementById('page-player').classList.add('active');
+    document.getElementById('page-mypage').classList.add('active');
     document.getElementById('nav-mypage').classList.add('active');
-    document.getElementById('back-btn').onclick = () => showPage('home');
-  }
-
-  function showPlayerPage(userId) {
-    loadPlayerPage(userId, null);
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
-    document.getElementById('page-player').classList.add('active');
-    document.getElementById('back-btn').onclick = () => showPage('ranking');
+    loadMyPage();
   }
 
   function rankCard(p, ratingKey) {
-    const avatar = getAvatarUrl(p.user_id);
+    const avatar = p.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png';
     const name = p.display_name || p.user_id;
     const rating = p[ratingKey];
     const rank = p.rank;
 
     if (rank <= 3) {
-      const cls = `rank${rank}`;
-      const rCls = `r${rank}`;
       return `
-        <div class="player-card-top ${cls}" onclick="showPlayerPage('${p.user_id}')">
-          <span class="rank-num-top ${rCls}">${rank}</span>
+        <div class="player-card-top rank${rank}">
+          <span class="rank-num-top r${rank}">${rank}</span>
           <img class="player-avatar-top" src="${avatar}" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'" alt="">
-          <div class="player-info">
-            <div class="player-name-top">${name}</div>
-          </div>
+          <div class="player-info"><div class="player-name-top">${name}</div></div>
           <div class="player-rating-top">${rating}</div>
-        </div>
-      `;
+        </div>`;
     }
-
     return `
-      <div class="player-card" onclick="showPlayerPage('${p.user_id}')">
+      <div class="player-card">
         <span class="rank-num">${rank}</span>
         <img class="player-avatar" src="${avatar}" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'" alt="">
-        <div class="player-info">
-          <div class="player-name">${name}</div>
-        </div>
+        <div class="player-info"><div class="player-name">${name}</div></div>
         <div class="player-rating">${rating}</div>
-      </div>
-    `;
+      </div>`;
   }
 
   async function loadRanking() {
@@ -533,86 +479,184 @@
       const data = await res.json();
       const top5 = data.players.slice(0, 5);
       const el = document.getElementById('peak-list');
-      if (top5.length === 0) {
-        el.innerHTML = '<p class="loading">データがありません</p>';
-        return;
-      }
-      el.innerHTML = top5.map(p => rankCard(p, 'peak_rating')).join('');
+      el.innerHTML = top5.length === 0
+        ? '<p class="loading">データがありません</p>'
+        : top5.map(p => rankCard(p, 'peak_rating')).join('');
       peakLoaded = true;
     } catch (e) {
       document.getElementById('peak-list').innerHTML = '<p class="error">データの取得に失敗しました</p>';
     }
   }
 
-  async function loadPlayerPage(userId, avatarUrl) {
-    document.getElementById('player-content').innerHTML = '<p class="loading">読み込み中...</p>';
+  async function loadMyPage() {
+    document.getElementById('mypage-content').innerHTML = '<p class="loading">読み込み中...</p>';
+    if (rateChartInstance) { rateChartInstance.destroy(); rateChartInstance = null; }
+
     try {
-      const res = await fetch(`/api/player_stats/${userId}`);
+      const res = await fetch(`/api/player_stats/${currentUserId}`);
       const d = await res.json();
       if (d.error) {
-        document.getElementById('player-content').innerHTML = '<p class="error">プレイヤーが見つかりません</p>';
+        document.getElementById('mypage-content').innerHTML = '<p class="error">プレイヤーが見つかりません</p>';
         return;
       }
 
       const winRate = d.win_rate !== null ? `${d.win_rate}%` : '-';
       const peak = d.peak_rating || '-';
-      const avatar = avatarUrl || getAvatarUrl(userId);
+      const avatar = currentAvatarUrl || d.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png';
+
+      vsStatsData = d.vs_stats || [];
 
       const stageMap = {};
       (d.stage_stats || []).forEach(s => { stageMap[s.stage] = s; });
-
       const stageRows = STAGES.map(stageName => {
         const s = stageMap[stageName];
         if (s) {
-          return `
-            <div class="stage-row">
-              <div class="stage-name">${stageName}</div>
-              <div class="stage-record">${s.wins}勝${s.losses}敗</div>
-              <div class="stage-winrate">${s.win_rate !== null ? s.win_rate + '%' : '-'}</div>
-            </div>
-          `;
-        }
-        return `
-          <div class="stage-no-record">
+          return `<div class="stage-row">
             <div class="stage-name">${stageName}</div>
-            <div class="stage-record">記録なし</div>
-            <div class="stage-winrate">-</div>
-          </div>
-        `;
+            <div class="stage-record">${s.wins}勝${s.losses}敗</div>
+            <div class="stage-winrate">${s.win_rate !== null ? s.win_rate + '%' : '-'}</div>
+          </div>`;
+        }
+        return `<div class="stage-no-record">
+          <div class="stage-name">${stageName}</div>
+          <div class="stage-record">記録なし</div>
+          <div class="stage-winrate">-</div>
+        </div>`;
       }).join('');
 
-      document.getElementById('player-content').innerHTML = `
+      // 対プレイヤー選択肢
+      const vsOptions = vsStatsData.map(v =>
+        `<option value="${v.user_id}">${v.display_name}（${v.total}戦）</option>`
+      ).join('');
+
+      document.getElementById('mypage-content').innerHTML = `
         <div class="profile-header">
           <div class="profile-top">
             <img class="profile-avatar" src="${avatar}" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'" alt="">
             <div class="profile-name">${d.display_name || d.user_id}</div>
           </div>
           <div class="stats-grid">
-            <div class="stat-box">
-              <div class="stat-label">現在のレート</div>
-              <div class="stat-value">${d.rating}</div>
-            </div>
-            <div class="stat-box">
-              <div class="stat-label">最高レート</div>
-              <div class="stat-value">${peak}</div>
-            </div>
-            <div class="stat-box">
-              <div class="stat-label">勝率</div>
-              <div class="stat-value">${winRate}</div>
-            </div>
-            <div class="stat-box">
-              <div class="stat-label">試合数</div>
-              <div class="stat-value">${d.total}</div>
-            </div>
+            <div class="stat-box"><div class="stat-label">現在のレート</div><div class="stat-value">${d.rating}</div></div>
+            <div class="stat-box"><div class="stat-label">最高レート</div><div class="stat-value">${peak}</div></div>
+            <div class="stat-box"><div class="stat-label">勝率</div><div class="stat-value">${winRate}</div></div>
+            <div class="stat-box"><div class="stat-label">試合数</div><div class="stat-value">${d.total}</div></div>
           </div>
           <div style="font-size:0.85rem; color:#8b949e;">${d.wins}勝 ${d.losses}敗</div>
         </div>
+
+        <!-- レート変動グラフ -->
+        <div class="graph-container">
+          <div class="graph-title">レート変動（直近${(d.rate_history || []).length}戦）</div>
+          <canvas id="rateChart" height="160"></canvas>
+        </div>
+
+        <!-- 対プレイヤー勝率 -->
+        <div class="vs-select-wrap">
+          <div class="section-title" style="margin-top:0;">対プレイヤー勝率</div>
+          ${vsStatsData.length === 0
+            ? '<p style="color:#8b949e; font-size:0.85rem;">対戦記録がありません</p>'
+            : `<select class="vs-select" id="vs-select" onchange="updateVsResult()">
+                <option value="">プレイヤーを選択...</option>
+                ${vsOptions}
+              </select>
+              <div class="vs-result" id="vs-result">
+                <div class="vs-name" id="vs-name"></div>
+                <div class="vs-record" id="vs-record"></div>
+                <div class="vs-bar-wrap">
+                  <div class="vs-bar-win" id="vs-bar-win"></div>
+                  <div class="vs-bar-loss" id="vs-bar-loss"></div>
+                </div>
+              </div>`
+          }
+        </div>
+
         <div class="section-title">ステージ別成績</div>
         ${stageRows}
       `;
+
+      // グラフ描画
+      const rateHistory = d.rate_history || [];
+      if (rateHistory.length > 0) {
+        const ctx = document.getElementById('rateChart').getContext('2d');
+        const labels = rateHistory.map((_, i) => `${i + 1}戦目`);
+        const dataPoints = rateHistory.map(r => r.rating);
+
+        rateChartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: 'レート',
+              data: dataPoints,
+              borderColor: '#58a6ff',
+              backgroundColor: 'rgba(88,166,255,0.1)',
+              borderWidth: 2,
+              pointRadius: 3,
+              pointBackgroundColor: '#58a6ff',
+              fill: true,
+              tension: 0.3,
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: ctx => `レート: ${ctx.parsed.y}`,
+                  afterLabel: (ctx) => {
+                    const h = rateHistory[ctx.dataIndex];
+                    return h.stage ? `ステージ: ${h.stage}` : '';
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: { color: '#8b949e', font: { size: 10 } },
+                grid: { color: '#21262d' }
+              },
+              y: {
+                ticks: { color: '#8b949e' },
+                grid: { color: '#21262d' }
+              }
+            }
+          }
+        });
+      } else {
+        document.getElementById('rateChart').parentElement.innerHTML +=
+          '<p style="color:#8b949e; font-size:0.85rem; margin-top:8px;">試合記録がありません</p>';
+      }
+
     } catch (e) {
-      document.getElementById('player-content').innerHTML = '<p class="error">データの取得に失敗しました</p>';
+      document.getElementById('mypage-content').innerHTML = '<p class="error">データの取得に失敗しました</p>';
     }
+  }
+
+  function updateVsResult() {
+    const select = document.getElementById('vs-select');
+    const userId = select.value;
+    const result = document.getElementById('vs-result');
+
+    if (!userId) { result.style.display = 'none'; return; }
+
+    const vs = vsStatsData.find(v => v.user_id === userId);
+    if (!vs) { result.style.display = 'none'; return; }
+
+    result.style.display = 'block';
+    document.getElementById('vs-name').textContent = vs.display_name;
+    document.getElementById('vs-record').textContent = `${vs.wins}勝 ${vs.losses}敗（${vs.total}戦）`;
+
+    const winPct = vs.total > 0 ? (vs.wins / vs.total * 100) : 0;
+    const lossPct = 100 - winPct;
+
+    const winBar = document.getElementById('vs-bar-win');
+    const lossBar = document.getElementById('vs-bar-loss');
+
+    winBar.style.width = winPct + '%';
+    winBar.textContent = winPct > 10 ? Math.round(winPct) + '%' : '';
+    lossBar.style.width = lossPct + '%';
+    lossBar.textContent = lossPct > 10 ? Math.round(lossPct) + '%' : '';
   }
 </script>
 </body>
