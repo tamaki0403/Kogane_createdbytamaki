@@ -4258,6 +4258,7 @@ async def process_result(guild, room_key, winner_num: int):
         "alpha": [str(u.id) for u in team_alpha],
         "bravo": [str(u.id) for u in team_bravo],
         "winner": "alpha" if winner_num == 1 else "bravo",
+        "ratings_after": {str(u.id): get_user_rating(u.id) for u in team_alpha + team_bravo},
     }
     history = load_match_history()
     history.append(match_record)
@@ -5922,6 +5923,61 @@ def get_player_stats(user_id: str):
         })
     stage_list.sort(key=lambda x: -x["total"])
 
+    # レート変動履歴（直近30戦）
+    rate_history = []
+    for match in history:
+        alpha = match.get("alpha", [])
+        bravo = match.get("bravo", [])
+        if user_id not in alpha and user_id not in bravo:
+            continue
+        ratings_after = match.get("ratings_after", {})
+        if user_id in ratings_after:
+            rate_history.append({
+                "timestamp": match.get("timestamp"),
+                "rating": ratings_after[user_id],
+                "stage": match.get("stage"),
+            })
+    rate_history = rate_history[-30:]
+
+    # 対プレイヤー勝率
+    vs_stats = {}
+    for match in history:
+        alpha = match.get("alpha", [])
+        bravo = match.get("bravo", [])
+        winner = match.get("winner")
+
+        if user_id in alpha:
+            my_team = "alpha"
+            enemies = bravo
+        elif user_id in bravo:
+            my_team = "bravo"
+            enemies = alpha
+        else:
+            continue
+
+        won = (my_team == winner)
+        for enemy_id in enemies:
+            if enemy_id not in vs_stats:
+                vs_stats[enemy_id] = {"wins": 0, "losses": 0}
+            if won:
+                vs_stats[enemy_id]["wins"] += 1
+            else:
+                vs_stats[enemy_id]["losses"] += 1
+
+    vs_list = []
+    for enemy_id, s in vs_stats.items():
+        t = s["wins"] + s["losses"]
+        enemy_profile = profiles.get(enemy_id, {})
+        vs_list.append({
+            "user_id": enemy_id,
+            "display_name": enemy_profile.get("display_name") or enemy_id,
+            "wins": s["wins"],
+            "losses": s["losses"],
+            "total": t,
+            "win_rate": round(s["wins"] / t * 100, 1) if t > 0 else None,
+        })
+    vs_list.sort(key=lambda x: -x["total"])
+
     return JSONResponse(content={
         "user_id": user_id,
         "display_name": profile.get("display_name") or user_id,
@@ -5933,6 +5989,8 @@ def get_player_stats(user_id: str):
         "win_rate": win_rate,
         "stage_stats": stage_list,
         "avatar_url": profile.get("avatar_url") or "https://cdn.discordapp.com/embed/avatars/0.png",
+        "rate_history": rate_history,
+        "vs_stats": vs_list,
     }, media_type="application/json; charset=utf-8")
     
 import httpx
