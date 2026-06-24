@@ -96,21 +96,6 @@
     .page-title { font-size: 1.3rem; font-weight: bold; margin-bottom: 4px; }
     .subtitle { font-size: 0.85rem; color: #8b949e; margin-bottom: 20px; }
 
-    .search-box {
-      display: block;
-      width: 100%;
-      padding: 10px 14px;
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      color: #e6edf3;
-      font-size: 0.95rem;
-      outline: none;
-      margin-bottom: 16px;
-    }
-
-    .search-box:focus { border-color: #58a6ff; }
-
     .player-card {
       background: #161b22;
       border: 1px solid #30363d;
@@ -143,7 +128,6 @@
     .player-name { font-size: 0.95rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .player-rating { font-size: 1.2rem; font-weight: bold; color: #58a6ff; flex-shrink: 0; }
 
-    /* 個人ページ */
     .profile-header {
       background: #161b22;
       border: 1px solid #30363d;
@@ -194,6 +178,18 @@
     .stage-record { font-size: 0.85rem; color: #8b949e; }
     .stage-winrate { font-size: 0.95rem; font-weight: bold; color: #58a6ff; min-width: 48px; text-align: right; }
 
+    .stage-no-record {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      opacity: 0.4;
+    }
+
     .back-btn {
       background: none;
       border: 1px solid #30363d;
@@ -229,17 +225,14 @@
   <div style="padding-top: 8px;">
     <div class="home-title">Kogane</div>
     <div class="home-desc">スプラトゥーン内部戦のレート管理サイト</div>
-
     <div class="card-link" onclick="showPage('ranking')">
       <div class="card-title">レートランキング</div>
       <div class="card-desc">現在のレートによる順位表</div>
     </div>
-
     <div class="card-link" onclick="showPage('peak')">
       <div class="card-title">最高レートランキング</div>
-      <div class="card-desc">これまでの最高レートによる順位表</div>
+      <div class="card-desc">歴代最高レートTOP5</div>
     </div>
-
     <div class="card-link" id="my-page-card" onclick="showMyPage()" style="display:none;">
       <div class="card-title">マイページ</div>
       <div class="card-desc">自分の勝率・ステージ別成績を確認</div>
@@ -251,48 +244,51 @@
 <div class="page" id="page-ranking">
   <div class="page-title">レートランキング</div>
   <div class="subtitle" id="ranking-subtitle">読み込み中...</div>
-  <input class="search-box" type="text" id="ranking-search" placeholder="名前で検索...">
   <div id="ranking-list"><p class="loading">データを取得しています...</p></div>
 </div>
 
 <!-- 最高レートランキング -->
 <div class="page" id="page-peak">
   <div class="page-title">最高レートランキング</div>
-  <div class="subtitle" id="peak-subtitle">読み込み中...</div>
-  <input class="search-box" type="text" id="peak-search" placeholder="名前で検索...">
+  <div class="subtitle">歴代最高レート TOP5</div>
   <div id="peak-list"><p class="loading">データを取得しています...</p></div>
 </div>
 
 <!-- 個人ページ -->
 <div class="page" id="page-player">
-  <button class="back-btn" onclick="history.back(); showPage('ranking')">戻る</button>
+  <button class="back-btn" onclick="showPage('ranking')">戻る</button>
   <div id="player-content"><p class="loading">読み込み中...</p></div>
 </div>
 
 <script>
+  const STAGES = [
+    "ユノハナ大渓谷","ゴンズイ地区","ヤガラ市場","マテガイ放水路",
+    "ナメロウ金属","マサバ海峡大橋","キンメダイ美術館","マヒマヒリゾート&スパ",
+    "海女美術大学","チョウザメ造船","ザトウマーケット","スメーシーワールド",
+    "クサヤ温泉","ヒラメが丘団地","ナンプラー遺跡","マンタマリア号",
+    "タラポートショッピングパーク","コンブトラック","タカアシ経済特区",
+    "オヒョウ海運","バイガイ亭","ネギトロ炭鉱","カジキ空港",
+    "リュウグウターミナル","デカライン高架下"
+  ];
+
   let allRanking = [];
-  let allPeak = [];
   let rankingLoaded = false;
   let peakLoaded = false;
   let currentUserId = null;
 
-  // URLパラメータ確認
   const params = new URLSearchParams(window.location.search);
   const urlId = params.get('id');
   if (urlId) {
     currentUserId = urlId;
     localStorage.setItem('discord_user_id', urlId);
-    // URLをきれいにする
     window.history.replaceState({}, '', '/');
   } else {
     currentUserId = localStorage.getItem('discord_user_id');
   }
 
-  // ログイン状態の反映
   if (currentUserId) {
     document.getElementById('login-btn').style.display = 'none';
     document.getElementById('my-page-card').style.display = 'block';
-    // 名前を取得して表示
     fetch(`/api/player_stats/${currentUserId}`)
       .then(r => r.json())
       .then(d => {
@@ -365,9 +361,21 @@
     try {
       const res = await fetch('/api/peak_ranking');
       const data = await res.json();
-      allPeak = data.players;
-      document.getElementById('peak-subtitle').textContent = `全${allPeak.length}人`;
-      renderList('peak-list', allPeak, 'peak_rating');
+      const top5 = data.players.slice(0, 5);
+      const el = document.getElementById('peak-list');
+      if (top5.length === 0) {
+        el.innerHTML = '<p class="loading">データがありません</p>';
+        return;
+      }
+      el.innerHTML = top5.map(p => `
+        <div class="player-card" onclick="showPlayerPage('${p.user_id}')">
+          ${rankLabel(p.rank)}
+          <div class="player-info">
+            <div class="player-name">${p.display_name || p.user_id}</div>
+          </div>
+          <div class="player-rating">${p.peak_rating}</div>
+        </div>
+      `).join('');
       peakLoaded = true;
     } catch (e) {
       document.getElementById('peak-list').innerHTML = '<p class="error">データの取得に失敗しました</p>';
@@ -387,21 +395,30 @@
       const winRate = d.win_rate !== null ? `${d.win_rate}%` : '-';
       const peak = d.peak_rating || '-';
 
-      let stageHtml = '';
-      if (d.stage_stats && d.stage_stats.length > 0) {
-        stageHtml = `
-          <div class="section-title">ステージ別成績</div>
-          ${d.stage_stats.map(s => `
+      // ステージ別成績（全25ステージ表示）
+      const stageMap = {};
+      (d.stage_stats || []).forEach(s => { stageMap[s.stage] = s; });
+
+      const stageRows = STAGES.map(stageName => {
+        const s = stageMap[stageName];
+        if (s) {
+          return `
             <div class="stage-row">
-              <div class="stage-name">${s.stage}</div>
+              <div class="stage-name">${stageName}</div>
               <div class="stage-record">${s.wins}勝${s.losses}敗</div>
               <div class="stage-winrate">${s.win_rate !== null ? s.win_rate + '%' : '-'}</div>
             </div>
-          `).join('')}
-        `;
-      } else {
-        stageHtml = '<p class="loading" style="margin-top:20px;">試合記録がありません</p>';
-      }
+          `;
+        } else {
+          return `
+            <div class="stage-no-record">
+              <div class="stage-name">${stageName}</div>
+              <div class="stage-record">記録なし</div>
+              <div class="stage-winrate">-</div>
+            </div>
+          `;
+        }
+      }).join('');
 
       document.getElementById('player-content').innerHTML = `
         <div class="profile-header">
@@ -426,22 +443,13 @@
           </div>
           <div style="font-size:0.85rem; color:#8b949e;">${d.wins}勝 ${d.losses}敗</div>
         </div>
-        ${stageHtml}
+        <div class="section-title">ステージ別成績</div>
+        ${stageRows}
       `;
     } catch (e) {
       document.getElementById('player-content').innerHTML = '<p class="error">データの取得に失敗しました</p>';
     }
   }
-
-  document.getElementById('ranking-search').addEventListener('input', e => {
-    const q = e.target.value.toLowerCase();
-    renderList('ranking-list', allRanking.filter(p => (p.display_name || p.user_id).toLowerCase().includes(q)), 'rating');
-  });
-
-  document.getElementById('peak-search').addEventListener('input', e => {
-    const q = e.target.value.toLowerCase();
-    renderList('peak-list', allPeak.filter(p => (p.display_name || p.user_id).toLowerCase().includes(q)), 'peak_rating');
-  });
 </script>
 </body>
 </html>
