@@ -5945,7 +5945,7 @@ async def auth_callback(code: str):
         user_data = user_res.json()
         user_id = user_data.get("id")
 
-    return RedirectResponse(f"/player?id={user_id}")
+    return RedirectResponse(f"/?id={user_id}")
 
 @api.get("/api/player/{user_id}")
 def get_player(user_id: str):
