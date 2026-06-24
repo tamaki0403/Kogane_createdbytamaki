@@ -5828,9 +5828,11 @@ def get_ranking():
 
         profile = profiles.get(uid, {})
         players.append({
+            "user_id": uid,
             "rating": rating,
             "display_name": profile.get("display_name"),
             "peak_rating": profile.get("peak_rating"),
+            "avatar_url": profile.get("avatar_url") or "https://cdn.discordapp.com/embed/avatars/0.png",
         })
 
     players.sort(key=lambda x: -x["rating"])
@@ -5852,6 +5854,7 @@ def get_peak_ranking():
             "user_id": uid,
             "display_name": profile.get("display_name") or uid,
             "peak_rating": peak,
+            "avatar_url": profile.get("avatar_url") or "https://cdn.discordapp.com/embed/avatars/0.png",
         })
 
     players.sort(key=lambda x: -x["peak_rating"])
@@ -5929,6 +5932,7 @@ def get_player_stats(user_id: str):
         "total": total,
         "win_rate": win_rate,
         "stage_stats": stage_list,
+        "avatar_url": profile.get("avatar_url") or "https://cdn.discordapp.com/embed/avatars/0.png",
     }, media_type="application/json; charset=utf-8")
     
 import httpx
