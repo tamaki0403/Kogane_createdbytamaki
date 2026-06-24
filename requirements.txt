@@ -2,3 +2,5 @@ discord.py
 fastapi
 uvicorn[standard]
 httpx
+PyJWT
+cryptography
