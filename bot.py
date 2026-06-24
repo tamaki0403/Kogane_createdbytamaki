@@ -5752,6 +5752,34 @@ async def update_display_names(ctx):
     save_player_profiles(player_profiles)
     await ctx.send(f"{count}人の名前を更新しました！")
 
+@bot.command(name="アバター更新")
+async def update_avatars(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if ctx.channel.id != ADMIN_CHANNEL_ID:
+        await ctx.send("このコマンドは運営チャンネルで使ってください")
+        return
+
+    try:
+        members = [member async for member in ctx.guild.fetch_members(limit=None)]
+    except Exception:
+        members = ctx.guild.members
+
+    count = 0
+    for member in members:
+        if member.bot:
+            continue
+        profile = get_player_profile(member.id)
+        if member.avatar:
+            profile["avatar_url"] = f"https://cdn.discordapp.com/avatars/{member.id}/{member.avatar}.png"
+        else:
+            profile["avatar_url"] = f"https://cdn.discordapp.com/embed/avatars/{member.discriminator % 5}.png"
+        count += 1
+
+    save_player_profiles(player_profiles)
+    await ctx.send(f"{count}人のアバターを更新しました！")
+    
 @bot.command(name="最高レート初期化")
 async def init_peak_rating(ctx):
     if ctx.author.id != OWNER_ID:
@@ -5944,8 +5972,11 @@ async def auth_callback(code: str):
         )
         user_data = user_res.json()
         user_id = user_data.get("id")
+        avatar = user_data.get("avatar")
 
-    return RedirectResponse(f"/?id={user_id}")
+    avatar_url = f"https://cdn.discordapp.com/avatars/{user_id}/{avatar}.png" if avatar else "https://cdn.discordapp.com/embed/avatars/0.png"
+
+    return RedirectResponse(f"/?id={user_id}&avatar={avatar_url}")
 
 @api.get("/api/player/{user_id}")
 def get_player(user_id: str):
