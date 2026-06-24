@@ -2919,18 +2919,6 @@ class AdminButtonView(discord.ui.View):
         await post_home_message(interaction.guild)
         await interaction.edit_original_response(content="ホームを更新しました")
 
-    @discord.ui.button(label="botアイコン", style=discord.ButtonStyle.secondary,
-                       custom_id="admin_bot_icon", row=0)
-    async def bot_icon_button(self, interaction: discord.Interaction, button):
-        if interaction.user.id != OWNER_ID:
-            await interaction.response.send_message("管理者専用です", ephemeral=True)
-            return
-        bot_user = bot.user
-        if bot_user.avatar:
-            await interaction.response.send_message(str(bot_user.avatar.url), ephemeral=True)
-        else:
-            await interaction.response.send_message("アイコンが設定されていません", ephemeral=True)
-
     # ========== 一覧系 ==========
     @discord.ui.button(label="武器一覧", style=discord.ButtonStyle.secondary,
                        custom_id="admin_weapon_list", row=1)
