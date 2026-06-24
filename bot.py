@@ -5709,7 +5709,25 @@ async def update_display_names(ctx):
     save_player_profiles(player_profiles)
     await ctx.send(f"{count}人の名前を更新しました！")
 
+@bot.command(name="最高レート初期化")
+async def init_peak_rating(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if ctx.channel.id != ADMIN_CHANNEL_ID:
+        await ctx.send("このコマンドは運営チャンネルで使ってください")
+        return
 
+    count = 0
+    for uid, profile in player_profiles.items():
+        if profile.get("peak_rating") is None:
+            current = get_user_rating(uid)
+            profile["peak_rating"] = current
+            count += 1
+
+    save_player_profiles(player_profiles)
+    await ctx.send(f"{count}人の最高レートを現在のレートで初期化しました！")
+    
 # =========================
 # 起動
 # =========================
