@@ -5791,52 +5791,20 @@ import easyocr
 import numpy as np
 
 async def analyze_splatoon_image(image_url: str):
-    import json, time, jwt
-
-    credentials_json = os.getenv("GOOGLE_VISION_CREDENTIALS")
-    if not credentials_json:
-        print("ERROR: GOOGLE_VISION_CREDENTIALS が未設定")
-        return None
-
-    creds = json.loads(credentials_json)
-
-    async with httpx.AsyncClient(timeout=30) as client:
-        now = int(time.time())
-        payload = {
-            "iss": creds["client_email"],
-            "scope": "https://www.googleapis.com/auth/cloud-platform",
-            "aud": "https://oauth2.googleapis.com/token",
-            "iat": now,
-            "exp": now + 3600,
-        }
-        token = jwt.encode(payload, creds["private_key"], algorithm="RS256")
-
-        token_res = await client.post(
-            "https://oauth2.googleapis.com/token",
-            data={
-                "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
-                "assertion": token,
-            }
-        )
-        print(f"TOKEN RESPONSE: {token_res.status_code} {token_res.text}")
-        if token_res.status_code != 200:
-            return None
-
-        access_token = token_res.json()["access_token"]
+    async with httpx.AsyncClient() as client:
         img_res = await client.get(image_url)
-        image_data = base64.b64encode(img_res.content).decode("utf-8")
 
-        vision_res = await client.post(
-            "https://vision.googleapis.com/v1/images:annotate",
-            headers={"Authorization": f"Bearer {access_token}"},
-            json={"requests": [{"image": {"content": image_data}, "features": [{"type": "TEXT_DETECTION"}]}]}
-        )
-        print(f"VISION RESPONSE: {vision_res.status_code} {vision_res.text[:500]}")
-        if vision_res.status_code != 200:
-            return None
+    image_bytes = np.frombuffer(img_res.content, np.uint8)
+    img = cv2.imdecode(image_bytes, cv2.IMREAD_COLOR)
 
-    return vision_res.json()["responses"][0].get("fullTextAnnotation", {}).get("text", "")
+    result = ocr_reader.readtext(img, detail=0)
 
+    raw_text = "\n".join(result)
+
+    print("OCR RESULT:")
+    print(raw_text)
+
+    return raw_text
 
 def parse_splatoon_result(raw_text: str):
     lines = [l.strip() for l in raw_text.split("\n") if l.strip()]
