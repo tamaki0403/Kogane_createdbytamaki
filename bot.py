@@ -5774,7 +5774,7 @@ async def update_avatars(ctx):
         if member.avatar:
             profile["avatar_url"] = f"https://cdn.discordapp.com/avatars/{member.id}/{member.avatar}.png"
         else:
-            profile["avatar_url"] = f"https://cdn.discordapp.com/embed/avatars/{member.discriminator % 5}.png"
+            profile["avatar_url"] = f"https://cdn.discordapp.com/embed/avatars/0.png"
         count += 1
 
     save_player_profiles(player_profiles)
