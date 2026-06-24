@@ -28,7 +28,6 @@
       font-size: 1rem;
       font-weight: bold;
       color: #e6edf3;
-      text-decoration: none;
       cursor: pointer;
     }
 
@@ -46,21 +45,36 @@
       border-bottom-color: #58a6ff;
     }
 
+    .nav-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .login-btn {
+      background: #5865f2;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .login-btn:hover { background: #4752c4; }
+
+    .user-name {
+      font-size: 0.85rem;
+      color: #8b949e;
+    }
+
     .page { display: none; padding: 24px 16px; max-width: 640px; margin: 0 auto; }
     .page.active { display: block; }
 
-    /* ホーム */
-    .home-title {
-      font-size: 1.4rem;
-      font-weight: bold;
-      margin-bottom: 8px;
-    }
-
-    .home-desc {
-      color: #8b949e;
-      font-size: 0.9rem;
-      margin-bottom: 28px;
-    }
+    .home-title { font-size: 1.4rem; font-weight: bold; margin-bottom: 8px; }
+    .home-desc { color: #8b949e; font-size: 0.9rem; margin-bottom: 28px; }
 
     .card-link {
       display: block;
@@ -71,35 +85,16 @@
       margin-bottom: 12px;
       text-decoration: none;
       color: inherit;
-      transition: border-color 0.2s;
       cursor: pointer;
+      transition: border-color 0.2s;
     }
 
     .card-link:hover { border-color: #58a6ff; }
+    .card-link .card-title { font-size: 1rem; font-weight: bold; margin-bottom: 4px; }
+    .card-link .card-desc { font-size: 0.85rem; color: #8b949e; }
 
-    .card-link .card-title {
-      font-size: 1rem;
-      font-weight: bold;
-      margin-bottom: 4px;
-    }
-
-    .card-link .card-desc {
-      font-size: 0.85rem;
-      color: #8b949e;
-    }
-
-    /* ランキング共通 */
-    .page-title {
-      font-size: 1.3rem;
-      font-weight: bold;
-      margin-bottom: 4px;
-    }
-
-    .subtitle {
-      font-size: 0.85rem;
-      color: #8b949e;
-      margin-bottom: 20px;
-    }
+    .page-title { font-size: 1.3rem; font-weight: bold; margin-bottom: 4px; }
+    .subtitle { font-size: 0.85rem; color: #8b949e; margin-bottom: 20px; }
 
     .search-box {
       display: block;
@@ -125,7 +120,11 @@
       display: flex;
       align-items: center;
       gap: 14px;
+      cursor: pointer;
+      transition: border-color 0.2s;
     }
+
+    .player-card:hover { border-color: #58a6ff; }
 
     .rank-num {
       font-size: 1rem;
@@ -141,21 +140,72 @@
     .rank-num.r3 { color: #b87333; }
 
     .player-info { flex: 1; min-width: 0; }
+    .player-name { font-size: 0.95rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .player-rating { font-size: 1.2rem; font-weight: bold; color: #58a6ff; flex-shrink: 0; }
 
-    .player-name {
-      font-size: 0.95rem;
-      font-weight: bold;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    /* 個人ページ */
+    .profile-header {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
     }
 
-    .player-rating {
-      font-size: 1.2rem;
-      font-weight: bold;
-      color: #58a6ff;
-      flex-shrink: 0;
+    .profile-name { font-size: 1.3rem; font-weight: bold; margin-bottom: 12px; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
     }
+
+    .stat-box {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .stat-label { font-size: 0.75rem; color: #8b949e; margin-bottom: 4px; }
+    .stat-value { font-size: 1.3rem; font-weight: bold; color: #58a6ff; }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: bold;
+      margin: 20px 0 10px;
+      color: #8b949e;
+    }
+
+    .stage-row {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .stage-name { flex: 1; font-size: 0.9rem; }
+    .stage-record { font-size: 0.85rem; color: #8b949e; }
+    .stage-winrate { font-size: 0.95rem; font-weight: bold; color: #58a6ff; min-width: 48px; text-align: right; }
+
+    .back-btn {
+      background: none;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #8b949e;
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      margin-bottom: 16px;
+    }
+
+    .back-btn:hover { color: #e6edf3; border-color: #58a6ff; }
 
     .loading { text-align: center; color: #8b949e; margin-top: 60px; }
     .error { text-align: center; color: #f85149; margin-top: 60px; }
@@ -168,6 +218,10 @@
   <a href="#" onclick="showPage('home')" id="nav-home" class="active">ホーム</a>
   <a href="#" onclick="showPage('ranking')" id="nav-ranking">レートランキング</a>
   <a href="#" onclick="showPage('peak')" id="nav-peak">最高レートランキング</a>
+  <div class="nav-right">
+    <span class="user-name" id="nav-username"></span>
+    <a class="login-btn" id="login-btn" href="/auth/login">Discordでログイン</a>
+  </div>
 </nav>
 
 <!-- ホーム -->
@@ -184,6 +238,11 @@
     <div class="card-link" onclick="showPage('peak')">
       <div class="card-title">最高レートランキング</div>
       <div class="card-desc">これまでの最高レートによる順位表</div>
+    </div>
+
+    <div class="card-link" id="my-page-card" onclick="showMyPage()" style="display:none;">
+      <div class="card-title">マイページ</div>
+      <div class="card-desc">自分の勝率・ステージ別成績を確認</div>
     </div>
   </div>
 </div>
@@ -204,20 +263,65 @@
   <div id="peak-list"><p class="loading">データを取得しています...</p></div>
 </div>
 
+<!-- 個人ページ -->
+<div class="page" id="page-player">
+  <button class="back-btn" onclick="history.back(); showPage('ranking')">戻る</button>
+  <div id="player-content"><p class="loading">読み込み中...</p></div>
+</div>
+
 <script>
   let allRanking = [];
   let allPeak = [];
   let rankingLoaded = false;
   let peakLoaded = false;
+  let currentUserId = null;
+
+  // URLパラメータ確認
+  const params = new URLSearchParams(window.location.search);
+  const urlId = params.get('id');
+  if (urlId) {
+    currentUserId = urlId;
+    localStorage.setItem('discord_user_id', urlId);
+    // URLをきれいにする
+    window.history.replaceState({}, '', '/');
+  } else {
+    currentUserId = localStorage.getItem('discord_user_id');
+  }
+
+  // ログイン状態の反映
+  if (currentUserId) {
+    document.getElementById('login-btn').style.display = 'none';
+    document.getElementById('my-page-card').style.display = 'block';
+    // 名前を取得して表示
+    fetch(`/api/player_stats/${currentUserId}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.display_name) {
+          document.getElementById('nav-username').textContent = d.display_name;
+        }
+      }).catch(() => {});
+  }
 
   function showPage(name) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
     document.getElementById('page-' + name).classList.add('active');
-    document.getElementById('nav-' + name).classList.add('active');
+    const navEl = document.getElementById('nav-' + name);
+    if (navEl) navEl.classList.add('active');
 
     if (name === 'ranking' && !rankingLoaded) loadRanking();
     if (name === 'peak' && !peakLoaded) loadPeak();
+  }
+
+  function showMyPage() {
+    if (!currentUserId) return;
+    loadPlayerPage(currentUserId);
+    showPage('player');
+  }
+
+  function showPlayerPage(userId) {
+    loadPlayerPage(userId);
+    showPage('player');
   }
 
   function rankLabel(rank) {
@@ -234,7 +338,7 @@
       return;
     }
     el.innerHTML = players.map(p => `
-      <div class="player-card">
+      <div class="player-card" onclick="showPlayerPage('${p.user_id}')">
         ${rankLabel(p.rank)}
         <div class="player-info">
           <div class="player-name">${p.display_name || p.user_id}</div>
@@ -270,16 +374,73 @@
     }
   }
 
+  async function loadPlayerPage(userId) {
+    document.getElementById('player-content').innerHTML = '<p class="loading">読み込み中...</p>';
+    try {
+      const res = await fetch(`/api/player_stats/${userId}`);
+      const d = await res.json();
+      if (d.error) {
+        document.getElementById('player-content').innerHTML = '<p class="error">プレイヤーが見つかりません</p>';
+        return;
+      }
+
+      const winRate = d.win_rate !== null ? `${d.win_rate}%` : '-';
+      const peak = d.peak_rating || '-';
+
+      let stageHtml = '';
+      if (d.stage_stats && d.stage_stats.length > 0) {
+        stageHtml = `
+          <div class="section-title">ステージ別成績</div>
+          ${d.stage_stats.map(s => `
+            <div class="stage-row">
+              <div class="stage-name">${s.stage}</div>
+              <div class="stage-record">${s.wins}勝${s.losses}敗</div>
+              <div class="stage-winrate">${s.win_rate !== null ? s.win_rate + '%' : '-'}</div>
+            </div>
+          `).join('')}
+        `;
+      } else {
+        stageHtml = '<p class="loading" style="margin-top:20px;">試合記録がありません</p>';
+      }
+
+      document.getElementById('player-content').innerHTML = `
+        <div class="profile-header">
+          <div class="profile-name">${d.display_name || d.user_id}</div>
+          <div class="stats-grid">
+            <div class="stat-box">
+              <div class="stat-label">現在のレート</div>
+              <div class="stat-value">${d.rating}</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">最高レート</div>
+              <div class="stat-value">${peak}</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">勝率</div>
+              <div class="stat-value">${winRate}</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">試合数</div>
+              <div class="stat-value">${d.total}</div>
+            </div>
+          </div>
+          <div style="font-size:0.85rem; color:#8b949e;">${d.wins}勝 ${d.losses}敗</div>
+        </div>
+        ${stageHtml}
+      `;
+    } catch (e) {
+      document.getElementById('player-content').innerHTML = '<p class="error">データの取得に失敗しました</p>';
+    }
+  }
+
   document.getElementById('ranking-search').addEventListener('input', e => {
     const q = e.target.value.toLowerCase();
-    const filtered = allRanking.filter(p => (p.display_name || p.user_id).toLowerCase().includes(q));
-    renderList('ranking-list', filtered, 'rating');
+    renderList('ranking-list', allRanking.filter(p => (p.display_name || p.user_id).toLowerCase().includes(q)), 'rating');
   });
 
   document.getElementById('peak-search').addEventListener('input', e => {
     const q = e.target.value.toLowerCase();
-    const filtered = allPeak.filter(p => (p.display_name || p.user_id).toLowerCase().includes(q));
-    renderList('peak-list', filtered, 'peak_rating');
+    renderList('peak-list', allPeak.filter(p => (p.display_name || p.user_id).toLowerCase().includes(q)), 'peak_rating');
   });
 </script>
 </body>
