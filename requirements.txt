@@ -4,3 +4,8 @@ uvicorn[standard]
 httpx
 PyJWT
 cryptography
+
+easyocr
+opencv-python-headless
+numpy
+Pillow
