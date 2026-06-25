@@ -595,7 +595,10 @@
         <div class="profile-header">
           <div class="profile-top">
             <img class="profile-avatar" src="${avatar}" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'" alt="">
-            <div class="profile-name">${d.display_name || d.user_id}</div>
+            <div>
+              <div class="profile-name">${d.display_name || d.user_id}</div>
+              ${d.play_type ? `<div style="font-size:0.85rem; color:#58a6ff; font-weight:bold; margin-top:4px;">${d.play_type}</div>` : ''}
+            </div>
           </div>
           <div class="stats-grid">
             <div class="stat-box"><div class="stat-label">現在のレート</div><div class="stat-value">${d.rating}</div></div>
@@ -608,7 +611,6 @@
             <div class="stat-box"><div class="stat-label">平均塗り</div><div class="stat-value">${d.avg_paint ?? '-'}</div></div>
           </div>
           <div style="font-size:0.85rem; color:#8b949e;">${d.wins}勝 ${d.losses}敗</div>
-          ${d.play_type ? `<div style="font-size:0.85rem; color:#8b949e;">プレイタイプ: <span style="color:#58a6ff; font-weight:bold;">${d.play_type}</span></div>` : ''}
         </div>
 
         <div class="accordion-header" onclick="toggleAccordion('graph')">
