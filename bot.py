@@ -498,8 +498,6 @@ def initialize_player_profile(user_id: int):
     defaults = {
         "weapon": None,
         "xp": None,
-        "initial_applied": False,
-        "can_apply_initial_bonus": True,
         "owned_badges": [],
         "selected_badge": None,
         "coins": 0,
@@ -541,26 +539,6 @@ def get_weapon_text(user_id: int):
     profile = get_player_profile(user_id)
     weapon = profile.get("weapon")
     return weapon if weapon else "未登録"
-
-
-def get_xp_adjustment(xp: int):
-    if xp <= 1500:   return -500
-    if xp <= 1999:   return -400
-    if xp <= 2199:   return -300
-    if xp <= 2399:   return -200
-    if xp <= 2499:   return -100
-    if xp <= 2599:   return 0
-    if xp <= 2799:   return 100
-    if xp <= 2999:   return 150
-    if xp <= 3099:   return 200
-    if xp <= 3199:   return 250
-    if xp <= 3299:   return 300
-    if xp <= 3399:   return 350
-    if xp <= 3499:   return 400
-    if xp <= 3599:   return 450
-    if xp <= 3699:   return 500
-    return 700
-
 
 def get_current_class_text(user):
     rank = get_user_rank(user.id)
@@ -695,14 +673,7 @@ def format_member_lines(members, *, mention=False, include_weapon=False, include
 
 
 def mark_match_played_for_members(members):
-    changed = False
-    for member in members:
-        profile = get_player_profile(member.id)
-        if profile.get("can_apply_initial_bonus", True):
-            profile["can_apply_initial_bonus"] = False
-            changed = True
-    if changed:
-        save_player_profiles(player_profiles)
+    pass
 
 
 # =========================
@@ -1053,6 +1024,8 @@ def create_room_state():
         "disconnect_vote": None,
         "current_stage": None,
         "excluded_stages": [],
+        "lost_enabled": False,
+        "lost_stages": [],
     }
 
 
@@ -1515,16 +1488,31 @@ def create_ready_text(room_state):
 
 def create_playing_text(team_alpha, team_bravo, room_key=None):
     excluded = []
+    lost_stages = []
+    lost_enabled = False
     if room_key:
         excluded = room_states[room_key].get("excluded_stages", [])
+        lost_enabled = room_states[room_key].get("lost_enabled", False)
+        lost_stages = room_states[room_key].get("lost_stages", [])
 
-    available_stages = [s for s in STAGES if s not in excluded]
+    if lost_enabled:
+        available_stages = [s for s in STAGES if s not in excluded and s not in lost_stages]
+        if not available_stages:
+            room_states[room_key]["lost_stages"] = []
+            lost_stages = []
+            available_stages = [s for s in STAGES if s not in excluded]
+    else:
+        available_stages = [s for s in STAGES if s not in excluded]
+
     if not available_stages:
         available_stages = STAGES
 
     stage = random.choice(available_stages)
+
     if room_key:
         room_states[room_key]["current_stage"] = stage
+        if lost_enabled:
+            room_states[room_key]["lost_stages"].append(stage)
 
     def fmt(team):
         return "\n".join(
@@ -1539,13 +1527,33 @@ def create_playing_text(team_alpha, team_bravo, room_key=None):
         f"【ブラボー】\n{fmt(team_bravo)}"
     )
 
-
-def create_finished_text(room_state):
+def create_finished_text(room_state, room_key=None):
     lines = ["【試合終了】次の行動を選んでください。", ""]
 
     prepared = room_state.get("prepared_match")
     if prepared:
         next_team_alpha, next_team_bravo = prepared
+
+        if room_key:
+            excluded = room_state.get("excluded_stages", [])
+            lost_enabled = room_state.get("lost_enabled", False)
+            lost_stages = room_state.get("lost_stages", [])
+            if lost_enabled:
+                available = [s for s in STAGES if s not in excluded and s not in lost_stages]
+                if not available:
+                    available = [s for s in STAGES if s not in excluded]
+            else:
+                available = [s for s in STAGES if s not in excluded]
+            if not available:
+                available = STAGES
+            next_stage = random.choice(available)
+        else:
+            next_stage = None
+
+        if next_stage:
+            lines.append(f"【次のステージ】{next_stage}")
+            lines.append("")
+
         alpha_avg = calc_team_avg(next_team_alpha)
         bravo_avg = calc_team_avg(next_team_bravo)
         alpha_names = " ".join(build_player_display(u) for u in next_team_alpha)
@@ -1577,6 +1585,35 @@ def create_disconnect_vote_text(target):
 # =========================
 # 募集モーダル
 # =========================
+class LostModeSelectView(discord.ui.View):
+    def __init__(self, host_name, plave_content, start_time, user_id, excluded_stages):
+        super().__init__(timeout=60)
+        self.host_name = host_name
+        self.plave_content = plave_content
+        self.start_time = start_time
+        self.user_id = user_id
+        self.excluded_stages = excluded_stages
+
+    @discord.ui.button(label="ロスト制あり", style=discord.ButtonStyle.primary)
+    async def lost_yes(self, interaction: discord.Interaction, button):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("自分の募集のみ操作できます", ephemeral=True)
+            return
+        await finalize_recruit_creation(
+            interaction, self.plave_content, self.start_time, self.host_name,
+            self.excluded_stages, lost_enabled=True
+        )
+
+    @discord.ui.button(label="ロスト制なし", style=discord.ButtonStyle.secondary)
+    async def lost_no(self, interaction: discord.Interaction, button):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("自分の募集のみ操作できます", ephemeral=True)
+            return
+        await finalize_recruit_creation(
+            interaction, self.plave_content, self.start_time, self.host_name,
+            self.excluded_stages, lost_enabled=False
+        )
+        
 class StageExcludeView(discord.ui.View):
     def __init__(self, host_name: str, plave_content: str, start_time: str, user_id: int):
         super().__init__(timeout=60)
@@ -1601,20 +1638,22 @@ class StageExcludeView(discord.ui.View):
                 await interaction.response.send_message("自分の募集のみ操作できます", ephemeral=True)
                 return
             excluded = select.values
-            await finalize_recruit_creation(
-                interaction, self.plave_content, self.start_time, self.host_name, excluded
+            await interaction.response.edit_message(
+                content="ロスト制の設定を選んでください",
+                view=LostModeSelectView(self.host_name, self.plave_content, self.start_time, self.user_id, excluded)
             )
 
         select.callback = select_callback
         self.add_item(select)
 
-    @discord.ui.button(label="除外なしで作成", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="除外なしで次へ", style=discord.ButtonStyle.secondary)
     async def skip_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != self.user_id:
             await interaction.response.send_message("自分の募集のみ操作できます", ephemeral=True)
             return
-        await finalize_recruit_creation(
-            interaction, self.plave_content, self.start_time, self.host_name, []
+        await interaction.response.edit_message(
+            content="ロスト制の設定を選んでください",
+            view=LostModeSelectView(self.host_name, self.plave_content, self.start_time, self.user_id, [])
         )
 
 
@@ -1644,25 +1683,33 @@ class RecruitModal(discord.ui.Modal, title="募集作成"):
         )
 
 
-async def finalize_recruit_creation(interaction: discord.Interaction, plave_content: str, start_time: str, host_name: str, excluded_stages: list):
+async def finalize_recruit_creation(interaction: discord.Interaction, plave_content: str, start_time: str, host_name: str, excluded_stages: list, lost_enabled: bool = False):
     recruit_channel = get_recruit_channel(interaction.guild)
     if recruit_channel is None:
         await interaction.response.send_message("募集チャンネルが見つかりません", ephemeral=True)
         return
 
     stage_text = "一部除外" if excluded_stages else "除外なし"
+    lost_text = "ロスト制あり" if lost_enabled else ""
 
     await recruit_channel.send("@everyone")
 
-    content = (
-        f"【募集】参加する場合は下のボタンをおしてください！\n"
-        f"プラベ内容: {plave_content}\n"
-        f"開始時刻: {start_time}\n"
-        f"ステージ: {stage_text}\n"
-        f"募集主: {host_name}\n\n"
-        f"0/{ROOM_CAPACITY}人\n\n"
-        f"参加者なし"
-    )
+    lines = [
+        f"【募集】参加する場合は下のボタンをおしてください！",
+        f"プラベ内容: {plave_content}",
+        f"開始時刻: {start_time}",
+        f"ステージ: {stage_text}",
+    ]
+    if lost_text:
+        lines.append(f"ロスト制: {lost_text}")
+    lines += [
+        f"募集主: {host_name}",
+        "",
+        f"0/{ROOM_CAPACITY}人",
+        "",
+        "参加者なし",
+    ]
+    content = "\n".join(lines)
 
     view = RecruitView.__new__(RecruitView)
     discord.ui.View.__init__(view, timeout=None)
@@ -1678,6 +1725,7 @@ async def finalize_recruit_creation(interaction: discord.Interaction, plave_cont
         "plave_content": plave_content,
         "start_time": start_time,
         "excluded_stages": excluded_stages,
+        "lost_enabled": lost_enabled,
         "message_id": msg.id,
         "capacity": ROOM_CAPACITY,
         "notify_message_id": None,
@@ -1737,7 +1785,6 @@ HELP_TEXTS = {
         "【レートについて】\n\n"
         "📊 基本\n"
         "・初期レートは2500です\n"
-        "・プレイヤー登録時に最高XPに応じて補正が入ります\n"
         "・試合結果に応じてレートが増減します\n\n"
         "📈 レート変動\n"
         "・勝利：相手チームとのレート差や試合のパターンに\n"
@@ -1845,6 +1892,7 @@ class RecruitView(discord.ui.View):
         host_name = recruit_data.get("host_name", "")
         excluded_stages = recruit_data.get("excluded_stages", [])
         stage_text = "一部除外" if excluded_stages else "除外なし"
+        lost_enabled = recruit_data.get("lost_enabled", False)
         capacity = recruit_data.get("capacity", ROOM_CAPACITY)
         total = len(players) + len(reserved)
 
@@ -1856,15 +1904,22 @@ class RecruitView(discord.ui.View):
 
         player_lines = "\n".join(lines) if lines else "参加者なし"
 
-        return (
-            f"【募集】参加する場合は下のボタンをおしてください！\n"
-            f"プラベ内容: {plave_content}\n"
-            f"開始時刻: {start_time}\n"
-            f"ステージ: {stage_text}\n"
-            f"募集主: {host_name}\n\n"
-            f"{total}/{capacity}人\n\n"
-            f"{player_lines}"
-        )
+        content_lines = [
+            f"【募集】参加する場合は下のボタンをおしてください！",
+            f"プラベ内容: {plave_content}",
+            f"開始時刻: {start_time}",
+            f"ステージ: {stage_text}",
+        ]
+        if lost_enabled:
+            content_lines.append("ロスト制: ロスト制あり")
+        content_lines += [
+            f"募集主: {host_name}",
+            "",
+            f"{total}/{capacity}人",
+            "",
+            player_lines,
+        ]
+        return "\n".join(content_lines)
 
     async def send_notify_message(self, recruit_channel, recruit_data):
         capacity = recruit_data.get("capacity", ROOM_CAPACITY)
@@ -2096,6 +2151,8 @@ class RecruitConfirmView(discord.ui.View):
         room_state["joined_players"] = players[:]
         room_state["host_id"] = str(recruit_data["host_id"])
         room_state["excluded_stages"] = recruit_data.get("excluded_stages", [])
+        room_state["lost_enabled"] = recruit_data.get("lost_enabled", False)
+        room_state["lost_stages"] = []
 
         for player in players:
             ensure_session_player(room_state, player)
@@ -2571,23 +2628,6 @@ class PlayerRegisterModal(discord.ui.Modal, title="プレイヤー登録"):
             f"持ち武器を登録したぞ！ → {weapon}",
             f"最高XPを登録したぞ！ → {xp}",
         ]
-
-        can_apply = profile.get("can_apply_initial_bonus", True)
-        already_applied = profile.get("initial_applied", False)
-
-        if can_apply and not already_applied:
-            adjustment = get_xp_adjustment(xp)
-            new_rating = DEFAULT_RATING + adjustment
-            old_rating = get_user_rating(user.id)
-            set_user_rating(user.id, new_rating)
-            save_ratings(ratings)
-            profile["initial_applied"] = True
-            lines.append(f"XP補正を反映したぞ！ {old_rating} → {new_rating}")
-        else:
-            if not can_apply:
-                lines.append("このプレイヤーは初期補正権がないため、XP補正は適用されない。")
-            else:
-                lines.append("XP情報は更新したが、レート補正は既に適用済みだ。")
 
         save_player_profiles(player_profiles)
         await interaction.response.send_message("\n".join(lines), ephemeral=True)
@@ -3196,46 +3236,6 @@ class AdminButtonView_Rate(discord.ui.View):
         save_player_profiles(player_profiles)
         await interaction.edit_original_response(content=f"{count}人の最高レートを初期化しました")
 
-    @discord.ui.button(label="全員初期補正付与", style=discord.ButtonStyle.danger, custom_id="admin_bonus_grant_all")
-    async def bonus_grant_all_button(self, interaction: discord.Interaction, button):
-        if interaction.user.id != OWNER_ID:
-            await interaction.response.send_message("管理者専用です", ephemeral=True)
-            return
-        await interaction.response.send_message("付与中...", ephemeral=True)
-        members = [m for m in interaction.guild.members if not m.bot]
-        for member in members:
-            profile = get_player_profile(member.id)
-            profile["can_apply_initial_bonus"] = True
-            profile["initial_applied"] = False
-        save_player_profiles(player_profiles)
-        await interaction.edit_original_response(content=f"全員に初期補正権を付与しました（{len(members)}人）")
-
-    @discord.ui.button(label="全員初期補正剥奪", style=discord.ButtonStyle.danger, custom_id="admin_bonus_revoke_all")
-    async def bonus_revoke_all_button(self, interaction: discord.Interaction, button):
-        if interaction.user.id != OWNER_ID:
-            await interaction.response.send_message("管理者専用です", ephemeral=True)
-            return
-        await interaction.response.send_message("剥奪中...", ephemeral=True)
-        members = [m for m in interaction.guild.members if not m.bot]
-        for member in members:
-            get_player_profile(member.id)["can_apply_initial_bonus"] = False
-        save_player_profiles(player_profiles)
-        await interaction.edit_original_response(content=f"全員の初期補正権を剥奪しました（{len(members)}人）")
-
-    @discord.ui.button(label="初期補正権付与", style=discord.ButtonStyle.danger, custom_id="admin_bonus_grant")
-    async def bonus_grant_button(self, interaction: discord.Interaction, button):
-        if interaction.user.id != OWNER_ID:
-            await interaction.response.send_message("管理者専用です", ephemeral=True)
-            return
-        await interaction.response.send_message("運営チャンネルで `!初期補正権付与 ユーザーID` を使ってください", ephemeral=True)
-
-    @discord.ui.button(label="初期補正権剥奪", style=discord.ButtonStyle.danger, custom_id="admin_bonus_revoke")
-    async def bonus_revoke_button(self, interaction: discord.Interaction, button):
-        if interaction.user.id != OWNER_ID:
-            await interaction.response.send_message("管理者専用です", ephemeral=True)
-            return
-        await interaction.response.send_message("運営チャンネルで `!初期補正権剥奪 ユーザーID` を使ってください", ephemeral=True)
-
 
 class AdminButtonView_Bulk(discord.ui.View):
     def __init__(self):
@@ -3828,14 +3828,22 @@ async def process_result(guild, room_key, winner_num: int):
 
     room_state["game_state"] = "finished"
     view = FinishedView(room_key, room_state)
-    await update_control_message(guild, room_key, create_finished_text(room_state), view=view)
+    await update_control_message(guild, room_key, create_finished_text(room_state, room_key), view=view)
 
     # 戦績入力ボタンを戦績入力チャンネルに送信
     stats_ch = get_room_stats_channel(guild, room_key)
     if stats_ch:
         match_id = match_record["timestamp"]
+        alpha_names = "、".join(u.display_name for u in team_alpha)
+        bravo_names = "、".join(u.display_name for u in team_bravo)
+        stage_display = room_state.get("current_stage") or "不明"
         await stats_ch.send(
-            "試合が終わりました！戦績を入力してください。",
+            f"【戦績入力】\n"
+            f"ステージ: {stage_display}\n"
+            f"アルファ: {alpha_names}\n"
+            f"ブラボー: {bravo_names}\n\n"
+            f"戦績を入力すると個人統計データに反映されます。\n"
+            f"入力は任意です。試合の進行には影響しません。",
             view=StatsInputView(match_id, room_key)
         )
 
@@ -4495,23 +4503,6 @@ async def process_bulk_admin_message(message: discord.Message):
             changed_ratings = True
             success_lines.append(line)
 
-        elif command_name == "初期補正付与":
-            if args:
-                error_lines.append(f"{line_no}行目: 余分な入力があります -> {line}")
-                continue
-            profile["can_apply_initial_bonus"] = True
-            profile["initial_applied"] = False
-            changed_profiles = True
-            success_lines.append(line)
-
-        elif command_name == "初期補正剥奪":
-            if args:
-                error_lines.append(f"{line_no}行目: 余分な入力があります -> {line}")
-                continue
-            profile["can_apply_initial_bonus"] = False
-            changed_profiles = True
-            success_lines.append(line)
-
         elif command_name == "最高レート":
             if len(args) != 1 or not args[0].lstrip("-").isdigit():
                 error_lines.append(f"{line_no}行目: レート値が不正です -> {line}")
@@ -4964,73 +4955,6 @@ async def reset_all_rates(ctx):
             "XP補正を反映したい人は、プレイヤー登録ボタンからもう一度登録してくれ。"
         )
 
-
-@bot.command(name="全員初期補正権付与")
-async def grant_all_initial_bonus(ctx):
-    if ctx.author.id != OWNER_ID:
-        await ctx.send("管理者専用です")
-        return
-    if ctx.channel.id != ADMIN_CHANNEL_ID:
-        await ctx.send("このコマンドは運営チャンネルで使ってください")
-        return
-
-    members = [m for m in ctx.guild.members if not m.bot]
-    for member in members:
-        profile = get_player_profile(member.id)
-        profile["can_apply_initial_bonus"] = True
-        profile["initial_applied"] = False
-
-    save_player_profiles(player_profiles)
-    await ctx.send(f"全員に初期補正権を付与しました（{len(members)}人）")
-
-
-@bot.command(name="全員初期補正権剥奪")
-async def revoke_all_initial_bonus(ctx):
-    if ctx.author.id != OWNER_ID:
-        await ctx.send("管理者専用です")
-        return
-    if ctx.channel.id != ADMIN_CHANNEL_ID:
-        await ctx.send("このコマンドは運営チャンネルで使ってください")
-        return
-
-    members = [m for m in ctx.guild.members if not m.bot]
-    for member in members:
-        get_player_profile(member.id)["can_apply_initial_bonus"] = False
-
-    save_player_profiles(player_profiles)
-    await ctx.send(f"全員の初期補正権を剥奪しました（{len(members)}人）")
-
-
-@bot.command(name="初期補正権付与")
-async def grant_initial_bonus(ctx, user_id: int):
-    if ctx.author.id != OWNER_ID:
-        await ctx.send("管理者専用です")
-        return
-    if ctx.channel.id != ADMIN_CHANNEL_ID:
-        await ctx.send("このコマンドは運営チャンネルで使ってください")
-        return
-
-    profile = get_player_profile(user_id)
-    profile["can_apply_initial_bonus"] = True
-    profile["initial_applied"] = False
-    save_player_profiles(player_profiles)
-    name = await get_member_display_name_by_id(ctx.guild, user_id)
-    await ctx.send(f"{name} に初期補正権を付与しました")
-
-
-@bot.command(name="初期補正権剥奪")
-async def revoke_initial_bonus(ctx, user_id: int):
-    if ctx.author.id != OWNER_ID:
-        await ctx.send("管理者専用です")
-        return
-    if ctx.channel.id != ADMIN_CHANNEL_ID:
-        await ctx.send("このコマンドは運営チャンネルで使ってください")
-        return
-
-    get_player_profile(user_id)["can_apply_initial_bonus"] = False
-    save_player_profiles(player_profiles)
-    name = await get_member_display_name_by_id(ctx.guild, user_id)
-    await ctx.send(f"{name} の初期補正権を剥奪しました")
 
 
 @bot.command(name="ホームメッセージ更新")
