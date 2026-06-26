@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -386,7 +386,7 @@
 <div class="page active" id="page-home">
 
   <!-- ヒーロースライダー -->
-  <div id="hero-slider" style="position:relative; width:100vw; left:50%; transform:translateX(-50%); height:220px; overflow:hidden; margin-bottom:24px;">
+  <div id="hero-slider" style="position:relative; width:100vw; left:50%; transform:translateX(-50%); height:340px; overflow:hidden; margin-bottom:24px;">
     <div id="hero-slides" style="display:flex; height:100%; transition:transform 0.6s ease;">
       <div style="min-width:100%; height:100%; background:url('https://i.imgur.com/DiCGKCt.jpeg') center/cover no-repeat;"></div>
       <div style="min-width:100%; height:100%; background:url('https://i.imgur.com/fs94BGp.jpeg') center/cover no-repeat;"></div>
@@ -641,7 +641,6 @@
             <img class="profile-avatar" src="${avatar}" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'" alt="">
             <div>
               <div class="profile-name">${d.display_name || d.user_id}</div>
-              ${d.play_type ? `<div style="font-size:0.85rem; color:#58a6ff; font-weight:bold; margin-top:4px;">${d.play_type}</div>` : ''}
             </div>
           </div>
           <div class="stats-grid">
@@ -656,6 +655,21 @@
           </div>
           <div style="font-size:0.85rem; color:#8b949e;">${d.wins}勝 ${d.losses}敗</div>
         </div>
+
+        ${d.play_type ? `
+        <div style="background:#161b22; border:1px solid #30363d; border-radius:12px; padding:20px; margin-bottom:16px; min-height:160px; display:flex; flex-direction:column; justify-content:space-between;">
+          <div style="font-size:0.75rem; color:#8b949e;">あなたのスタイルは</div>
+          <div style="font-size:2rem; font-weight:bold; color:#58a6ff; text-align:center; margin:12px 0;">${d.play_type}</div>
+          <div style="font-size:0.82rem; color:#8b949e; line-height:1.6;">${{
+            'エース': '高いキル力と生存力を兼ね備えた戦場の要。的確に敵を仕留めながら自らは生き残り続ける。',
+            'アンカー': '冷静な判断で生き残ることを優先する堅実なプレイヤー。チームの土台として安定した戦いを支える。',
+            'ユーティリティ': 'スペシャルを積極的に活用してチームを動かすサポーター。局面の打開に欠かせない存在。',
+            'コントローラー': '圧倒的な塗り量でフィールドを支配するプレイヤー。チームに有利な状況を作り出すことに長ける。',
+            'スペースメーカー': '自ら前線に飛び込み敵の注意を引きつけるプレイヤー。その犠牲が味方の動きやすさを生み出す。',
+            'アタッカー': '激しい撃ち合いを恐れずに前線を押し上げるプレイヤー。高いキルとデスがその果敢さを物語る。',
+            'オールラウンダー': '特定の突出した特徴はないが状況に応じて柔軟に対応できるプレイヤー。どんな場面でも安定して戦える。',
+          }[d.play_type] || ''}</div>
+        </div>` : ''}
 
         <div class="accordion-header" onclick="toggleAccordion('graph')">
           <span>レート変動（直近${rateCount}戦）</span>
