@@ -6,352 +6,72 @@
   <title>Kogane</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      background: #0d1117;
-      color: #e6edf3;
-      font-family: 'Segoe UI', 'Hiragino Sans', sans-serif;
-      min-height: 100vh;
-    }
-
-    nav {
-      background: #161b22;
-      border-bottom: 1px solid #30363d;
-      padding: 0 16px;
-      display: flex;
-      align-items: center;
-      height: 52px;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-
-    .nav-brand {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-      color: #e6edf3;
-      text-decoration: none;
-    }
-
-    .nav-brand-icon {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      object-fit: cover;
-      flex-shrink: 0;
-    }
-
+    body { background: #0d1117; color: #e6edf3; font-family: 'Segoe UI', 'Hiragino Sans', sans-serif; min-height: 100vh; }
+    nav { background: #161b22; border-bottom: 1px solid #30363d; padding: 0 16px; display: flex; align-items: center; height: 52px; position: sticky; top: 0; z-index: 100; }
+    .nav-brand { display: flex; align-items: center; gap: 8px; cursor: pointer; color: #e6edf3; text-decoration: none; }
+    .nav-brand-icon { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
     .nav-brand-text { font-size: 1rem; font-weight: bold; }
-
-    .nav-right {
-      margin-left: auto;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .login-btn {
-      background: #5865f2;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      padding: 6px 14px;
-      font-size: 0.85rem;
-      cursor: pointer;
-      text-decoration: none;
-      white-space: nowrap;
-    }
-
+    .nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .login-btn { background: #5865f2; color: #fff; border: none; border-radius: 6px; padding: 6px 14px; font-size: 0.85rem; cursor: pointer; text-decoration: none; white-space: nowrap; }
     .login-btn:hover { background: #4752c4; }
-
-    .user-info {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-      padding: 4px 8px;
-      border-radius: 8px;
-      transition: background 0.2s;
-    }
-
+    .user-info { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 8px; border-radius: 8px; transition: background 0.2s; }
     .user-info:hover { background: #21262d; }
     .user-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
     .user-name { font-size: 0.85rem; color: #e6edf3; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-    .hamburger {
-      background: none;
-      border: none;
-      cursor: pointer;
-      padding: 6px;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      margin-left: 12px;
-    }
-
-    .hamburger span {
-      display: block;
-      width: 22px;
-      height: 2px;
-      background: #e6edf3;
-      border-radius: 2px;
-      transition: all 0.3s;
-    }
-
+    .hamburger { background: none; border: none; cursor: pointer; padding: 6px; display: flex; flex-direction: column; gap: 5px; margin-left: 12px; }
+    .hamburger span { display: block; width: 22px; height: 2px; background: #e6edf3; border-radius: 2px; transition: all 0.3s; }
     .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
     .hamburger.open span:nth-child(2) { opacity: 0; }
     .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-
-    .drawer {
-      position: fixed;
-      top: 52px;
-      left: 0;
-      right: 0;
-      background: #161b22;
-      border-bottom: 1px solid #30363d;
-      z-index: 99;
-      display: none;
-      flex-direction: column;
-      padding: 8px 0;
-    }
-
+    .drawer { position: fixed; top: 52px; left: 0; right: 0; background: #161b22; border-bottom: 1px solid #30363d; z-index: 99; display: none; flex-direction: column; padding: 8px 0; }
     .drawer.open { display: flex; }
-
-    .drawer a {
-      padding: 14px 20px;
-      color: #e6edf3;
-      text-decoration: none;
-      font-size: 1rem;
-      border-bottom: 1px solid #21262d;
-      transition: background 0.2s;
-    }
-
+    .drawer a { padding: 14px 20px; color: #e6edf3; text-decoration: none; font-size: 1rem; border-bottom: 1px solid #21262d; transition: background 0.2s; }
     .drawer a:last-child { border-bottom: none; }
     .drawer a:hover { background: #21262d; }
     .drawer a.active { color: #58a6ff; }
-
-    .overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.5);
-      z-index: 98;
-    }
-
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 98; }
     .overlay.open { display: block; }
-
     .page { display: none; padding: 20px 16px; max-width: 640px; margin: 0 auto; }
     .page.active { display: block; }
-
     .home-title { font-size: 1.4rem; font-weight: bold; margin-bottom: 8px; }
     .home-desc { color: #8b949e; font-size: 0.9rem; margin-bottom: 28px; }
-
-    .card-link {
-      display: block;
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 12px;
-      color: inherit;
-      cursor: pointer;
-      transition: border-color 0.2s;
-    }
-
+    .card-link { display: block; background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; margin-bottom: 12px; color: inherit; cursor: pointer; transition: border-color 0.2s; }
     .card-link:hover { border-color: #58a6ff; }
     .card-link .card-title { font-size: 1rem; font-weight: bold; margin-bottom: 4px; }
     .card-link .card-desc { font-size: 0.85rem; color: #8b949e; }
-
     .page-title { font-size: 1.3rem; font-weight: bold; margin-bottom: 4px; }
     .subtitle { font-size: 0.85rem; color: #8b949e; margin-bottom: 20px; }
-
-    .player-card {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 10px;
-      padding: 14px 16px;
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-
-    .player-card-top {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 12px;
-      padding: 18px;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-
-    .player-card-top.rank1 { border-color: #d4a017; }
-    .player-card-top.rank2 { border-color: #a8a9ad; }
-    .player-card-top.rank3 { border-color: #b87333; }
-
-    .rank-num { font-size: 1rem; font-weight: bold; width: 32px; text-align: center; flex-shrink: 0; color: #8b949e; }
-    .rank-num-top { font-size: 1.3rem; font-weight: bold; width: 36px; text-align: center; flex-shrink: 0; }
-    .rank-num-top.r1 { color: #d4a017; }
-    .rank-num-top.r2 { color: #a8a9ad; }
-    .rank-num-top.r3 { color: #b87333; }
-
-    .player-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
-    .player-avatar-top { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
-
-    .player-info { flex: 1; min-width: 0; }
-    .player-name { font-size: 0.95rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .player-name-top { font-size: 1.05rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .player-rating { font-size: 1.1rem; font-weight: bold; color: #58a6ff; flex-shrink: 0; }
-    .player-rating-top { font-size: 1.3rem; font-weight: bold; color: #58a6ff; flex-shrink: 0; }
-
-    .profile-header {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 16px;
-    }
-
+    .profile-header { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
     .profile-top { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
     .profile-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
     .profile-name { font-size: 1.3rem; font-weight: bold; }
-    .profile-playtype { font-size: 0.95rem; color: #58a6ff; margin-top: 4px; }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-
-    .stat-box {
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      padding: 12px;
-      text-align: center;
-    }
-
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .stat-box { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 12px; text-align: center; }
     .stat-label { font-size: 0.75rem; color: #8b949e; margin-bottom: 4px; }
     .stat-value { font-size: 1.3rem; font-weight: bold; color: #58a6ff; }
-
-    .accordion-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      cursor: pointer;
-      padding: 14px 0;
-      border-bottom: 1px solid #30363d;
-      color: #8b949e;
-      font-size: 0.95rem;
-      font-weight: bold;
-      user-select: none;
-    }
-
+    .accordion-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 14px 0; border-bottom: 1px solid #30363d; color: #8b949e; font-size: 0.95rem; font-weight: bold; user-select: none; }
     .accordion-header:hover { color: #e6edf3; }
     .accordion-arrow { font-size: 0.8rem; transition: transform 0.2s; }
     .accordion-arrow.open { transform: rotate(180deg); }
     .accordion-body { display: none; padding-top: 12px; }
     .accordion-body.open { display: block; }
-
-    .graph-container {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 8px;
-    }
-
-    .vs-select {
-      width: 100%;
-      padding: 10px 14px;
-      background: #0d1117;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      color: #e6edf3;
-      font-size: 0.95rem;
-      outline: none;
-      margin-bottom: 12px;
-    }
-
+    .graph-container { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 16px; margin-bottom: 8px; }
+    .vs-select { width: 100%; padding: 10px 14px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; color: #e6edf3; font-size: 0.95rem; outline: none; margin-bottom: 12px; }
     .vs-select:focus { border-color: #58a6ff; }
     .vs-result { display: none; }
     .vs-name { font-size: 1rem; font-weight: bold; margin-bottom: 6px; }
     .vs-record { font-size: 0.85rem; color: #8b949e; margin-bottom: 10px; }
-
-    .vs-bar-wrap {
-      background: #0d1117;
-      border-radius: 6px;
-      height: 28px;
-      overflow: hidden;
-      display: flex;
-    }
-
-    .vs-bar-win {
-      background: #238636;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.8rem;
-      font-weight: bold;
-      color: #fff;
-      transition: width 0.4s;
-    }
-
-    .vs-bar-loss {
-      background: #da3633;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.8rem;
-      font-weight: bold;
-      color: #fff;
-      transition: width 0.4s;
-    }
-
-    .stage-row {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      padding: 12px 16px;
-      margin-bottom: 6px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .stage-no-record {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      padding: 12px 16px;
-      margin-bottom: 6px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      opacity: 0.4;
-    }
-
+    .vs-bar-wrap { background: #0d1117; border-radius: 6px; height: 28px; overflow: hidden; display: flex; }
+    .vs-bar-win { background: #238636; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; color: #fff; transition: width 0.4s; }
+    .vs-bar-loss { background: #da3633; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; color: #fff; transition: width 0.4s; }
+    .stage-row { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; }
+    .stage-no-record { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; opacity: 0.4; }
     .stage-name { flex: 1; font-size: 0.9rem; }
     .stage-record { font-size: 0.85rem; color: #8b949e; }
     .stage-winrate { font-size: 0.95rem; font-weight: bold; color: #58a6ff; min-width: 48px; text-align: right; }
-
     .loading { text-align: center; color: #8b949e; margin-top: 60px; }
     .error { text-align: center; color: #f85149; margin-top: 60px; }
-
-    .hero-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.4);
-      cursor: pointer;
-      transition: background 0.3s;
-    }
+    .hero-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.4); cursor: pointer; transition: background 0.3s; }
     .hero-dot.active { background: #fff; }
   </style>
 </head>
@@ -376,7 +96,6 @@
 
 <div class="overlay" id="overlay" onclick="closeDrawer()"></div>
 
-<!-- ハンバーガーメニュー：運営ページは非表示 -->
 <div class="drawer" id="drawer">
   <a href="#" onclick="showPage('home'); closeDrawer();" id="nav-home">ホーム</a>
   <a href="#" onclick="showPage('ranking'); closeDrawer();" id="nav-ranking">レートランキング</a>
@@ -387,8 +106,6 @@
 
 <!-- ホーム -->
 <div class="page active" id="page-home">
-
-  <!-- ヒーロースライダー -->
   <div id="hero-slider" style="position:relative; width:100vw; left:50%; transform:translateX(-50%); height:500px; overflow:hidden; margin-bottom:24px;">
     <div id="hero-slides" style="display:flex; height:100%; transition:transform 0.6s ease;">
       <div style="min-width:100%; height:100%; background:url('https://i.imgur.com/f4W0TGx.jpeg') center/cover no-repeat;"></div>
@@ -406,12 +123,15 @@
   </div>
 
   <div style="padding: 0 16px;">
-    <!-- 広告枠 -->
-    <div id="ad-banner" style="background:#161b22; border:1px solid #30363d; border-radius:12px; padding:16px; margin-bottom:16px; min-height:80px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden;">
-      <div style="color:#8b949e; font-size:0.85rem;">広告スペース</div>
-    </div>
     <div class="home-title">Kogane</div>
     <div class="home-desc">死滅回游形式のスプラトゥーン内部戦サーバー</div>
+
+    <!-- 加入申請カード（広告枠の位置に移動） -->
+    <div class="card-link" onclick="showPage('join')" style="border-color:#5865f2;">
+      <div class="card-title">たまき鯖に加入する</div>
+      <div class="card-desc">加入申請フォームはこちら</div>
+    </div>
+
     <div class="card-link" onclick="showPage('ranking')">
       <div class="card-title">レートランキング</div>
       <div class="card-desc">現在のレートによる順位表</div>
@@ -423,10 +143,6 @@
     <div class="card-link" id="my-page-card" onclick="showMyPage()" style="display:none;">
       <div class="card-title">マイページ</div>
       <div class="card-desc">自分の成績・グラフを確認</div>
-    </div>
-    <div class="card-link" onclick="showPage('join')">
-      <div class="card-title">たまき鯖に加入する</div>
-      <div class="card-desc">加入申請フォームはこちら</div>
     </div>
   </div>
 </div>
@@ -474,17 +190,13 @@
 <div class="page" id="page-admin">
   <div class="page-title">運営ページ</div>
   <div class="subtitle">たまきのみ閲覧可能</div>
-
   <div class="accordion-header" onclick="toggleAccordion('admin-site')">
     <span>サイト閲覧数推移</span>
     <span class="accordion-arrow" id="arrow-admin-site">▼</span>
   </div>
   <div class="accordion-body" id="body-admin-site">
-    <div class="graph-container">
-      <canvas id="siteChart" height="160"></canvas>
-    </div>
+    <div class="graph-container"><canvas id="siteChart" height="160"></canvas></div>
   </div>
-
   <div class="accordion-header" onclick="toggleAccordion('admin-mypage')">
     <span>マイページ閲覧数</span>
     <span class="accordion-arrow" id="arrow-admin-mypage">▼</span>
@@ -496,23 +208,15 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
-  // ===== スライダー =====
   let heroIndex = 0;
   const heroTotal = 4;
-
   function goSlide(n) {
     heroIndex = n;
     document.getElementById('hero-slides').style.transform = `translateX(-${heroIndex * 100}%)`;
-    document.querySelectorAll('.hero-dot').forEach((d, i) => {
-      d.classList.toggle('active', i === heroIndex);
-    });
+    document.querySelectorAll('.hero-dot').forEach((d, i) => d.classList.toggle('active', i === heroIndex));
   }
+  setInterval(() => goSlide((heroIndex + 1) % heroTotal), 4000);
 
-  setInterval(() => {
-    goSlide((heroIndex + 1) % heroTotal);
-  }, 4000);
-
-  // ===== メイン =====
   const STAGES = [
     "ユノハナ大渓谷","ゴンズイ地区","ヤガラ市場","マテガイ放水路",
     "ナメロウ金属","マサバ海峡大橋","キンメダイ美術館","マヒマヒリゾート&スパ",
@@ -522,6 +226,23 @@
     "オヒョウ海運","バイガイ亭","ネギトロ炭鉱","カジキ空港",
     "リュウグウターミナル","デカライン高架下"
   ];
+
+  const PLAY_TYPE_DESC = {
+    'エース': '高いキル力と生存力を兼ね備えた戦場の要。的確に敵を仕留めながら自らは生き残り続ける。',
+    'アンカー': '冷静な判断で生き残ることを優先する堅実なプレイヤー。チームの土台として安定した戦いを支える。',
+    'ユーティリティ': 'スペシャルを積極的に活用してチームを動かすサポーター。局面の打開に欠かせない存在。',
+    'コントローラー': '圧倒的な塗り量でフィールドを支配するプレイヤー。チームに有利な状況を作り出すことに長ける。',
+    'スペースメーカー': '自ら前線に飛び込み敵の注意を引きつけるプレイヤー。その犠牲が味方の動きやすさを生み出す。',
+    'アタッカー': '激しい撃ち合いを恐れずに前線を押し上げるプレイヤー。高いキルとデスがその果敢さを物語る。',
+    'オールラウンダー': '特定の突出した特徴はないが状況に応じて柔軟に対応できるプレイヤー。どんな場面でも安定して戦える。',
+  };
+
+  const BADGE_DEFS = {
+    "ishigouri": {"label":"石狩"},
+    "yuta": {"label":"悠太"},
+    "rika": {"label":"里香"},
+    "ThanksfortheArt": {"label":"Thanks for the Art"}
+  };
 
   let allRanking = [];
   let rankingLoaded = false;
@@ -535,14 +256,10 @@
   const params = new URLSearchParams(window.location.search);
   const urlId = params.get('id');
   const urlAvatar = params.get('avatar');
-
   if (urlId) {
     currentUserId = urlId;
     localStorage.setItem('discord_user_id', urlId);
-    if (urlAvatar) {
-      currentAvatarUrl = urlAvatar;
-      localStorage.setItem('discord_avatar', urlAvatar);
-    }
+    if (urlAvatar) { currentAvatarUrl = urlAvatar; localStorage.setItem('discord_avatar', urlAvatar); }
     window.history.replaceState({}, '', '/');
   } else {
     currentUserId = localStorage.getItem('discord_user_id');
@@ -554,13 +271,11 @@
     document.getElementById('my-page-card').style.display = 'block';
     document.getElementById('nav-mypage').style.display = 'block';
     document.getElementById('user-info').style.display = 'flex';
-    // 運営ページへのリンクはハンバーガーメニューには表示しない
     if (currentAvatarUrl) document.getElementById('user-avatar').src = currentAvatarUrl;
     fetch(`/api/player_stats/${currentUserId}`)
       .then(r => r.json())
-      .then(d => {
-        if (d.display_name) document.getElementById('user-name').textContent = d.display_name;
-      }).catch(() => {});
+      .then(d => { if (d.display_name) document.getElementById('user-name').textContent = d.display_name; })
+      .catch(() => {});
   }
 
   function toggleDrawer() {
@@ -604,58 +319,20 @@
     const rank = p.rank;
     const banner = p.selected_banner_url || null;
     const badge = p.selected_badge_emoji || '';
-
     const rankColor = rank === 1 ? '#d4a017' : rank === 2 ? '#a8a9ad' : rank === 3 ? '#b87333' : '#8b949e';
     const borderColor = rank === 1 ? '#d4a017' : rank === 2 ? '#a8a9ad' : rank === 3 ? '#b87333' : '#30363d';
-
     return `
-      <div style="
-        display: flex;
-        align-items: stretch;
-        border: 1px solid ${borderColor};
-        border-radius: 12px;
-        overflow: hidden;
-        margin-bottom: 8px;
-        min-height: 72px;
-      ">
-        <div style="
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 8px 14px;
-          background: #161b22;
-          min-width: 64px;
-          flex-shrink: 0;
-        ">
-          <div style="font-size: 1.2rem; font-weight: bold; color: ${rankColor}; line-height: 1;">${rank}</div>
-          <div style="font-size: 0.85rem; font-weight: bold; color: #58a6ff; margin-top: 6px; line-height: 1;">${rating}</div>
+      <div style="display:flex; align-items:stretch; border:1px solid ${borderColor}; border-radius:12px; overflow:hidden; margin-bottom:8px; min-height:72px;">
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8px 14px; background:#161b22; min-width:64px; flex-shrink:0;">
+          <div style="font-size:1.2rem; font-weight:bold; color:${rankColor}; line-height:1;">${rank}</div>
+          <div style="font-size:0.85rem; font-weight:bold; color:#58a6ff; margin-top:6px; line-height:1;">${rating}</div>
         </div>
-        <div style="
-          flex: 1;
-          display: flex;
-          align-items: center;
-          padding: 12px 14px;
-          gap: 12px;
-          position: relative;
-          background: ${banner ? `url('${banner}') center/cover no-repeat` : '#0d1117'};
-          overflow: hidden;
-        ">
+        <div style="flex:1; display:flex; align-items:center; padding:12px 14px; gap:12px; position:relative; background:${banner ? `url('${banner}') center/cover no-repeat` : '#0d1117'}; overflow:hidden;">
           ${banner ? `<div style="position:absolute; inset:0; background:rgba(0,0,0,0.45);"></div>` : ''}
-          <img style="width:36px; height:36px; border-radius:50%; object-fit:cover; flex-shrink:0; position:relative; z-index:1;"
-            src="${avatar}" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'" alt="">
-          <div style="font-size: 0.95rem; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position:relative; z-index:1;">${name}</div>
+          <img style="width:36px; height:36px; border-radius:50%; object-fit:cover; flex-shrink:0; position:relative; z-index:1;" src="${avatar}" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'" alt="">
+          <div style="font-size:0.95rem; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; position:relative; z-index:1;">${name}</div>
         </div>
-        ${badge ? `
-        <div style="
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 0 12px;
-          background: #161b22;
-          flex-shrink: 0;
-          font-size: 1.2rem;
-        ">${badge}</div>` : ''}
+        ${badge ? `<div style="display:flex; align-items:center; justify-content:center; padding:0 12px; background:#161b22; flex-shrink:0; font-size:1.2rem;">${badge}</div>` : ''}
       </div>`;
   }
 
@@ -678,137 +355,81 @@
       const data = await res.json();
       const top5 = data.players.slice(0, 5);
       const el = document.getElementById('peak-list');
-      el.innerHTML = top5.length === 0
-        ? '<p class="loading">データがありません</p>'
-        : top5.map(p => rankCard(p, 'peak_rating')).join('');
+      el.innerHTML = top5.length === 0 ? '<p class="loading">データがありません</p>' : top5.map(p => rankCard(p, 'peak_rating')).join('');
       peakLoaded = true;
     } catch (e) {
       document.getElementById('peak-list').innerHTML = '<p class="error">データの取得に失敗しました</p>';
     }
   }
 
-  const PLAY_TYPE_DESC = {
-    'エース': '高いキル力と生存力を兼ね備えた戦場の要。的確に敵を仕留めながら自らは生き残り続ける。',
-    'アンカー': '冷静な判断で生き残ることを優先する堅実なプレイヤー。チームの土台として安定した戦いを支える。',
-    'ユーティリティ': 'スペシャルを積極的に活用してチームを動かすサポーター。局面の打開に欠かせない存在。',
-    'コントローラー': '圧倒的な塗り量でフィールドを支配するプレイヤー。チームに有利な状況を作り出すことに長ける。',
-    'スペースメーカー': '自ら前線に飛び込み敵の注意を引きつけるプレイヤー。その犠牲が味方の動きやすさを生み出す。',
-    'アタッカー': '激しい撃ち合いを恐れずに前線を押し上げるプレイヤー。高いキルとデスがその果敢さを物語る。',
-    'オールラウンダー': '特定の突出した特徴はないが状況に応じて柔軟に対応できるプレイヤー。どんな場面でも安定して戦える。',
-  };
-
-  const BADGE_DEFS = {
-    "ishigouri": {"label":"石狩"},
-    "yuta": {"label":"悠太"},
-    "rika": {"label":"里香"},
-    "ThanksfortheArt": {"label":"Thanks for the Art"}
-  };
-
   async function loadMyPage() {
     document.getElementById('mypage-content').innerHTML = '<p class="loading">読み込み中...</p>';
     if (rateChartInstance) { rateChartInstance.destroy(); rateChartInstance = null; }
-
     try {
       const res = await fetch(`/api/player_stats/${currentUserId}`);
       const d = await res.json();
-      if (d.error) {
-        document.getElementById('mypage-content').innerHTML = '<p class="error">プレイヤーが見つかりません</p>';
-        return;
-      }
+      if (d.error) { document.getElementById('mypage-content').innerHTML = '<p class="error">プレイヤーが見つかりません</p>'; return; }
 
       const winRate = d.win_rate !== null ? `${d.win_rate}%` : '-';
       const peak = d.peak_rating || '-';
       const avatar = currentAvatarUrl || d.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png';
-
       vsStatsData = d.vs_stats || [];
 
       const stageMap = {};
       (d.stage_stats || []).forEach(s => { stageMap[s.stage] = s; });
       const stageRows = STAGES.map(stageName => {
         const s = stageMap[stageName];
-        if (s) {
-          return `<div class="stage-row">
-            <div class="stage-name">${stageName}</div>
-            <div class="stage-record">${s.wins}勝${s.losses}敗</div>
-            <div class="stage-winrate">${s.win_rate !== null ? s.win_rate + '%' : '-'}</div>
-          </div>`;
-        }
-        return `<div class="stage-no-record">
-          <div class="stage-name">${stageName}</div>
-          <div class="stage-record">記録なし</div>
-          <div class="stage-winrate">-</div>
-        </div>`;
+        if (s) return `<div class="stage-row"><div class="stage-name">${stageName}</div><div class="stage-record">${s.wins}勝${s.losses}敗</div><div class="stage-winrate">${s.win_rate !== null ? s.win_rate + '%' : '-'}</div></div>`;
+        return `<div class="stage-no-record"><div class="stage-name">${stageName}</div><div class="stage-record">記録なし</div><div class="stage-winrate">-</div></div>`;
       }).join('');
 
-      const vsOptions = vsStatsData.map(v =>
-        `<option value="${v.user_id}">${v.display_name}（${v.total}戦）</option>`
-      ).join('');
-
+      const vsOptions = vsStatsData.map(v => `<option value="${v.user_id}">${v.display_name}（${v.total}戦）</option>`).join('');
       const rateCount = (d.rate_history || []).length;
 
-      // バッジ設定HTML
       const badgeSettingHtml = (d.owned_badges && d.owned_badges.length > 0) ? `
-        <div style="margin-bottom:12px;">
+        <div style="padding-top:4px;">
           <div style="font-size:0.75rem; color:#8b949e; margin-bottom:8px;">バッジ設定</div>
           <div style="display:flex; flex-wrap:wrap; gap:8px;">
-            <div onclick="setBadge('')" style="
-              padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem;
-              background:${!d.selected_badge ? '#21262d' : '#0d1117'};
-              border:1px solid ${!d.selected_badge ? '#58a6ff' : '#30363d'};
-              color:${!d.selected_badge ? '#58a6ff' : '#8b949e'};
-            ">なし</div>
+            <div onclick="setBadge('')" style="padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:${!d.selected_badge ? '#21262d' : '#0d1117'}; border:1px solid ${!d.selected_badge ? '#58a6ff' : '#30363d'}; color:${!d.selected_badge ? '#58a6ff' : '#8b949e'};">なし</div>
             ${d.owned_badges.map(badgeId => {
               const b = BADGE_DEFS[badgeId];
               if (!b) return '';
               const isSelected = d.selected_badge === badgeId;
-              const bg = isSelected ? '#21262d' : '#0d1117';
-              const border = isSelected ? '#58a6ff' : '#30363d';
-              const color = isSelected ? '#58a6ff' : '#8b949e';
-              return `<div onclick="setBadge('${badgeId}')" style="padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:${bg}; border:1px solid ${border}; color:${color};">${b.label}</div>`;
+              return `<div onclick="setBadge('${badgeId}')" style="padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:${isSelected ? '#21262d' : '#0d1117'}; border:1px solid ${isSelected ? '#58a6ff' : '#30363d'}; color:${isSelected ? '#58a6ff' : '#8b949e'};">${b.label}</div>`;
             }).join('')}
           </div>
-        </div>` : '';
+        </div>` : '<div style="font-size:0.85rem; color:#8b949e; padding-top:4px;">バッジを所持していません</div>';
 
-      // バナー設定HTML
       const bannerSettingHtml = (d.owned_banners && d.owned_banners.length > 0) ? `
-        <div style="margin-bottom:12px;">
+        <div style="padding-top:4px;">
           <div style="font-size:0.75rem; color:#8b949e; margin-bottom:8px;">バナー設定</div>
           <div style="display:flex; flex-wrap:wrap; gap:8px;">
-            <div onclick="setBanner('')" style="
-              padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem;
-              background:${!d.selected_banner ? '#21262d' : '#0d1117'};
-              border:1px solid ${!d.selected_banner ? '#58a6ff' : '#30363d'};
-              color:${!d.selected_banner ? '#58a6ff' : '#8b949e'};
-            ">なし</div>
+            <div onclick="setBanner('')" style="padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:${!d.selected_banner ? '#21262d' : '#0d1117'}; border:1px solid ${!d.selected_banner ? '#58a6ff' : '#30363d'}; color:${!d.selected_banner ? '#58a6ff' : '#8b949e'};">なし</div>
             ${d.owned_banners.map(bannerId => {
               const isSelected = d.selected_banner === bannerId;
-              const bg = isSelected ? '#21262d' : '#0d1117';
-              const border = isSelected ? '#58a6ff' : '#30363d';
-              const color = isSelected ? '#58a6ff' : '#8b949e';
-              return `<div onclick="setBanner('${bannerId}')" style="padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:${bg}; border:1px solid ${border}; color:${color};">${bannerId}</div>`;
+              return `<div onclick="setBanner('${bannerId}')" style="padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:${isSelected ? '#21262d' : '#0d1117'}; border:1px solid ${isSelected ? '#58a6ff' : '#30363d'}; color:${isSelected ? '#58a6ff' : '#8b949e'};">${bannerId}</div>`;
             }).join('')}
           </div>
         </div>` : '';
 
-      // 運営ページリンク（たまきのみ）
       const adminLinkHtml = (currentUserId === '1225788050894753865') ? `
         <div style="border-top:1px solid #30363d; padding-top:12px; margin-top:4px;">
-          <div onclick="showAdminPage()" style="
-            display:inline-block; padding:6px 16px; border-radius:8px; cursor:pointer;
-            font-size:0.85rem; background:#21262d; border:1px solid #30363d; color:#8b949e;
-          ">運営ページ</div>
+          <div onclick="showAdminPage()" style="display:inline-block; padding:6px 16px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:#21262d; border:1px solid #30363d; color:#8b949e;">運営ページ</div>
         </div>` : '';
 
       document.getElementById('mypage-content').innerHTML = `
-        <!-- プロフィールヘッダー -->
         <div class="profile-header">
           <div class="profile-top">
             <img class="profile-avatar" src="${avatar}" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'" alt="">
             <div>
               <div class="profile-name">${d.display_name || d.user_id}</div>
-              ${d.play_type ? `<div class="profile-playtype">${d.play_type}</div>` : ''}
             </div>
           </div>
+          ${d.play_type ? `
+          <div style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:12px; text-align:center; margin-bottom:16px;">
+            <div style="font-size:0.75rem; color:#8b949e; margin-bottom:4px;">あなたのスタイルは</div>
+            <div style="font-size:1.6rem; font-weight:bold; color:#58a6ff;">${d.play_type}</div>
+          </div>` : ''}
           <div class="stats-grid">
             <div class="stat-box"><div class="stat-label">現在のレート</div><div class="stat-value">${d.rating}</div></div>
             <div class="stat-box"><div class="stat-label">最高レート</div><div class="stat-value">${peak}</div></div>
@@ -819,35 +440,26 @@
             <div class="stat-box"><div class="stat-label">K/D</div><div class="stat-value">${d.kd ?? '-'}</div></div>
             <div class="stat-box"><div class="stat-label">平均塗り</div><div class="stat-value">${d.avg_paint ?? '-'}</div></div>
           </div>
-          <div style="font-size:0.85rem; color:#8b949e; margin-bottom:${(badgeSettingHtml || bannerSettingHtml || adminLinkHtml) ? '12px' : '0'};">${d.wins}勝 ${d.losses}敗</div>
-          ${badgeSettingHtml}
-          ${bannerSettingHtml}
+          <div style="font-size:0.85rem; color:#8b949e; margin-bottom:12px;">${d.wins}勝 ${d.losses}敗</div>
           ${adminLinkHtml}
         </div>
 
-        <!-- 戦績入力 -->
         <div class="accordion-header" onclick="toggleAccordion('stats-input')">
           <span>戦績を入力する</span>
           <span class="accordion-arrow" id="arrow-stats-input">▼</span>
         </div>
         <div class="accordion-body" id="body-stats-input">
-          <div id="stats-match-list" style="padding-top:4px;">
-            <p style="color:#8b949e; font-size:0.85rem;">読み込み中...</p>
-          </div>
+          <div id="stats-match-list" style="padding-top:4px;"><p style="color:#8b949e; font-size:0.85rem;">読み込み中...</p></div>
         </div>
 
-        <!-- レート変動グラフ -->
         <div class="accordion-header" onclick="toggleAccordion('graph')">
           <span>レート変動（直近${rateCount}戦）</span>
           <span class="accordion-arrow" id="arrow-graph">▼</span>
         </div>
         <div class="accordion-body" id="body-graph">
-          <div class="graph-container">
-            <canvas id="rateChart" height="160"></canvas>
-          </div>
+          <div class="graph-container"><canvas id="rateChart" height="160"></canvas></div>
         </div>
 
-        <!-- 対プレイヤー勝率 -->
         <div class="accordion-header" onclick="toggleAccordion('vs')">
           <span>対プレイヤー勝率</span>
           <span class="accordion-arrow" id="arrow-vs">▼</span>
@@ -868,11 +480,9 @@
                     <div class="vs-bar-loss" id="vs-bar-loss"></div>
                   </div>
                 </div>
-              </div>`
-          }
+              </div>`}
         </div>
 
-        <!-- ステージ別成績 -->
         <div class="accordion-header" onclick="toggleAccordion('stage')">
           <span>ステージ別成績</span>
           <span class="accordion-arrow" id="arrow-stage">▼</span>
@@ -881,7 +491,6 @@
           <div style="padding-top:4px;">${stageRows}</div>
         </div>
 
-        <!-- ガチャ -->
         <div class="accordion-header" onclick="toggleAccordion('gacha')">
           <span>ガチャ（コイン: ${d.coins ?? 0} / 5）</span>
           <span class="accordion-arrow" id="arrow-gacha">▼</span>
@@ -893,7 +502,6 @@
           </div>
         </div>
 
-        <!-- チケット -->
         <div class="accordion-header" onclick="toggleAccordion('ticket')">
           <span>チケット</span>
           <span class="accordion-arrow" id="arrow-ticket">▼</span>
@@ -909,14 +517,21 @@
                 <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#0d1117; border:1px solid #30363d; border-radius:8px;">
                   <div style="font-size:0.85rem;">${t.label}</div>
                   <button onclick="useTicket(${i})" ${d.active_effect ? 'disabled' : ''} style="padding:4px 12px; background:${d.active_effect ? '#21262d' : '#5865f2'}; color:#fff; border:none; border-radius:6px; font-size:0.8rem; cursor:${d.active_effect ? 'not-allowed' : 'pointer'};">使用</button>
-                </div>
-              `).join('')}
+                </div>`).join('')}
             </div>` : '<div style="font-size:0.85rem; color:#8b949e;">チケットなし</div>'}
             <div id="ticket-result" style="display:none; margin-top:12px; padding:12px; background:#0d1117; border:1px solid #30363d; border-radius:8px; font-size:0.9rem;"></div>
           </div>
         </div>
 
-        <!-- プレイタイプ詳細 -->
+        <div class="accordion-header" onclick="toggleAccordion('badge')">
+          <span>バッジ・バナー設定</span>
+          <span class="accordion-arrow" id="arrow-badge">▼</span>
+        </div>
+        <div class="accordion-body" id="body-badge">
+          ${badgeSettingHtml}
+          ${bannerSettingHtml}
+        </div>
+
         ${d.play_type ? `
         <div class="accordion-header" onclick="toggleAccordion('playtype')">
           <span>プレイタイプ詳細</span>
@@ -924,8 +539,7 @@
         </div>
         <div class="accordion-body" id="body-playtype">
           <div style="padding-top:4px; background:#161b22; border:1px solid #30363d; border-radius:12px; padding:20px; margin-top:8px;">
-            <div style="font-size:0.75rem; color:#8b949e; margin-bottom:8px;">あなたのスタイルは</div>
-            <div style="font-size:2rem; font-weight:bold; color:#58a6ff; text-align:center; margin:12px 0;">${d.play_type}</div>
+            <div style="font-size:2rem; font-weight:bold; color:#58a6ff; text-align:center; margin-bottom:12px;">${d.play_type}</div>
             <div style="font-size:0.82rem; color:#8b949e; line-height:1.6;">${PLAY_TYPE_DESC[d.play_type] || ''}</div>
           </div>
         </div>` : ''}
@@ -938,42 +552,18 @@
           type: 'line',
           data: {
             labels: rateHistory.map((_, i) => `${i + 1}戦`),
-            datasets: [{
-              data: rateHistory.map(r => r.rating),
-              borderColor: '#58a6ff',
-              backgroundColor: 'rgba(88,166,255,0.1)',
-              borderWidth: 2,
-              pointRadius: 3,
-              pointBackgroundColor: '#58a6ff',
-              fill: true,
-              tension: 0.3,
-            }]
+            datasets: [{ data: rateHistory.map(r => r.rating), borderColor: '#58a6ff', backgroundColor: 'rgba(88,166,255,0.1)', borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#58a6ff', fill: true, tension: 0.3 }]
           },
           options: {
             responsive: true,
-            plugins: {
-              legend: { display: false },
-              tooltip: {
-                callbacks: {
-                  label: ctx => `レート: ${ctx.parsed.y}`,
-                  afterLabel: ctx => {
-                    const h = rateHistory[ctx.dataIndex];
-                    return h.stage ? `ステージ: ${h.stage}` : '';
-                  }
-                }
-              }
-            },
-            scales: {
-              x: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#21262d' } },
-              y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } }
-            }
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `レート: ${ctx.parsed.y}`, afterLabel: ctx => { const h = rateHistory[ctx.dataIndex]; return h.stage ? `ステージ: ${h.stage}` : ''; } } } },
+            scales: { x: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#21262d' } }, y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } } }
           }
         });
       } else {
         const graphBody = document.getElementById('body-graph');
         if (graphBody) graphBody.innerHTML = '<p style="color:#8b949e; font-size:0.85rem; padding:12px 0;">試合記録がありません</p>';
       }
-
     } catch (e) {
       document.getElementById('mypage-content').innerHTML = '<p class="error">データの取得に失敗しました</p>';
     }
@@ -985,16 +575,11 @@
     if (!body || !arrow) return;
     body.classList.toggle('open');
     arrow.classList.toggle('open');
-    if (key === 'stats-input' && body.classList.contains('open')) {
-      loadStatsMatches();
-    }
+    if (key === 'stats-input' && body.classList.contains('open')) loadStatsMatches();
   }
 
   async function submitJoinRequest() {
-    if (!currentUserId) {
-      document.getElementById('join-login-warning').style.display = 'block';
-      return;
-    }
+    if (!currentUserId) { document.getElementById('join-login-warning').style.display = 'block'; return; }
     const name = document.getElementById('join-name').value.trim();
     const xid = document.getElementById('join-xid').value.trim();
     if (!name || !xid) {
@@ -1010,9 +595,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: currentUserId, name, x_id: xid })
       });
-      if (!res.ok) {
-        throw new Error(`HTTP error: ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
       const data = await res.json();
       if (data.success) {
         document.getElementById('join-success').style.display = 'block';
@@ -1033,11 +616,7 @@
   async function setBadge(badgeId) {
     if (!currentUserId) return;
     try {
-      const res = await fetch('/api/badge/set', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: currentUserId, badge_id: badgeId })
-      });
+      const res = await fetch('/api/badge/set', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, badge_id: badgeId }) });
       const data = await res.json();
       if (data.success) loadMyPage();
     } catch (e) {}
@@ -1046,11 +625,7 @@
   async function setBanner(bannerId) {
     if (!currentUserId) return;
     try {
-      const res = await fetch('/api/banner/set', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: currentUserId, banner_id: bannerId })
-      });
+      const res = await fetch('/api/banner/set', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, banner_id: bannerId }) });
       const data = await res.json();
       if (data.success) loadMyPage();
     } catch (e) {}
@@ -1062,11 +637,7 @@
     btn.disabled = true;
     btn.textContent = '引いています...';
     try {
-      const res = await fetch('/api/gacha', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: currentUserId })
-      });
+      const res = await fetch('/api/gacha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId }) });
       const data = await res.json();
       const resultEl = document.getElementById('gacha-result');
       if (data.success) {
@@ -1088,22 +659,12 @@
   async function useTicket(index) {
     if (!currentUserId) return;
     try {
-      const res = await fetch('/api/ticket/use', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: currentUserId, ticket_index: index })
-      });
+      const res = await fetch('/api/ticket/use', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, ticket_index: index }) });
       const data = await res.json();
       const resultEl = document.getElementById('ticket-result');
       resultEl.style.display = 'block';
-      if (data.success) {
-        resultEl.style.color = '#238636';
-        resultEl.textContent = `${data.label} を使用しました！`;
-        loadMyPage();
-      } else {
-        resultEl.style.color = '#f85149';
-        resultEl.textContent = data.error || 'エラーが発生しました';
-      }
+      if (data.success) { resultEl.style.color = '#238636'; resultEl.textContent = `${data.label} を使用しました！`; loadMyPage(); }
+      else { resultEl.style.color = '#f85149'; resultEl.textContent = data.error || 'エラーが発生しました'; }
     } catch (e) {}
   }
 
@@ -1114,10 +675,7 @@
       const data = await res.json();
       const el = document.getElementById('stats-match-list');
       if (!el) return;
-      if (data.matches.length === 0) {
-        el.innerHTML = '<p style="color:#8b949e; font-size:0.85rem;">参加した試合がありません</p>';
-        return;
-      }
+      if (data.matches.length === 0) { el.innerHTML = '<p style="color:#8b949e; font-size:0.85rem;">参加した試合がありません</p>'; return; }
       el.innerHTML = data.matches.map(m => `
         <div style="background:#161b22; border:1px solid #30363d; border-radius:8px; padding:12px; margin-bottom:8px;">
           <div style="font-size:0.85rem; margin-bottom:8px; color:#8b949e;">${m.stage} ${m.already_input ? '✅入力済み' : ''}</div>
@@ -1128,10 +686,8 @@
             <input id="death-${m.timestamp}" type="number" placeholder="デス" style="padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:0.85rem;">
             <input id="special-${m.timestamp}" type="number" placeholder="スペシャル" style="padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:0.85rem;">
           </div>
-          <button onclick="submitStats('${m.timestamp}')" style="width:100%; padding:8px; background:#5865f2; color:#fff; border:none; border-radius:6px; font-size:0.85rem; cursor:pointer;">入力する</button>
-          ` : ''}
-        </div>
-      `).join('');
+          <button onclick="submitStats('${m.timestamp}')" style="width:100%; padding:8px; background:#5865f2; color:#fff; border:none; border-radius:6px; font-size:0.85rem; cursor:pointer;">入力する</button>` : ''}
+        </div>`).join('');
     } catch (e) {}
   }
 
@@ -1142,11 +698,7 @@
     const death = document.getElementById(`death-${matchId}`).value;
     const special = document.getElementById(`special-${matchId}`).value;
     try {
-      const res = await fetch('/api/stats/input', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: currentUserId, match_id: matchId, paint, kill, death, special })
-      });
+      const res = await fetch('/api/stats/input', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, match_id: matchId, paint, kill, death, special }) });
       const data = await res.json();
       if (data.success) loadStatsMatches();
     } catch (e) {}
@@ -1168,53 +720,26 @@
       const res = await fetch(`/api/admin/stats?user_id=${currentUserId}`);
       const data = await res.json();
       if (data.error) return;
-
       const siteLog = data.site_log || [];
       if (siteLog.length > 0) {
         const ctx = document.getElementById('siteChart').getContext('2d');
         siteChartInstance = new Chart(ctx, {
           type: 'line',
-          data: {
-            labels: siteLog.map(s => s.date),
-            datasets: [{
-              data: siteLog.map(s => s.count),
-              borderColor: '#58a6ff',
-              backgroundColor: 'rgba(88,166,255,0.1)',
-              borderWidth: 2,
-              pointRadius: 3,
-              fill: true,
-              tension: 0.3,
-            }]
-          },
-          options: {
-            responsive: true,
-            plugins: { legend: { display: false } },
-            scales: {
-              x: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#21262d' } },
-              y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } }
-            }
-          }
+          data: { labels: siteLog.map(s => s.date), datasets: [{ data: siteLog.map(s => s.count), borderColor: '#58a6ff', backgroundColor: 'rgba(88,166,255,0.1)', borderWidth: 2, pointRadius: 3, fill: true, tension: 0.3 }] },
+          options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#21262d' } }, y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } } } }
         });
       }
-
       const mypageList = document.getElementById('admin-mypage-list');
       if (mypageList) {
         const stats = data.mypage_stats || [];
-        if (stats.length === 0) {
-          mypageList.innerHTML = '<p style="color:#8b949e; font-size:0.85rem;">データなし</p>';
-        } else {
+        if (stats.length === 0) { mypageList.innerHTML = '<p style="color:#8b949e; font-size:0.85rem;">データなし</p>'; }
+        else {
           const max = stats[0].count;
           mypageList.innerHTML = stats.map(s => `
             <div style="margin-bottom:10px;">
-              <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;">
-                <span>${s.display_name}</span>
-                <span style="color:#58a6ff;">${s.count}回</span>
-              </div>
-              <div style="background:#0d1117; border-radius:4px; height:8px; overflow:hidden;">
-                <div style="background:#58a6ff; height:100%; width:${Math.round(s.count/max*100)}%; transition:width 0.4s;"></div>
-              </div>
-            </div>
-          `).join('');
+              <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;"><span>${s.display_name}</span><span style="color:#58a6ff;">${s.count}回</span></div>
+              <div style="background:#0d1117; border-radius:4px; height:8px; overflow:hidden;"><div style="background:#58a6ff; height:100%; width:${Math.round(s.count/max*100)}%; transition:width 0.4s;"></div></div>
+            </div>`).join('');
         }
       }
     } catch (e) {}
@@ -1228,11 +753,9 @@
     if (!userId) { result.style.display = 'none'; return; }
     const vs = vsStatsData.find(v => v.user_id === userId);
     if (!vs) { result.style.display = 'none'; return; }
-
     result.style.display = 'block';
     document.getElementById('vs-name').textContent = vs.display_name;
     document.getElementById('vs-record').textContent = `${vs.wins}勝 ${vs.losses}敗（${vs.total}戦）`;
-
     const winPct = vs.total > 0 ? (vs.wins / vs.total * 100) : 0;
     const lossPct = 100 - winPct;
     const winBar = document.getElementById('vs-bar-win');
