@@ -219,6 +219,7 @@
     .profile-top { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
     .profile-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
     .profile-name { font-size: 1.3rem; font-weight: bold; }
+    .profile-playtype { font-size: 0.95rem; color: #58a6ff; margin-top: 4px; }
 
     .stats-grid {
       display: grid;
@@ -375,13 +376,13 @@
 
 <div class="overlay" id="overlay" onclick="closeDrawer()"></div>
 
+<!-- ハンバーガーメニュー：運営ページは非表示 -->
 <div class="drawer" id="drawer">
   <a href="#" onclick="showPage('home'); closeDrawer();" id="nav-home">ホーム</a>
   <a href="#" onclick="showPage('ranking'); closeDrawer();" id="nav-ranking">レートランキング</a>
   <a href="#" onclick="showPage('peak'); closeDrawer();" id="nav-peak">最高レートランキング</a>
   <a href="#" onclick="showMyPage(); closeDrawer();" id="nav-mypage" style="display:none;">マイページ</a>
   <a href="#" onclick="showPage('join'); closeDrawer();">加入申請</a>
-  <a href="#" onclick="showAdminPage(); closeDrawer();" id="nav-admin" style="display:none;">運営ページ</a>
 </div>
 
 <!-- ホーム -->
@@ -553,9 +554,7 @@
     document.getElementById('my-page-card').style.display = 'block';
     document.getElementById('nav-mypage').style.display = 'block';
     document.getElementById('user-info').style.display = 'flex';
-    if (currentUserId === '1225788050894753865') {
-      document.getElementById('nav-admin').style.display = 'block';
-    }
+    // 運営ページへのリンクはハンバーガーメニューには表示しない
     if (currentAvatarUrl) document.getElementById('user-avatar').src = currentAvatarUrl;
     fetch(`/api/player_stats/${currentUserId}`)
       .then(r => r.json())
@@ -688,6 +687,23 @@
     }
   }
 
+  const PLAY_TYPE_DESC = {
+    'エース': '高いキル力と生存力を兼ね備えた戦場の要。的確に敵を仕留めながら自らは生き残り続ける。',
+    'アンカー': '冷静な判断で生き残ることを優先する堅実なプレイヤー。チームの土台として安定した戦いを支える。',
+    'ユーティリティ': 'スペシャルを積極的に活用してチームを動かすサポーター。局面の打開に欠かせない存在。',
+    'コントローラー': '圧倒的な塗り量でフィールドを支配するプレイヤー。チームに有利な状況を作り出すことに長ける。',
+    'スペースメーカー': '自ら前線に飛び込み敵の注意を引きつけるプレイヤー。その犠牲が味方の動きやすさを生み出す。',
+    'アタッカー': '激しい撃ち合いを恐れずに前線を押し上げるプレイヤー。高いキルとデスがその果敢さを物語る。',
+    'オールラウンダー': '特定の突出した特徴はないが状況に応じて柔軟に対応できるプレイヤー。どんな場面でも安定して戦える。',
+  };
+
+  const BADGE_DEFS = {
+    "ishigouri": {"label":"石狩"},
+    "yuta": {"label":"悠太"},
+    "rika": {"label":"里香"},
+    "ThanksfortheArt": {"label":"Thanks for the Art"}
+  };
+
   async function loadMyPage() {
     document.getElementById('mypage-content').innerHTML = '<p class="loading">読み込み中...</p>';
     if (rateChartInstance) { rateChartInstance.destroy(); rateChartInstance = null; }
@@ -730,12 +746,67 @@
 
       const rateCount = (d.rate_history || []).length;
 
+      // バッジ設定HTML
+      const badgeSettingHtml = (d.owned_badges && d.owned_badges.length > 0) ? `
+        <div style="margin-bottom:12px;">
+          <div style="font-size:0.75rem; color:#8b949e; margin-bottom:8px;">バッジ設定</div>
+          <div style="display:flex; flex-wrap:wrap; gap:8px;">
+            <div onclick="setBadge('')" style="
+              padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem;
+              background:${!d.selected_badge ? '#21262d' : '#0d1117'};
+              border:1px solid ${!d.selected_badge ? '#58a6ff' : '#30363d'};
+              color:${!d.selected_badge ? '#58a6ff' : '#8b949e'};
+            ">なし</div>
+            ${d.owned_badges.map(badgeId => {
+              const b = BADGE_DEFS[badgeId];
+              if (!b) return '';
+              const isSelected = d.selected_badge === badgeId;
+              const bg = isSelected ? '#21262d' : '#0d1117';
+              const border = isSelected ? '#58a6ff' : '#30363d';
+              const color = isSelected ? '#58a6ff' : '#8b949e';
+              return `<div onclick="setBadge('${badgeId}')" style="padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:${bg}; border:1px solid ${border}; color:${color};">${b.label}</div>`;
+            }).join('')}
+          </div>
+        </div>` : '';
+
+      // バナー設定HTML
+      const bannerSettingHtml = (d.owned_banners && d.owned_banners.length > 0) ? `
+        <div style="margin-bottom:12px;">
+          <div style="font-size:0.75rem; color:#8b949e; margin-bottom:8px;">バナー設定</div>
+          <div style="display:flex; flex-wrap:wrap; gap:8px;">
+            <div onclick="setBanner('')" style="
+              padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem;
+              background:${!d.selected_banner ? '#21262d' : '#0d1117'};
+              border:1px solid ${!d.selected_banner ? '#58a6ff' : '#30363d'};
+              color:${!d.selected_banner ? '#58a6ff' : '#8b949e'};
+            ">なし</div>
+            ${d.owned_banners.map(bannerId => {
+              const isSelected = d.selected_banner === bannerId;
+              const bg = isSelected ? '#21262d' : '#0d1117';
+              const border = isSelected ? '#58a6ff' : '#30363d';
+              const color = isSelected ? '#58a6ff' : '#8b949e';
+              return `<div onclick="setBanner('${bannerId}')" style="padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:${bg}; border:1px solid ${border}; color:${color};">${bannerId}</div>`;
+            }).join('')}
+          </div>
+        </div>` : '';
+
+      // 運営ページリンク（たまきのみ）
+      const adminLinkHtml = (currentUserId === '1225788050894753865') ? `
+        <div style="border-top:1px solid #30363d; padding-top:12px; margin-top:4px;">
+          <div onclick="showAdminPage()" style="
+            display:inline-block; padding:6px 16px; border-radius:8px; cursor:pointer;
+            font-size:0.85rem; background:#21262d; border:1px solid #30363d; color:#8b949e;
+          ">運営ページ</div>
+        </div>` : '';
+
       document.getElementById('mypage-content').innerHTML = `
+        <!-- プロフィールヘッダー -->
         <div class="profile-header">
           <div class="profile-top">
             <img class="profile-avatar" src="${avatar}" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'" alt="">
             <div>
               <div class="profile-name">${d.display_name || d.user_id}</div>
+              ${d.play_type ? `<div class="profile-playtype">${d.play_type}</div>` : ''}
             </div>
           </div>
           <div class="stats-grid">
@@ -748,91 +819,13 @@
             <div class="stat-box"><div class="stat-label">K/D</div><div class="stat-value">${d.kd ?? '-'}</div></div>
             <div class="stat-box"><div class="stat-label">平均塗り</div><div class="stat-value">${d.avg_paint ?? '-'}</div></div>
           </div>
-          <div style="font-size:0.85rem; color:#8b949e; margin-bottom:12px;">${d.wins}勝 ${d.losses}敗</div>
-          ${(d.owned_badges && d.owned_badges.length > 0) ? `
-          <div style="border-top:1px solid #30363d; padding-top:12px;">
-            <div style="font-size:0.75rem; color:#8b949e; margin-bottom:8px;">バッジ設定</div>
-            <div style="display:flex; flex-wrap:wrap; gap:8px;">
-              <div onclick="setBadge('')" style="
-                padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem;
-                background:${!d.selected_badge ? '#21262d' : '#0d1117'};
-                border:1px solid ${!d.selected_badge ? '#58a6ff' : '#30363d'};
-                color:${!d.selected_badge ? '#58a6ff' : '#8b949e'};
-              ">なし</div>
-              ${d.owned_badges.map(badgeId => {
-                const badgeDefs = {"ishigouri":{"label":"石狩"},"yuta":{"label":"悠太"},"rika":{"label":"里香"},"ThanksfortheArt":{"label":"Thanks for the Art"}};
-                const b = badgeDefs[badgeId];
-                if (!b) return '';
-                const isSelected = d.selected_badge === badgeId;
-                const bg = isSelected ? '#21262d' : '#0d1117';
-                const border = isSelected ? '#58a6ff' : '#30363d';
-                const color = isSelected ? '#58a6ff' : '#8b949e';
-                return '<div onclick="setBadge(\'' + badgeId + '\')" style="padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:' + bg + '; border:1px solid ' + border + '; color:' + color + ';">' + b.label + '</div>';
-              }).join('')}
-            </div>
-          </div>` : ''}
-          ${(d.owned_banners && d.owned_banners.length > 0) ? `
-          <div style="border-top:1px solid #30363d; padding-top:12px; margin-top:12px;">
-            <div style="font-size:0.75rem; color:#8b949e; margin-bottom:8px;">バナー設定</div>
-            <div style="display:flex; flex-wrap:wrap; gap:8px;">
-              <div onclick="setBanner('')" style="
-                padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem;
-                background:${!d.selected_banner ? '#21262d' : '#0d1117'};
-                border:1px solid ${!d.selected_banner ? '#58a6ff' : '#30363d'};
-                color:${!d.selected_banner ? '#58a6ff' : '#8b949e'};
-              ">なし</div>
-              ${d.owned_banners.map(bannerId => {
-                const isSelected = d.selected_banner === bannerId;
-                const bg = isSelected ? '#21262d' : '#0d1117';
-                const border = isSelected ? '#58a6ff' : '#30363d';
-                const color = isSelected ? '#58a6ff' : '#8b949e';
-                return '<div onclick="setBanner(\'' + bannerId + '\')" style="padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:' + bg + '; border:1px solid ' + border + '; color:' + color + ';">' + bannerId + '</div>';
-              }).join('')}
-            </div>
-          </div>` : ''}
+          <div style="font-size:0.85rem; color:#8b949e; margin-bottom:${(badgeSettingHtml || bannerSettingHtml || adminLinkHtml) ? '12px' : '0'};">${d.wins}勝 ${d.losses}敗</div>
+          ${badgeSettingHtml}
+          ${bannerSettingHtml}
+          ${adminLinkHtml}
         </div>
 
-        <div style="background:#161b22; border:1px solid #30363d; border-radius:12px; padding:20px; margin-bottom:16px;">
-          <div style="font-size:0.75rem; color:#8b949e; margin-bottom:12px;">コイン・ガチャ</div>
-          <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
-            <div style="font-size:1.1rem; font-weight:bold;">🪙 ${d.coins ?? 0} / 5</div>
-          </div>
-          <button onclick="doGacha()" style="width:100%; padding:10px; background:#238636; color:#fff; border:none; border-radius:8px; font-size:0.95rem; font-weight:bold; cursor:pointer;">ガチャを引く（コイン1枚）</button>
-          <div id="gacha-result" style="display:none; margin-top:12px; padding:12px; background:#0d1117; border:1px solid #30363d; border-radius:8px; font-size:0.9rem; color:#e6edf3;"></div>
-        </div>
-
-        <div style="background:#161b22; border:1px solid #30363d; border-radius:12px; padding:20px; margin-bottom:16px;">
-          <div style="font-size:0.75rem; color:#8b949e; margin-bottom:12px;">チケット</div>
-          <div style="font-size:0.85rem; color:#8b949e; margin-bottom:10px;">
-            ${d.active_effect ? `有効中: ${d.active_effect.label}（残り${d.active_effect.remaining_matches}試合）` : '有効中の効果なし'}
-          </div>
-          ${(d.tickets && d.tickets.length > 0) ? `
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            ${d.tickets.map((t, i) => `
-              <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#0d1117; border:1px solid #30363d; border-radius:8px;">
-                <div style="font-size:0.85rem;">${t.label}</div>
-                <button onclick="useTicket(${i})" ${d.active_effect ? 'disabled' : ''} style="padding:4px 12px; background:${d.active_effect ? '#21262d' : '#5865f2'}; color:#fff; border:none; border-radius:6px; font-size:0.8rem; cursor:${d.active_effect ? 'not-allowed' : 'pointer'};">使用</button>
-              </div>
-            `).join('')}
-          </div>` : '<div style="font-size:0.85rem; color:#8b949e;">チケットなし</div>'}
-          <div id="ticket-result" style="display:none; margin-top:12px; padding:12px; background:#0d1117; border:1px solid #30363d; border-radius:8px; font-size:0.9rem;"></div>
-        </div>
-
-        ${d.play_type ? `
-        <div style="background:#161b22; border:1px solid #30363d; border-radius:12px; padding:20px; margin-bottom:16px; min-height:160px; display:flex; flex-direction:column; justify-content:space-between;">
-          <div style="font-size:0.75rem; color:#8b949e;">あなたのスタイルは</div>
-          <div style="font-size:2rem; font-weight:bold; color:#58a6ff; text-align:center; margin:12px 0;">${d.play_type}</div>
-          <div style="font-size:0.82rem; color:#8b949e; line-height:1.6;">${{
-            'エース': '高いキル力と生存力を兼ね備えた戦場の要。的確に敵を仕留めながら自らは生き残り続ける。',
-            'アンカー': '冷静な判断で生き残ることを優先する堅実なプレイヤー。チームの土台として安定した戦いを支える。',
-            'ユーティリティ': 'スペシャルを積極的に活用してチームを動かすサポーター。局面の打開に欠かせない存在。',
-            'コントローラー': '圧倒的な塗り量でフィールドを支配するプレイヤー。チームに有利な状況を作り出すことに長ける。',
-            'スペースメーカー': '自ら前線に飛び込み敵の注意を引きつけるプレイヤー。その犠牲が味方の動きやすさを生み出す。',
-            'アタッカー': '激しい撃ち合いを恐れずに前線を押し上げるプレイヤー。高いキルとデスがその果敢さを物語る。',
-            'オールラウンダー': '特定の突出した特徴はないが状況に応じて柔軟に対応できるプレイヤー。どんな場面でも安定して戦える。',
-          }[d.play_type] || ''}</div>
-        </div>` : ''}
-
+        <!-- 戦績入力 -->
         <div class="accordion-header" onclick="toggleAccordion('stats-input')">
           <span>戦績を入力する</span>
           <span class="accordion-arrow" id="arrow-stats-input">▼</span>
@@ -843,6 +836,7 @@
           </div>
         </div>
 
+        <!-- レート変動グラフ -->
         <div class="accordion-header" onclick="toggleAccordion('graph')">
           <span>レート変動（直近${rateCount}戦）</span>
           <span class="accordion-arrow" id="arrow-graph">▼</span>
@@ -853,6 +847,7 @@
           </div>
         </div>
 
+        <!-- 対プレイヤー勝率 -->
         <div class="accordion-header" onclick="toggleAccordion('vs')">
           <span>対プレイヤー勝率</span>
           <span class="accordion-arrow" id="arrow-vs">▼</span>
@@ -877,6 +872,7 @@
           }
         </div>
 
+        <!-- ステージ別成績 -->
         <div class="accordion-header" onclick="toggleAccordion('stage')">
           <span>ステージ別成績</span>
           <span class="accordion-arrow" id="arrow-stage">▼</span>
@@ -884,6 +880,55 @@
         <div class="accordion-body" id="body-stage">
           <div style="padding-top:4px;">${stageRows}</div>
         </div>
+
+        <!-- ガチャ -->
+        <div class="accordion-header" onclick="toggleAccordion('gacha')">
+          <span>ガチャ（コイン: ${d.coins ?? 0} / 5）</span>
+          <span class="accordion-arrow" id="arrow-gacha">▼</span>
+        </div>
+        <div class="accordion-body" id="body-gacha">
+          <div style="padding-top:4px;">
+            <button onclick="doGacha()" style="width:100%; padding:10px; background:#238636; color:#fff; border:none; border-radius:8px; font-size:0.95rem; font-weight:bold; cursor:pointer; margin-bottom:8px;">ガチャを引く（コイン1枚）</button>
+            <div id="gacha-result" style="display:none; padding:12px; background:#0d1117; border:1px solid #30363d; border-radius:8px; font-size:0.9rem; color:#e6edf3;"></div>
+          </div>
+        </div>
+
+        <!-- チケット -->
+        <div class="accordion-header" onclick="toggleAccordion('ticket')">
+          <span>チケット</span>
+          <span class="accordion-arrow" id="arrow-ticket">▼</span>
+        </div>
+        <div class="accordion-body" id="body-ticket">
+          <div style="padding-top:4px;">
+            <div style="font-size:0.85rem; color:#8b949e; margin-bottom:10px;">
+              ${d.active_effect ? `有効中: ${d.active_effect.label}（残り${d.active_effect.remaining_matches}試合）` : '有効中の効果なし'}
+            </div>
+            ${(d.tickets && d.tickets.length > 0) ? `
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              ${d.tickets.map((t, i) => `
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#0d1117; border:1px solid #30363d; border-radius:8px;">
+                  <div style="font-size:0.85rem;">${t.label}</div>
+                  <button onclick="useTicket(${i})" ${d.active_effect ? 'disabled' : ''} style="padding:4px 12px; background:${d.active_effect ? '#21262d' : '#5865f2'}; color:#fff; border:none; border-radius:6px; font-size:0.8rem; cursor:${d.active_effect ? 'not-allowed' : 'pointer'};">使用</button>
+                </div>
+              `).join('')}
+            </div>` : '<div style="font-size:0.85rem; color:#8b949e;">チケットなし</div>'}
+            <div id="ticket-result" style="display:none; margin-top:12px; padding:12px; background:#0d1117; border:1px solid #30363d; border-radius:8px; font-size:0.9rem;"></div>
+          </div>
+        </div>
+
+        <!-- プレイタイプ詳細 -->
+        ${d.play_type ? `
+        <div class="accordion-header" onclick="toggleAccordion('playtype')">
+          <span>プレイタイプ詳細</span>
+          <span class="accordion-arrow" id="arrow-playtype">▼</span>
+        </div>
+        <div class="accordion-body" id="body-playtype">
+          <div style="padding-top:4px; background:#161b22; border:1px solid #30363d; border-radius:12px; padding:20px; margin-top:8px;">
+            <div style="font-size:0.75rem; color:#8b949e; margin-bottom:8px;">あなたのスタイルは</div>
+            <div style="font-size:2rem; font-weight:bold; color:#58a6ff; text-align:center; margin:12px 0;">${d.play_type}</div>
+            <div style="font-size:0.82rem; color:#8b949e; line-height:1.6;">${PLAY_TYPE_DESC[d.play_type] || ''}</div>
+          </div>
+        </div>` : ''}
       `;
 
       const rateHistory = d.rate_history || [];
@@ -965,6 +1010,9 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: currentUserId, name, x_id: xid })
       });
+      if (!res.ok) {
+        throw new Error(`HTTP error: ${res.status}`);
+      }
       const data = await res.json();
       if (data.success) {
         document.getElementById('join-success').style.display = 'block';
@@ -977,7 +1025,7 @@
       }
     } catch (e) {
       const err = document.getElementById('join-error');
-      err.textContent = '通信エラーが発生しました';
+      err.textContent = '送信に失敗しました。時間をおいて再度お試しください。';
       err.style.display = 'block';
     }
   }
