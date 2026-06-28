@@ -764,12 +764,10 @@
                 const b = badgeDefs[badgeId];
                 if (!b) return '';
                 const isSelected = d.selected_badge === badgeId;
-                return \`<div onclick="setBadge('\${badgeId}')" style="
-                  padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem;
-                  background:\${isSelected ? '#21262d' : '#0d1117'};
-                  border:1px solid \${isSelected ? '#58a6ff' : '#30363d'};
-                  color:\${isSelected ? '#58a6ff' : '#8b949e'};
-                ">\${b.label}</div>\`;
+                const bg = isSelected ? '#21262d' : '#0d1117';
+                const border = isSelected ? '#58a6ff' : '#30363d';
+                const color = isSelected ? '#58a6ff' : '#8b949e';
+                return '<div onclick="setBadge(\'' + badgeId + '\')" style="padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:' + bg + '; border:1px solid ' + border + '; color:' + color + ';">' + b.label + '</div>';
               }).join('')}
             </div>
           </div>` : ''}
@@ -785,12 +783,10 @@
               ">なし</div>
               ${d.owned_banners.map(bannerId => {
                 const isSelected = d.selected_banner === bannerId;
-                return \`<div onclick="setBanner('\${bannerId}')" style="
-                  padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem;
-                  background:\${isSelected ? '#21262d' : '#0d1117'};
-                  border:1px solid \${isSelected ? '#58a6ff' : '#30363d'};
-                  color:\${isSelected ? '#58a6ff' : '#8b949e'};
-                ">\${bannerId}</div>\`;
+                const bg = isSelected ? '#21262d' : '#0d1117';
+                const border = isSelected ? '#58a6ff' : '#30363d';
+                const color = isSelected ? '#58a6ff' : '#8b949e';
+                return '<div onclick="setBanner(\'' + bannerId + '\')" style="padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:' + bg + '; border:1px solid ' + border + '; color:' + color + ';">' + bannerId + '</div>';
               }).join('')}
             </div>
           </div>` : ''}
