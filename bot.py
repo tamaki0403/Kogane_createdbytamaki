@@ -259,6 +259,13 @@ BADGE_DEFINITIONS = {
     },
 }
 
+BANNER_DEFINITIONS = {
+    "banner_default": {
+        "label": "デフォルト",
+        "url": ""
+    },
+}
+
 PARTICIPATION_BONUS = 1
 DISCONNECT_PENALTY = 50
 DISCONNECT_REWARD = 8
@@ -500,6 +507,8 @@ def initialize_player_profile(user_id: int):
         "xp": None,
         "owned_badges": [],
         "selected_badge": None,
+        "owned_banners": [],
+        "selected_banner": None,
         "coins": 0,
         "tickets": [],
         "active_effect": None,
@@ -4503,6 +4512,33 @@ async def process_bulk_admin_message(message: discord.Message):
             changed_ratings = True
             success_lines.append(line)
 
+        elif command_name == "バナー付与":
+            if len(args) != 1:
+                error_lines.append(f"{line_no}行目: バナーIDを1つ指定してください -> {line}")
+                continue
+            banner_id = args[0]
+            if banner_id not in BANNER_DEFINITIONS:
+                error_lines.append(f"{line_no}行目: 存在しないバナーIDです -> {line}")
+                continue
+            if banner_id not in profile.get("owned_banners", []):
+                profile["owned_banners"] = profile.get("owned_banners", []) + [banner_id]
+            changed_profiles = True
+            success_lines.append(line)
+
+        elif command_name == "バナー削除":
+            if len(args) != 1:
+                error_lines.append(f"{line_no}行目: バナーIDを1つ指定してください -> {line}")
+                continue
+            banner_id = args[0]
+            owned = profile.get("owned_banners", [])
+            if banner_id in owned:
+                owned.remove(banner_id)
+                profile["owned_banners"] = owned
+            if profile.get("selected_banner") == banner_id:
+                profile["selected_banner"] = None
+            changed_profiles = True
+            success_lines.append(line)
+
         elif command_name == "最高レート":
             if len(args) != 1 or not args[0].lstrip("-").isdigit():
                 error_lines.append(f"{line_no}行目: レート値が不正です -> {line}")
@@ -5289,7 +5325,7 @@ async def bot_icon(ctx):
 # =========================
 import threading
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 
@@ -5447,8 +5483,37 @@ def calc_play_type(user_id: str, history: list, all_profiles: dict):
     return play_type, DESCRIPTIONS.get(play_type, "")
 
 
+ACCESS_LOG_FILE = os.path.join(DATA_DIR, "access_log.json")
+
+def load_access_log():
+    try:
+        with open(ACCESS_LOG_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"site": [], "mypage": {}}
+
+def save_access_log(data):
+    with open(ACCESS_LOG_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
 @api.get("/api/player_stats/{user_id}")
 def get_player_stats(user_id: str):
+    from datetime import datetime
+    log = load_access_log()
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    if "site" not in log:
+        log["site"] = []
+    if not log["site"] or log["site"][-1]["date"] != today:
+        log["site"].append({"date": today, "count": 1})
+    else:
+        log["site"][-1]["count"] += 1
+    if "mypage" not in log:
+        log["mypage"] = {}
+    if user_id not in log["mypage"]:
+        log["mypage"][user_id] = 0
+    log["mypage"][user_id] += 1
+    save_access_log(log)
+
     profiles = load_player_profiles()
     ratings_data = load_ratings()
     history = load_match_history()
@@ -5586,6 +5651,13 @@ def get_player_stats(user_id: str):
         "display_name": profile.get("display_name") or user_id,
         "rating": rating,
         "peak_rating": profile.get("peak_rating"),
+        "owned_badges": profile.get("owned_badges", []),
+        "selected_badge": profile.get("selected_badge"),
+        "owned_banners": profile.get("owned_banners", []),
+        "selected_banner": profile.get("selected_banner"),
+        "coins": profile.get("coins", 0),
+        "tickets": profile.get("tickets", []),
+        "active_effect": profile.get("active_effect"),
         "wins": wins,
         "losses": losses,
         "total": total,
@@ -5650,6 +5722,234 @@ async def auth_callback(code: str):
 
     return RedirectResponse(f"/?id={user_id}&avatar={avatar_url}")
 
+@api.post("/api/join_request")
+async def join_request(request: Request):
+    body = await request.json()
+    user_id = body.get("user_id")
+    name = body.get("name")
+    x_id = body.get("x_id")
+
+    if not user_id or not name or not x_id:
+        return JSONResponse(content={"error": "入力が不足しています"}, status_code=400)
+
+    admin_channel_id = ADMIN_CHANNEL_ID
+    for guild in bot.guilds:
+        channel = guild.get_channel(admin_channel_id)
+        if channel:
+            await channel.send(
+                f"【加入申請】\n"
+                f"Discord ID: {user_id}\n"
+                f"名前: {name}\n"
+                f"X: @{x_id}"
+            )
+            break
+
+    return JSONResponse(content={"success": True})
+
+
+@api.post("/api/badge/set")
+async def set_badge(request: Request):
+    body = await request.json()
+    user_id = body.get("user_id")
+    badge_id = body.get("badge_id")
+
+    if not user_id:
+        return JSONResponse(content={"error": "user_id is required"}, status_code=400)
+
+    profile = get_player_profile(int(user_id))
+
+    if badge_id is None or badge_id == "":
+        profile["selected_badge"] = None
+    else:
+        if badge_id not in profile.get("owned_badges", []):
+            return JSONResponse(content={"error": "そのバッジは所持していません"}, status_code=403)
+        profile["selected_badge"] = badge_id
+
+    save_player_profiles(player_profiles)
+    return JSONResponse(content={"success": True})
+
+
+@api.post("/api/banner/set")
+async def set_banner(request: Request):
+    body = await request.json()
+    user_id = body.get("user_id")
+    banner_id = body.get("banner_id")
+
+    if not user_id:
+        return JSONResponse(content={"error": "user_id is required"}, status_code=400)
+
+    profile = get_player_profile(int(user_id))
+
+    if banner_id is None or banner_id == "":
+        profile["selected_banner"] = None
+    else:
+        if banner_id not in profile.get("owned_banners", []):
+            return JSONResponse(content={"error": "そのバナーは所持していません"}, status_code=403)
+        profile["selected_banner"] = banner_id
+
+    save_player_profiles(player_profiles)
+    return JSONResponse(content={"success": True})
+
+
+@api.post("/api/gacha")
+async def web_gacha(request: Request):
+    body = await request.json()
+    user_id = body.get("user_id")
+
+    if not user_id:
+        return JSONResponse(content={"error": "user_id is required"}, status_code=400)
+
+    profile = get_player_profile(int(user_id))
+    coins = profile.get("coins", 0)
+
+    if coins < GACHA_COST:
+        return JSONResponse(content={"error": "コインが足りません"}, status_code=400)
+
+    remove_coin(int(user_id), GACHA_COST)
+    item = draw_gacha_item()
+
+    guild = None
+    for g in bot.guilds:
+        guild = g
+        break
+
+    if guild:
+        await apply_gacha_result(guild, int(user_id), item)
+
+    save_player_profiles(player_profiles)
+
+    if item["kind"] == "trivia":
+        import random as _random
+        result_label = _random.choice(TRIVIA_LIST)
+    else:
+        result_label = item["label"]
+
+    return JSONResponse(content={
+        "success": True,
+        "kind": item["kind"],
+        "label": result_label,
+        "coins_remaining": profile.get("coins", 0),
+    })
+
+
+@api.post("/api/ticket/use")
+async def web_ticket_use(request: Request):
+    body = await request.json()
+    user_id = body.get("user_id")
+    ticket_index = body.get("ticket_index")
+
+    if not user_id:
+        return JSONResponse(content={"error": "user_id is required"}, status_code=400)
+
+    profile = get_player_profile(int(user_id))
+
+    if profile.get("active_effect"):
+        return JSONResponse(content={"error": "すでに効果中のチケットがあります"}, status_code=400)
+
+    tickets = profile.get("tickets", [])
+    if ticket_index is None or ticket_index < 0 or ticket_index >= len(tickets):
+        return JSONResponse(content={"error": "チケットが見つかりません"}, status_code=400)
+
+    ticket = tickets.pop(ticket_index)
+
+    if ticket.get("type") == "weapon_jack":
+        tickets.insert(ticket_index, ticket)
+        return JSONResponse(content={"error": "このチケットはWebからは使用できません"}, status_code=400)
+
+    profile["active_effect"] = ticket
+    profile["tickets"] = tickets
+    save_player_profiles(player_profiles)
+
+    return JSONResponse(content={"success": True, "label": ticket.get("label", "不明")})
+
+
+@api.post("/api/stats/input")
+async def web_stats_input(request: Request):
+    body = await request.json()
+    user_id = body.get("user_id")
+    match_id = body.get("match_id")
+    paint = body.get("paint")
+    kill = body.get("kill")
+    death = body.get("death")
+    special = body.get("special")
+
+    if not user_id or not match_id:
+        return JSONResponse(content={"error": "入力が不足しています"}, status_code=400)
+
+    try:
+        paint = int(paint)
+        kill = int(kill)
+        death = int(death)
+        special = int(special)
+    except Exception:
+        return JSONResponse(content={"error": "数値を入力してください"}, status_code=400)
+
+    history = load_match_history()
+    found = False
+    for match in reversed(history):
+        if match.get("timestamp") == match_id:
+            if user_id not in match.get("alpha", []) and user_id not in match.get("bravo", []):
+                return JSONResponse(content={"error": "この試合の参加者ではありません"}, status_code=403)
+            if "player_stats" not in match:
+                match["player_stats"] = {}
+            match["player_stats"][user_id] = {
+                "paint": paint, "kill": kill,
+                "death": death, "special": special,
+            }
+            found = True
+            break
+
+    if not found:
+        return JSONResponse(content={"error": "試合が見つかりません"}, status_code=404)
+
+    save_match_history(history)
+    return JSONResponse(content={"success": True})
+
+
+@api.get("/api/my_matches/{user_id}")
+def get_my_matches(user_id: str):
+    history = load_match_history()
+    user_matches = [
+        m for m in history
+        if user_id in m.get("alpha", []) or user_id in m.get("bravo", [])
+    ]
+    recent = user_matches[-5:][::-1]
+    result = []
+    for m in recent:
+        result.append({
+            "timestamp": m.get("timestamp"),
+            "stage": m.get("stage") or "不明",
+            "winner": m.get("winner"),
+            "my_team": "alpha" if user_id in m.get("alpha", []) else "bravo",
+            "already_input": user_id in m.get("player_stats", {}),
+        })
+    return JSONResponse(content={"matches": result})
+
+
+@api.get("/api/admin/stats")
+def get_admin_stats(user_id: str = ""):
+    if user_id != str(OWNER_ID):
+        return JSONResponse(content={"error": "権限がありません"}, status_code=403)
+
+    log = load_access_log()
+    profiles = load_player_profiles()
+
+    mypage_stats = []
+    for uid, count in log.get("mypage", {}).items():
+        profile = profiles.get(uid, {})
+        mypage_stats.append({
+            "user_id": uid,
+            "display_name": profile.get("display_name") or uid,
+            "count": count,
+        })
+    mypage_stats.sort(key=lambda x: -x["count"])
+
+    return JSONResponse(content={
+        "site_log": log.get("site", [])[-30:],
+        "mypage_stats": mypage_stats,
+    })
+
+
 @api.get("/api/player/{user_id}")
 def get_player(user_id: str):
     ratings_data = load_ratings()
@@ -5691,5 +5991,4 @@ if not TOKEN:
 
 api_thread = threading.Thread(target=run_api, daemon=True)
 api_thread.start()
-
 bot.run(TOKEN)
