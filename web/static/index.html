@@ -900,6 +900,9 @@
   let previewSelectedBadge = null;
   let previewSelectedBanner = null;
 
+  let previewBadgesData = [];
+  let previewBannersData = [];
+
   async function loadPreviewLists() {
     const [badgesRes, bannersRes] = await Promise.all([
       fetch('/api/web_badges'),
@@ -908,23 +911,23 @@
     const badgesData = await badgesRes.json();
     const bannersData = await bannersRes.json();
 
+    previewBadgesData = badgesData.badges || [];
+    previewBannersData = bannersData.banners || [];
+
     const badgeList = document.getElementById('preview-badge-list');
     const bannerList = document.getElementById('preview-banner-list');
     if (!badgeList || !bannerList) return;
 
-    const badges = badgesData.badges || [];
-    const banners = bannersData.banners || [];
-
     badgeList.innerHTML = `<div class="badge-item selected" onclick="selectPreviewBadge(null, this)">なし</div>` +
-      badges.map(b => `
-        <div class="badge-item" onclick="selectPreviewBadge(${JSON.stringify(b)}, this)">
+      previewBadgesData.map((b, i) => `
+        <div class="badge-item" onclick="selectPreviewBadge(previewBadgesData[${i}], this)">
           ${b.image_url ? `<img class="badge-img" src="${b.image_url}" onerror="this.style.display='none'">` : ''}
           ${b.label}
         </div>`).join('');
 
     bannerList.innerHTML = `<div class="badge-item selected" onclick="selectPreviewBanner(null, this)">なし</div>` +
-      banners.map(b => `
-        <div class="badge-item" onclick="selectPreviewBanner(${JSON.stringify(b)}, this)">
+      previewBannersData.map((b, i) => `
+        <div class="badge-item" onclick="selectPreviewBanner(previewBannersData[${i}], this)">
           ${b.image_url ? `<img class="badge-img" src="${b.image_url}" onerror="this.style.display='none'">` : ''}
           ${b.label}
         </div>`).join('');
