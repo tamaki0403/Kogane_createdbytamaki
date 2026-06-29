@@ -42,20 +42,43 @@
     .page-title { font-size: 1.3rem; font-weight: bold; margin-bottom: 4px; }
     .subtitle { font-size: 0.85rem; color: #8b949e; margin-bottom: 20px; }
     .profile-header { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
-    .profile-top { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+    .profile-top { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
     .profile-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
     .profile-name { font-size: 1.3rem; font-weight: bold; }
-    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
     .stat-box { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 12px; text-align: center; }
     .stat-label { font-size: 0.75rem; color: #8b949e; margin-bottom: 4px; }
     .stat-value { font-size: 1.3rem; font-weight: bold; color: #58a6ff; }
-    .accordion-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 14px 0; border-bottom: 1px solid #30363d; color: #8b949e; font-size: 0.95rem; font-weight: bold; user-select: none; }
-    .accordion-header:hover { color: #e6edf3; }
-    .accordion-arrow { font-size: 0.8rem; transition: transform 0.2s; }
-    .accordion-arrow.open { transform: rotate(180deg); }
-    .accordion-body { display: none; padding-top: 12px; }
-    .accordion-body.open { display: block; }
-    .graph-container { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 16px; margin-bottom: 8px; }
+    .section-card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    .section-title { font-size: 0.85rem; color: #8b949e; margin-bottom: 12px; font-weight: bold; }
+    .graph-container { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    .stage-row { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; }
+    .stage-no-record { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; opacity: 0.4; }
+    .stage-name { flex: 1; font-size: 0.9rem; }
+    .stage-record { font-size: 0.85rem; color: #8b949e; }
+    .stage-winrate { font-size: 0.95rem; font-weight: bold; color: #58a6ff; min-width: 48px; text-align: right; }
+
+    /* タブUI */
+    .tab-bar { display: flex; border-bottom: 1px solid #30363d; margin-bottom: 16px; gap: 0; overflow-x: auto; }
+    .tab-btn { background: none; border: none; color: #8b949e; font-size: 0.9rem; padding: 12px 16px; cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.2s, border-color 0.2s; }
+    .tab-btn:hover { color: #e6edf3; }
+    .tab-btn.active { color: #58a6ff; border-bottom-color: #58a6ff; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* バッジ・バナー設定 */
+    .badge-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .badge-item { padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; border: 1px solid #30363d; color: #8b949e; background: #0d1117; display: flex; align-items: center; gap: 6px; transition: border-color 0.2s; }
+    .badge-item:hover { border-color: #58a6ff; }
+    .badge-item.selected { border-color: #58a6ff; color: #58a6ff; background: #21262d; }
+    .badge-img { width: 24px; height: 24px; border-radius: 4px; object-fit: cover; }
+    .banner-item { border-radius: 8px; cursor: pointer; border: 2px solid #30363d; overflow: hidden; transition: border-color 0.2s; margin-bottom: 8px; }
+    .banner-item:hover { border-color: #58a6ff; }
+    .banner-item.selected { border-color: #58a6ff; }
+    .banner-preview { width: 100%; height: 60px; object-fit: cover; display: block; background: #0d1117; }
+    .banner-label { padding: 6px 10px; font-size: 0.8rem; color: #8b949e; background: #161b22; }
+
+    /* vs */
     .vs-select { width: 100%; padding: 10px 14px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; color: #e6edf3; font-size: 0.95rem; outline: none; margin-bottom: 12px; }
     .vs-select:focus { border-color: #58a6ff; }
     .vs-result { display: none; }
@@ -64,15 +87,40 @@
     .vs-bar-wrap { background: #0d1117; border-radius: 6px; height: 28px; overflow: hidden; display: flex; }
     .vs-bar-win { background: #238636; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; color: #fff; transition: width 0.4s; }
     .vs-bar-loss { background: #da3633; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; color: #fff; transition: width 0.4s; }
-    .stage-row { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; }
-    .stage-no-record { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; opacity: 0.4; }
-    .stage-name { flex: 1; font-size: 0.9rem; }
-    .stage-record { font-size: 0.85rem; color: #8b949e; }
-    .stage-winrate { font-size: 0.95rem; font-weight: bold; color: #58a6ff; min-width: 48px; text-align: right; }
+
+    /* ガチャ・チケット */
+    .gacha-btn { width: 100%; padding: 12px; background: #238636; color: #fff; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+    .gacha-btn:disabled { background: #21262d; cursor: not-allowed; }
+    .ticket-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; margin-bottom: 8px; }
+    .ticket-label { font-size: 0.85rem; }
+    .ticket-use-btn { padding: 4px 12px; background: #5865f2; color: #fff; border: none; border-radius: 6px; font-size: 0.8rem; cursor: pointer; }
+    .ticket-use-btn:disabled { background: #21262d; cursor: not-allowed; }
+    .result-box { padding: 12px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; font-size: 0.9rem; margin-top: 8px; }
+
+    /* ランキング */
     .loading { text-align: center; color: #8b949e; margin-top: 60px; }
     .error { text-align: center; color: #f85149; margin-top: 60px; }
     .hero-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.4); cursor: pointer; transition: background 0.3s; }
     .hero-dot.active { background: #fff; }
+
+    /* 管理UI */
+    .admin-input { width: 100%; padding: 10px 14px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; color: #e6edf3; font-size: 0.95rem; outline: none; margin-bottom: 8px; }
+    .admin-input:focus { border-color: #58a6ff; }
+    .admin-btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 0.9rem; cursor: pointer; font-weight: bold; }
+    .admin-btn-primary { background: #238636; color: #fff; }
+    .admin-btn-secondary { background: #21262d; color: #e6edf3; }
+    .admin-btn-danger { background: #da3633; color: #fff; }
+    .admin-item-card { background: #0d1117; border: 1px solid #30363d; border-radius: 10px; padding: 14px; margin-bottom: 10px; }
+    .admin-item-preview { width: 100%; height: 80px; object-fit: cover; border-radius: 6px; margin-bottom: 8px; background: #161b22; display: block; }
+    .admin-badge-preview { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; margin-bottom: 8px; background: #161b22; display: block; }
+
+    /* accordion */
+    .accordion-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 14px 0; border-bottom: 1px solid #30363d; color: #8b949e; font-size: 0.95rem; font-weight: bold; user-select: none; }
+    .accordion-header:hover { color: #e6edf3; }
+    .accordion-arrow { font-size: 0.8rem; transition: transform 0.2s; }
+    .accordion-arrow.open { transform: rotate(180deg); }
+    .accordion-body { display: none; padding-top: 12px; }
+    .accordion-body.open { display: block; }
   </style>
 </head>
 <body>
@@ -121,17 +169,13 @@
     </div>
     <div style="position:absolute; bottom:0; left:0; right:0; height:80px; background:linear-gradient(transparent, #0d1117);"></div>
   </div>
-
   <div style="padding: 0 16px;">
     <div class="home-title">Kogane</div>
     <div class="home-desc">死滅回游形式のスプラトゥーン内部戦サーバー</div>
-
-    <!-- 加入申請カード（広告枠の位置に移動） -->
     <div class="card-link" onclick="showPage('join')" style="border-color:#5865f2;">
       <div class="card-title">たまき鯖に加入する</div>
       <div class="card-desc">加入申請フォームはこちら</div>
     </div>
-
     <div class="card-link" onclick="showPage('ranking')">
       <div class="card-title">レートランキング</div>
       <div class="card-desc">現在のレートによる順位表</div>
@@ -151,20 +195,18 @@
 <div class="page" id="page-join">
   <div class="page-title">加入申請</div>
   <div class="subtitle">必要事項を入力して送信してください</div>
-  <div id="join-form">
-    <div style="margin-bottom:12px;">
-      <div style="font-size:0.85rem; color:#8b949e; margin-bottom:6px;">名前</div>
-      <input id="join-name" type="text" placeholder="例：たまき" maxlength="50" style="width:100%; padding:10px 14px; background:#0d1117; border:1px solid #30363d; border-radius:8px; color:#e6edf3; font-size:0.95rem; outline:none;">
-    </div>
-    <div style="margin-bottom:20px;">
-      <div style="font-size:0.85rem; color:#8b949e; margin-bottom:6px;">XアカウントID（@なし）</div>
-      <input id="join-xid" type="text" placeholder="例：tamaki0403" maxlength="50" style="width:100%; padding:10px 14px; background:#0d1117; border:1px solid #30363d; border-radius:8px; color:#e6edf3; font-size:0.95rem; outline:none;">
-    </div>
-    <div id="join-login-warning" style="display:none; color:#f85149; font-size:0.85rem; margin-bottom:12px;">Discordログインが必要です</div>
-    <div id="join-success" style="display:none; color:#238636; font-size:0.85rem; margin-bottom:12px;">申請を送信しました！</div>
-    <div id="join-error" style="display:none; color:#f85149; font-size:0.85rem; margin-bottom:12px;"></div>
-    <button onclick="submitJoinRequest()" style="width:100%; padding:12px; background:#5865f2; color:#fff; border:none; border-radius:8px; font-size:1rem; font-weight:bold; cursor:pointer;">申請を送信</button>
+  <div style="margin-bottom:12px;">
+    <div style="font-size:0.85rem; color:#8b949e; margin-bottom:6px;">名前</div>
+    <input id="join-name" type="text" placeholder="例：たまき" maxlength="50" style="width:100%; padding:10px 14px; background:#0d1117; border:1px solid #30363d; border-radius:8px; color:#e6edf3; font-size:0.95rem; outline:none;">
   </div>
+  <div style="margin-bottom:20px;">
+    <div style="font-size:0.85rem; color:#8b949e; margin-bottom:6px;">XアカウントID（@なし）</div>
+    <input id="join-xid" type="text" placeholder="例：tamaki0403" maxlength="50" style="width:100%; padding:10px 14px; background:#0d1117; border:1px solid #30363d; border-radius:8px; color:#e6edf3; font-size:0.95rem; outline:none;">
+  </div>
+  <div id="join-login-warning" style="display:none; color:#f85149; font-size:0.85rem; margin-bottom:12px;">Discordログインが必要です</div>
+  <div id="join-success" style="display:none; color:#238636; font-size:0.85rem; margin-bottom:12px;">申請を送信しました！</div>
+  <div id="join-error" style="display:none; color:#f85149; font-size:0.85rem; margin-bottom:12px;"></div>
+  <button onclick="submitJoinRequest()" style="width:100%; padding:12px; background:#5865f2; color:#fff; border:none; border-radius:8px; font-size:1rem; font-weight:bold; cursor:pointer;">申請を送信</button>
 </div>
 
 <!-- レートランキング -->
@@ -190,6 +232,7 @@
 <div class="page" id="page-admin">
   <div class="page-title">運営ページ</div>
   <div class="subtitle">たまきのみ閲覧可能</div>
+
   <div class="accordion-header" onclick="toggleAccordion('admin-site')">
     <span>サイト閲覧数推移</span>
     <span class="accordion-arrow" id="arrow-admin-site">▼</span>
@@ -197,6 +240,7 @@
   <div class="accordion-body" id="body-admin-site">
     <div class="graph-container"><canvas id="siteChart" height="160"></canvas></div>
   </div>
+
   <div class="accordion-header" onclick="toggleAccordion('admin-mypage')">
     <span>マイページ閲覧数</span>
     <span class="accordion-arrow" id="arrow-admin-mypage">▼</span>
@@ -204,10 +248,53 @@
   <div class="accordion-body" id="body-admin-mypage">
     <div id="admin-mypage-list" style="padding-top:4px;"></div>
   </div>
+
+  <div class="accordion-header" onclick="toggleAccordion('admin-badges'); loadAdminBadges();">
+    <span>バッジ管理</span>
+    <span class="accordion-arrow" id="arrow-admin-badges">▼</span>
+  </div>
+  <div class="accordion-body" id="body-admin-badges">
+    <div style="padding-top:8px;">
+      <div style="font-size:0.85rem; color:#8b949e; margin-bottom:8px;">新規バッジ作成</div>
+      <input class="admin-input" id="new-badge-label" placeholder="バッジ名（例：石狩）">
+      <input class="admin-input" id="new-badge-url" placeholder="画像URL">
+      <div id="new-badge-preview-wrap" style="margin-bottom:8px; display:none;">
+        <img id="new-badge-preview" src="" style="width:48px; height:48px; object-fit:cover; border-radius:6px; border:1px solid #30363d;">
+      </div>
+      <button class="admin-btn admin-btn-primary" onclick="previewBadgeImage()" style="margin-bottom:8px; margin-right:8px;">プレビュー</button>
+      <button class="admin-btn admin-btn-primary" onclick="createBadge()">作成</button>
+      <div id="badge-create-msg" style="font-size:0.85rem; margin-top:8px;"></div>
+
+      <div style="font-size:0.85rem; color:#8b949e; margin-top:16px; margin-bottom:8px;">作成済みバッジ</div>
+      <div id="admin-badge-list"></div>
+    </div>
+  </div>
+
+  <div class="accordion-header" onclick="toggleAccordion('admin-banners'); loadAdminBanners();">
+    <span>バナー管理</span>
+    <span class="accordion-arrow" id="arrow-admin-banners">▼</span>
+  </div>
+  <div class="accordion-body" id="body-admin-banners">
+    <div style="padding-top:8px;">
+      <div style="font-size:0.85rem; color:#8b949e; margin-bottom:8px;">新規バナー作成</div>
+      <input class="admin-input" id="new-banner-label" placeholder="バナー名（例：夏バナー）">
+      <input class="admin-input" id="new-banner-url" placeholder="画像URL">
+      <div id="new-banner-preview-wrap" style="margin-bottom:8px; display:none;">
+        <img id="new-banner-preview" src="" style="width:100%; height:80px; object-fit:cover; border-radius:6px; border:1px solid #30363d;">
+      </div>
+      <button class="admin-btn admin-btn-primary" onclick="previewBannerImage()" style="margin-bottom:8px; margin-right:8px;">プレビュー</button>
+      <button class="admin-btn admin-btn-primary" onclick="createBanner()">作成</button>
+      <div id="banner-create-msg" style="font-size:0.85rem; margin-top:8px;"></div>
+
+      <div style="font-size:0.85rem; color:#8b949e; margin-top:16px; margin-bottom:8px;">作成済みバナー</div>
+      <div id="admin-banner-list"></div>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
+  // ===== スライダー =====
   let heroIndex = 0;
   const heroTotal = 4;
   function goSlide(n) {
@@ -237,13 +324,6 @@
     'オールラウンダー': '特定の突出した特徴はないが状況に応じて柔軟に対応できるプレイヤー。どんな場面でも安定して戦える。',
   };
 
-  const BADGE_DEFS = {
-    "ishigouri": {"label":"石狩"},
-    "yuta": {"label":"悠太"},
-    "rika": {"label":"里香"},
-    "ThanksfortheArt": {"label":"Thanks for the Art"}
-  };
-
   let allRanking = [];
   let rankingLoaded = false;
   let peakLoaded = false;
@@ -252,6 +332,7 @@
   let rateChartInstance = null;
   let vsStatsData = [];
   let currentPage = 'home';
+  let mypageData = null;
 
   const params = new URLSearchParams(window.location.search);
   const urlId = params.get('id');
@@ -362,13 +443,29 @@
     }
   }
 
+  // ===== マイページ =====
   async function loadMyPage() {
     document.getElementById('mypage-content').innerHTML = '<p class="loading">読み込み中...</p>';
     if (rateChartInstance) { rateChartInstance.destroy(); rateChartInstance = null; }
+
     try {
-      const res = await fetch(`/api/player_stats/${currentUserId}`);
-      const d = await res.json();
-      if (d.error) { document.getElementById('mypage-content').innerHTML = '<p class="error">プレイヤーが見つかりません</p>'; return; }
+      const [statsRes, badgesRes, bannersRes] = await Promise.all([
+        fetch(`/api/player_stats/${currentUserId}`),
+        fetch('/api/web_badges'),
+        fetch('/api/web_banners'),
+      ]);
+      const d = await statsRes.json();
+      const badgesData = await badgesRes.json();
+      const bannersData = await bannersRes.json();
+
+      if (d.error) {
+        document.getElementById('mypage-content').innerHTML = '<p class="error">プレイヤーが見つかりません</p>';
+        return;
+      }
+
+      mypageData = d;
+      const webBadges = badgesData.badges || [];
+      const webBanners = bannersData.banners || [];
 
       const winRate = d.win_rate !== null ? `${d.win_rate}%` : '-';
       const peak = d.peak_rating || '-';
@@ -386,38 +483,51 @@
       const vsOptions = vsStatsData.map(v => `<option value="${v.user_id}">${v.display_name}（${v.total}戦）</option>`).join('');
       const rateCount = (d.rate_history || []).length;
 
-      const badgeSettingHtml = (d.owned_badges && d.owned_badges.length > 0) ? `
-        <div style="padding-top:4px;">
-          <div style="font-size:0.75rem; color:#8b949e; margin-bottom:8px;">バッジ設定</div>
-          <div style="display:flex; flex-wrap:wrap; gap:8px;">
-            <div onclick="setBadge('')" style="padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:${!d.selected_badge ? '#21262d' : '#0d1117'}; border:1px solid ${!d.selected_badge ? '#58a6ff' : '#30363d'}; color:${!d.selected_badge ? '#58a6ff' : '#8b949e'};">なし</div>
-            ${d.owned_badges.map(badgeId => {
-              const b = BADGE_DEFS[badgeId];
-              if (!b) return '';
-              const isSelected = d.selected_badge === badgeId;
-              return `<div onclick="setBadge('${badgeId}')" style="padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:${isSelected ? '#21262d' : '#0d1117'}; border:1px solid ${isSelected ? '#58a6ff' : '#30363d'}; color:${isSelected ? '#58a6ff' : '#8b949e'};">${b.label}</div>`;
-            }).join('')}
-          </div>
-        </div>` : '<div style="font-size:0.85rem; color:#8b949e; padding-top:4px;">バッジを所持していません</div>';
+      // Webバッジ設定UI
+      const ownedWebBadges = d.owned_web_badges || [];
+      const selectedWebBadge = d.selected_web_badge || null;
+      const myWebBadges = webBadges.filter(b => ownedWebBadges.includes(b.id));
 
-      const bannerSettingHtml = (d.owned_banners && d.owned_banners.length > 0) ? `
-        <div style="padding-top:4px;">
-          <div style="font-size:0.75rem; color:#8b949e; margin-bottom:8px;">バナー設定</div>
-          <div style="display:flex; flex-wrap:wrap; gap:8px;">
-            <div onclick="setBanner('')" style="padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:${!d.selected_banner ? '#21262d' : '#0d1117'}; border:1px solid ${!d.selected_banner ? '#58a6ff' : '#30363d'}; color:${!d.selected_banner ? '#58a6ff' : '#8b949e'};">なし</div>
-            ${d.owned_banners.map(bannerId => {
-              const isSelected = d.selected_banner === bannerId;
-              return `<div onclick="setBanner('${bannerId}')" style="padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:${isSelected ? '#21262d' : '#0d1117'}; border:1px solid ${isSelected ? '#58a6ff' : '#30363d'}; color:${isSelected ? '#58a6ff' : '#8b949e'};">${bannerId}</div>`;
-            }).join('')}
+      const badgeSettingHtml = myWebBadges.length > 0 ? `
+        <div style="margin-bottom:12px;">
+          <div class="section-title">バッジ設定</div>
+          <div class="badge-grid">
+            <div class="badge-item ${!selectedWebBadge ? 'selected' : ''}" onclick="setWebBadge('')">なし</div>
+            ${myWebBadges.map(b => `
+              <div class="badge-item ${selectedWebBadge === b.id ? 'selected' : ''}" onclick="setWebBadge('${b.id}')">
+                ${b.image_url ? `<img class="badge-img" src="${b.image_url}" onerror="this.style.display='none'">` : ''}
+                ${b.label}
+              </div>`).join('')}
           </div>
         </div>` : '';
 
-      const adminLinkHtml = (currentUserId === '1225788050894753865') ? `
+      // Webバナー設定UI
+      const ownedWebBanners = d.owned_web_banners || [];
+      const selectedWebBanner = d.selected_web_banner || null;
+      const myWebBanners = webBanners.filter(b => ownedWebBanners.includes(b.id));
+
+      const bannerSettingHtml = myWebBanners.length > 0 ? `
+        <div style="margin-bottom:12px;">
+          <div class="section-title">バナー設定</div>
+          <div class="banner-item ${!selectedWebBanner ? 'selected' : ''}" onclick="setWebBanner('')">
+            <div style="height:40px; background:#0d1117; display:flex; align-items:center; justify-content:center;">
+              <span style="font-size:0.8rem; color:#8b949e;">なし</span>
+            </div>
+          </div>
+          ${myWebBanners.map(b => `
+            <div class="banner-item ${selectedWebBanner === b.id ? 'selected' : ''}" onclick="setWebBanner('${b.id}')">
+              ${b.image_url ? `<img class="banner-preview" src="${b.image_url}" onerror="this.style.display='none'">` : '<div class="banner-preview" style="background:#21262d;"></div>'}
+              <div class="banner-label">${b.label}</div>
+            </div>`).join('')}
+        </div>` : '';
+
+      const adminLinkHtml = currentUserId === '1225788050894753865' ? `
         <div style="border-top:1px solid #30363d; padding-top:12px; margin-top:4px;">
           <div onclick="showAdminPage()" style="display:inline-block; padding:6px 16px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:#21262d; border:1px solid #30363d; color:#8b949e;">運営ページ</div>
         </div>` : '';
 
       document.getElementById('mypage-content').innerHTML = `
+        <!-- プロフィールカード -->
         <div class="profile-header">
           <div class="profile-top">
             <img class="profile-avatar" src="${avatar}" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'" alt="">
@@ -426,11 +536,14 @@
             </div>
           </div>
           ${d.play_type ? `
-          <div style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:12px; text-align:center; margin-bottom:16px;">
+          <div style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:12px; margin-bottom:14px;">
             <div style="font-size:0.75rem; color:#8b949e; margin-bottom:4px;">あなたのスタイルは</div>
-            <div style="font-size:1.6rem; font-weight:bold; color:#58a6ff;">${d.play_type}</div>
+            <div style="font-size:1.5rem; font-weight:bold; color:#58a6ff; margin-bottom:6px;">${d.play_type}</div>
+            <div style="font-size:0.8rem; color:#8b949e; line-height:1.6;">${PLAY_TYPE_DESC[d.play_type] || ''}</div>
           </div>` : ''}
           <div class="stats-grid">
+            <div class="stat-box"><div class="stat-label">勝ち</div><div class="stat-value">${d.wins}</div></div>
+            <div class="stat-box"><div class="stat-label">負け</div><div class="stat-value">${d.losses}</div></div>
             <div class="stat-box"><div class="stat-label">現在のレート</div><div class="stat-value">${d.rating}</div></div>
             <div class="stat-box"><div class="stat-label">最高レート</div><div class="stat-value">${peak}</div></div>
             <div class="stat-box"><div class="stat-label">勝率</div><div class="stat-value">${winRate}</div></div>
@@ -440,111 +553,76 @@
             <div class="stat-box"><div class="stat-label">K/D</div><div class="stat-value">${d.kd ?? '-'}</div></div>
             <div class="stat-box"><div class="stat-label">平均塗り</div><div class="stat-value">${d.avg_paint ?? '-'}</div></div>
           </div>
-          <div style="font-size:0.85rem; color:#8b949e; margin-bottom:12px;">${d.wins}勝 ${d.losses}敗</div>
+          ${badgeSettingHtml}
+          ${bannerSettingHtml}
           ${adminLinkHtml}
         </div>
 
-        <div class="accordion-header" onclick="toggleAccordion('stats-input')">
-          <span>戦績を入力する</span>
-          <span class="accordion-arrow" id="arrow-stats-input">▼</span>
-        </div>
-        <div class="accordion-body" id="body-stats-input">
-          <div id="stats-match-list" style="padding-top:4px;"><p style="color:#8b949e; font-size:0.85rem;">読み込み中...</p></div>
+        <!-- レート変動グラフ -->
+        <div class="graph-container">
+          <div class="section-title">レート変動（直近${rateCount}戦）</div>
+          <canvas id="rateChart" height="160"></canvas>
         </div>
 
-        <div class="accordion-header" onclick="toggleAccordion('graph')">
-          <span>レート変動（直近${rateCount}戦）</span>
-          <span class="accordion-arrow" id="arrow-graph">▼</span>
-        </div>
-        <div class="accordion-body" id="body-graph">
-          <div class="graph-container"><canvas id="rateChart" height="160"></canvas></div>
+        <!-- ステージ別成績 -->
+        <div class="section-card">
+          <div class="section-title">ステージ別成績</div>
+          ${stageRows}
         </div>
 
-        <div class="accordion-header" onclick="toggleAccordion('vs')">
-          <span>対プレイヤー勝率</span>
-          <span class="accordion-arrow" id="arrow-vs">▼</span>
+        <!-- タブエリア -->
+        <div class="tab-bar">
+          <button class="tab-btn active" onclick="switchTab('stats-input', this)">戦績入力</button>
+          <button class="tab-btn" onclick="switchTab('vs', this)">対プレイヤー</button>
+          <button class="tab-btn" onclick="switchTab('gacha', this)">ガチャ</button>
+          <button class="tab-btn" onclick="switchTab('ticket', this)">チケット</button>
         </div>
-        <div class="accordion-body" id="body-vs">
+
+        <!-- 戦績入力タブ -->
+        <div class="tab-content active" id="tab-stats-input">
+          <div id="stats-match-list"><p style="color:#8b949e; font-size:0.85rem;">読み込み中...</p></div>
+        </div>
+
+        <!-- 対プレイヤータブ -->
+        <div class="tab-content" id="tab-vs">
           ${vsStatsData.length === 0
             ? '<p style="color:#8b949e; font-size:0.85rem; padding:12px 0;">対戦記録がありません</p>'
-            : `<div style="padding-top:4px;">
-                <select class="vs-select" id="vs-select" onchange="updateVsResult()">
-                  <option value="">プレイヤーを選択...</option>
-                  ${vsOptions}
-                </select>
-                <div class="vs-result" id="vs-result">
-                  <div class="vs-name" id="vs-name"></div>
-                  <div class="vs-record" id="vs-record"></div>
-                  <div class="vs-bar-wrap">
-                    <div class="vs-bar-win" id="vs-bar-win"></div>
-                    <div class="vs-bar-loss" id="vs-bar-loss"></div>
-                  </div>
+            : `<select class="vs-select" id="vs-select" onchange="updateVsResult()">
+                <option value="">プレイヤーを選択...</option>
+                ${vsOptions}
+              </select>
+              <div class="vs-result" id="vs-result">
+                <div class="vs-name" id="vs-name"></div>
+                <div class="vs-record" id="vs-record"></div>
+                <div class="vs-bar-wrap">
+                  <div class="vs-bar-win" id="vs-bar-win"></div>
+                  <div class="vs-bar-loss" id="vs-bar-loss"></div>
                 </div>
               </div>`}
         </div>
 
-        <div class="accordion-header" onclick="toggleAccordion('stage')">
-          <span>ステージ別成績</span>
-          <span class="accordion-arrow" id="arrow-stage">▼</span>
-        </div>
-        <div class="accordion-body" id="body-stage">
-          <div style="padding-top:4px;">${stageRows}</div>
+        <!-- ガチャタブ -->
+        <div class="tab-content" id="tab-gacha">
+          <div style="margin-bottom:8px; font-size:1rem; font-weight:bold;">🪙 ${d.coins ?? 0} / 5</div>
+          <button class="gacha-btn" onclick="doGacha()">ガチャを引く（コイン1枚）</button>
+          <div id="gacha-result" style="display:none;" class="result-box"></div>
         </div>
 
-        <div class="accordion-header" onclick="toggleAccordion('gacha')">
-          <span>ガチャ（コイン: ${d.coins ?? 0} / 5）</span>
-          <span class="accordion-arrow" id="arrow-gacha">▼</span>
-        </div>
-        <div class="accordion-body" id="body-gacha">
-          <div style="padding-top:4px;">
-            <button onclick="doGacha()" style="width:100%; padding:10px; background:#238636; color:#fff; border:none; border-radius:8px; font-size:0.95rem; font-weight:bold; cursor:pointer; margin-bottom:8px;">ガチャを引く（コイン1枚）</button>
-            <div id="gacha-result" style="display:none; padding:12px; background:#0d1117; border:1px solid #30363d; border-radius:8px; font-size:0.9rem; color:#e6edf3;"></div>
+        <!-- チケットタブ -->
+        <div class="tab-content" id="tab-ticket">
+          <div style="font-size:0.85rem; color:#8b949e; margin-bottom:10px;">
+            ${d.active_effect ? `有効中: ${d.active_effect.label}（残り${d.active_effect.remaining_matches}試合）` : '有効中の効果なし'}
           </div>
+          ${(d.tickets && d.tickets.length > 0) ? d.tickets.map((t, i) => `
+            <div class="ticket-row">
+              <div class="ticket-label">${t.label}</div>
+              <button class="ticket-use-btn" onclick="useTicket(${i})" ${d.active_effect ? 'disabled' : ''}>${d.active_effect ? '効果中' : '使用'}</button>
+            </div>`).join('') : '<div style="font-size:0.85rem; color:#8b949e;">チケットなし</div>'}
+          <div id="ticket-result" style="display:none;" class="result-box"></div>
         </div>
-
-        <div class="accordion-header" onclick="toggleAccordion('ticket')">
-          <span>チケット</span>
-          <span class="accordion-arrow" id="arrow-ticket">▼</span>
-        </div>
-        <div class="accordion-body" id="body-ticket">
-          <div style="padding-top:4px;">
-            <div style="font-size:0.85rem; color:#8b949e; margin-bottom:10px;">
-              ${d.active_effect ? `有効中: ${d.active_effect.label}（残り${d.active_effect.remaining_matches}試合）` : '有効中の効果なし'}
-            </div>
-            ${(d.tickets && d.tickets.length > 0) ? `
-            <div style="display:flex; flex-direction:column; gap:8px;">
-              ${d.tickets.map((t, i) => `
-                <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#0d1117; border:1px solid #30363d; border-radius:8px;">
-                  <div style="font-size:0.85rem;">${t.label}</div>
-                  <button onclick="useTicket(${i})" ${d.active_effect ? 'disabled' : ''} style="padding:4px 12px; background:${d.active_effect ? '#21262d' : '#5865f2'}; color:#fff; border:none; border-radius:6px; font-size:0.8rem; cursor:${d.active_effect ? 'not-allowed' : 'pointer'};">使用</button>
-                </div>`).join('')}
-            </div>` : '<div style="font-size:0.85rem; color:#8b949e;">チケットなし</div>'}
-            <div id="ticket-result" style="display:none; margin-top:12px; padding:12px; background:#0d1117; border:1px solid #30363d; border-radius:8px; font-size:0.9rem;"></div>
-          </div>
-        </div>
-
-        <div class="accordion-header" onclick="toggleAccordion('badge')">
-          <span>バッジ・バナー設定</span>
-          <span class="accordion-arrow" id="arrow-badge">▼</span>
-        </div>
-        <div class="accordion-body" id="body-badge">
-          ${badgeSettingHtml}
-          ${bannerSettingHtml}
-        </div>
-
-        ${d.play_type ? `
-        <div class="accordion-header" onclick="toggleAccordion('playtype')">
-          <span>プレイタイプ詳細</span>
-          <span class="accordion-arrow" id="arrow-playtype">▼</span>
-        </div>
-        <div class="accordion-body" id="body-playtype">
-          <div style="padding-top:4px; background:#161b22; border:1px solid #30363d; border-radius:12px; padding:20px; margin-top:8px;">
-            <div style="font-size:2rem; font-weight:bold; color:#58a6ff; text-align:center; margin-bottom:12px;">${d.play_type}</div>
-            <div style="font-size:0.82rem; color:#8b949e; line-height:1.6;">${PLAY_TYPE_DESC[d.play_type] || ''}</div>
-          </div>
-        </div>` : ''}
       `;
 
+      // チャートを描画
       const rateHistory = d.rate_history || [];
       if (rateHistory.length > 0) {
         const ctx = document.getElementById('rateChart').getContext('2d');
@@ -561,71 +639,74 @@
           }
         });
       } else {
-        const graphBody = document.getElementById('body-graph');
-        if (graphBody) graphBody.innerHTML = '<p style="color:#8b949e; font-size:0.85rem; padding:12px 0;">試合記録がありません</p>';
+        document.getElementById('rateChart').parentElement.innerHTML += '<p style="color:#8b949e; font-size:0.85rem; padding:8px 0;">試合記録がありません</p>';
+        document.getElementById('rateChart').style.display = 'none';
       }
+
+      // 戦績入力を読み込む
+      loadStatsMatches();
+
     } catch (e) {
       document.getElementById('mypage-content').innerHTML = '<p class="error">データの取得に失敗しました</p>';
     }
   }
 
-  function toggleAccordion(key) {
-    const body = document.getElementById('body-' + key);
-    const arrow = document.getElementById('arrow-' + key);
-    if (!body || !arrow) return;
-    body.classList.toggle('open');
-    arrow.classList.toggle('open');
-    if (key === 'stats-input' && body.classList.contains('open')) loadStatsMatches();
+  function switchTab(tabId, btn) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + tabId).classList.add('active');
   }
 
-  async function submitJoinRequest() {
-    if (!currentUserId) { document.getElementById('join-login-warning').style.display = 'block'; return; }
-    const name = document.getElementById('join-name').value.trim();
-    const xid = document.getElementById('join-xid').value.trim();
-    if (!name || !xid) {
-      const err = document.getElementById('join-error');
-      err.textContent = '名前とXアカウントIDを入力してください';
-      err.style.display = 'block';
-      return;
-    }
-    document.getElementById('join-error').style.display = 'none';
-    try {
-      const res = await fetch('/api/join_request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: currentUserId, name, x_id: xid })
-      });
-      if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
-      const data = await res.json();
-      if (data.success) {
-        document.getElementById('join-success').style.display = 'block';
-        document.getElementById('join-name').value = '';
-        document.getElementById('join-xid').value = '';
-      } else {
-        const err = document.getElementById('join-error');
-        err.textContent = data.error || '送信に失敗しました';
-        err.style.display = 'block';
-      }
-    } catch (e) {
-      const err = document.getElementById('join-error');
-      err.textContent = '送信に失敗しました。時間をおいて再度お試しください。';
-      err.style.display = 'block';
-    }
-  }
-
-  async function setBadge(badgeId) {
+  async function loadStatsMatches() {
     if (!currentUserId) return;
     try {
-      const res = await fetch('/api/badge/set', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, badge_id: badgeId }) });
+      const res = await fetch(`/api/my_matches/${currentUserId}`);
+      const data = await res.json();
+      const el = document.getElementById('stats-match-list');
+      if (!el) return;
+      if (data.matches.length === 0) { el.innerHTML = '<p style="color:#8b949e; font-size:0.85rem;">参加した試合がありません</p>'; return; }
+      el.innerHTML = data.matches.map(m => `
+        <div style="background:#161b22; border:1px solid #30363d; border-radius:8px; padding:12px; margin-bottom:8px;">
+          <div style="font-size:0.85rem; margin-bottom:8px; color:#8b949e;">${m.stage} ${m.already_input ? '✅入力済み' : ''}</div>
+          ${!m.already_input ? `
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+            <input id="paint-${m.timestamp}" type="number" placeholder="塗りポイント" style="padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:0.85rem;">
+            <input id="kill-${m.timestamp}" type="number" placeholder="キル" style="padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:0.85rem;">
+            <input id="death-${m.timestamp}" type="number" placeholder="デス" style="padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:0.85rem;">
+            <input id="special-${m.timestamp}" type="number" placeholder="スペシャル" style="padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:0.85rem;">
+          </div>
+          <button onclick="submitStats('${m.timestamp}')" style="width:100%; padding:8px; background:#5865f2; color:#fff; border:none; border-radius:6px; font-size:0.85rem; cursor:pointer;">入力する</button>` : ''}
+        </div>`).join('');
+    } catch (e) {}
+  }
+
+  async function submitStats(matchId) {
+    if (!currentUserId) return;
+    const paint = document.getElementById(`paint-${matchId}`).value;
+    const kill = document.getElementById(`kill-${matchId}`).value;
+    const death = document.getElementById(`death-${matchId}`).value;
+    const special = document.getElementById(`special-${matchId}`).value;
+    try {
+      const res = await fetch('/api/stats/input', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, match_id: matchId, paint, kill, death, special }) });
+      const data = await res.json();
+      if (data.success) loadStatsMatches();
+    } catch (e) {}
+  }
+
+  async function setWebBadge(badgeId) {
+    if (!currentUserId) return;
+    try {
+      const res = await fetch('/api/web_badge/set', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, badge_id: badgeId }) });
       const data = await res.json();
       if (data.success) loadMyPage();
     } catch (e) {}
   }
 
-  async function setBanner(bannerId) {
+  async function setWebBanner(bannerId) {
     if (!currentUserId) return;
     try {
-      const res = await fetch('/api/banner/set', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, banner_id: bannerId }) });
+      const res = await fetch('/api/web_banner/set', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, banner_id: bannerId }) });
       const data = await res.json();
       if (data.success) loadMyPage();
     } catch (e) {}
@@ -668,44 +749,60 @@
     } catch (e) {}
   }
 
-  async function loadStatsMatches() {
-    if (!currentUserId) return;
-    try {
-      const res = await fetch(`/api/my_matches/${currentUserId}`);
-      const data = await res.json();
-      const el = document.getElementById('stats-match-list');
-      if (!el) return;
-      if (data.matches.length === 0) { el.innerHTML = '<p style="color:#8b949e; font-size:0.85rem;">参加した試合がありません</p>'; return; }
-      el.innerHTML = data.matches.map(m => `
-        <div style="background:#161b22; border:1px solid #30363d; border-radius:8px; padding:12px; margin-bottom:8px;">
-          <div style="font-size:0.85rem; margin-bottom:8px; color:#8b949e;">${m.stage} ${m.already_input ? '✅入力済み' : ''}</div>
-          ${!m.already_input ? `
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
-            <input id="paint-${m.timestamp}" type="number" placeholder="塗りポイント" style="padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:0.85rem;">
-            <input id="kill-${m.timestamp}" type="number" placeholder="キル" style="padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:0.85rem;">
-            <input id="death-${m.timestamp}" type="number" placeholder="デス" style="padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:0.85rem;">
-            <input id="special-${m.timestamp}" type="number" placeholder="スペシャル" style="padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:0.85rem;">
-          </div>
-          <button onclick="submitStats('${m.timestamp}')" style="width:100%; padding:8px; background:#5865f2; color:#fff; border:none; border-radius:6px; font-size:0.85rem; cursor:pointer;">入力する</button>` : ''}
-        </div>`).join('');
-    } catch (e) {}
+  function updateVsResult() {
+    const select = document.getElementById('vs-select');
+    const result = document.getElementById('vs-result');
+    if (!select || !result) return;
+    const userId = select.value;
+    if (!userId) { result.style.display = 'none'; return; }
+    const vs = vsStatsData.find(v => v.user_id === userId);
+    if (!vs) { result.style.display = 'none'; return; }
+    result.style.display = 'block';
+    document.getElementById('vs-name').textContent = vs.display_name;
+    document.getElementById('vs-record').textContent = `${vs.wins}勝 ${vs.losses}敗（${vs.total}戦）`;
+    const winPct = vs.total > 0 ? (vs.wins / vs.total * 100) : 0;
+    const lossPct = 100 - winPct;
+    const winBar = document.getElementById('vs-bar-win');
+    const lossBar = document.getElementById('vs-bar-loss');
+    winBar.style.width = winPct + '%';
+    winBar.textContent = winPct > 10 ? Math.round(winPct) + '%' : '';
+    lossBar.style.width = lossPct + '%';
+    lossBar.textContent = lossPct > 10 ? Math.round(lossPct) + '%' : '';
   }
 
-  async function submitStats(matchId) {
-    if (!currentUserId) return;
-    const paint = document.getElementById(`paint-${matchId}`).value;
-    const kill = document.getElementById(`kill-${matchId}`).value;
-    const death = document.getElementById(`death-${matchId}`).value;
-    const special = document.getElementById(`special-${matchId}`).value;
+  // ===== 加入申請 =====
+  async function submitJoinRequest() {
+    if (!currentUserId) { document.getElementById('join-login-warning').style.display = 'block'; return; }
+    const name = document.getElementById('join-name').value.trim();
+    const xid = document.getElementById('join-xid').value.trim();
+    if (!name || !xid) {
+      const err = document.getElementById('join-error');
+      err.textContent = '名前とXアカウントIDを入力してください';
+      err.style.display = 'block';
+      return;
+    }
+    document.getElementById('join-error').style.display = 'none';
     try {
-      const res = await fetch('/api/stats/input', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, match_id: matchId, paint, kill, death, special }) });
+      const res = await fetch('/api/join_request', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, name, x_id: xid }) });
+      if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
       const data = await res.json();
-      if (data.success) loadStatsMatches();
-    } catch (e) {}
+      if (data.success) {
+        document.getElementById('join-success').style.display = 'block';
+        document.getElementById('join-name').value = '';
+        document.getElementById('join-xid').value = '';
+      } else {
+        const err = document.getElementById('join-error');
+        err.textContent = data.error || '送信に失敗しました';
+        err.style.display = 'block';
+      }
+    } catch (e) {
+      const err = document.getElementById('join-error');
+      err.textContent = '送信に失敗しました。時間をおいて再度お試しください。';
+      err.style.display = 'block';
+    }
   }
 
-  let siteChartInstance = null;
-
+  // ===== 運営ページ =====
   function showAdminPage() {
     if (currentUserId !== '1225788050894753865') return;
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -714,6 +811,7 @@
     loadAdminStats();
   }
 
+  let siteChartInstance = null;
   async function loadAdminStats() {
     if (siteChartInstance) { siteChartInstance.destroy(); siteChartInstance = null; }
     try {
@@ -745,25 +843,198 @@
     } catch (e) {}
   }
 
-  function updateVsResult() {
-    const select = document.getElementById('vs-select');
-    const result = document.getElementById('vs-result');
-    if (!select || !result) return;
-    const userId = select.value;
-    if (!userId) { result.style.display = 'none'; return; }
-    const vs = vsStatsData.find(v => v.user_id === userId);
-    if (!vs) { result.style.display = 'none'; return; }
-    result.style.display = 'block';
-    document.getElementById('vs-name').textContent = vs.display_name;
-    document.getElementById('vs-record').textContent = `${vs.wins}勝 ${vs.losses}敗（${vs.total}戦）`;
-    const winPct = vs.total > 0 ? (vs.wins / vs.total * 100) : 0;
-    const lossPct = 100 - winPct;
-    const winBar = document.getElementById('vs-bar-win');
-    const lossBar = document.getElementById('vs-bar-loss');
-    winBar.style.width = winPct + '%';
-    winBar.textContent = winPct > 10 ? Math.round(winPct) + '%' : '';
-    lossBar.style.width = lossPct + '%';
-    lossBar.textContent = lossPct > 10 ? Math.round(lossPct) + '%' : '';
+  function toggleAccordion(key) {
+    const body = document.getElementById('body-' + key);
+    const arrow = document.getElementById('arrow-' + key);
+    if (!body || !arrow) return;
+    body.classList.toggle('open');
+    arrow.classList.toggle('open');
+  }
+
+  // ===== バッジ管理 =====
+  function previewBadgeImage() {
+    const url = document.getElementById('new-badge-url').value.trim();
+    if (!url) return;
+    const wrap = document.getElementById('new-badge-preview-wrap');
+    const img = document.getElementById('new-badge-preview');
+    img.src = url;
+    wrap.style.display = 'block';
+  }
+
+  async function createBadge() {
+    if (currentUserId !== '1225788050894753865') return;
+    const label = document.getElementById('new-badge-label').value.trim();
+    const image_url = document.getElementById('new-badge-url').value.trim();
+    const msg = document.getElementById('badge-create-msg');
+    if (!label) { msg.style.color = '#f85149'; msg.textContent = 'バッジ名を入力してください'; return; }
+    try {
+      const res = await fetch('/api/web_badges', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, label, image_url }) });
+      const data = await res.json();
+      if (data.success) {
+        msg.style.color = '#238636';
+        msg.textContent = 'バッジを作成しました！';
+        document.getElementById('new-badge-label').value = '';
+        document.getElementById('new-badge-url').value = '';
+        document.getElementById('new-badge-preview-wrap').style.display = 'none';
+        loadAdminBadges();
+      } else {
+        msg.style.color = '#f85149';
+        msg.textContent = data.error || 'エラーが発生しました';
+      }
+    } catch (e) { msg.style.color = '#f85149'; msg.textContent = 'エラーが発生しました'; }
+  }
+
+  async function loadAdminBadges() {
+    try {
+      const res = await fetch('/api/web_badges');
+      const data = await res.json();
+      const el = document.getElementById('admin-badge-list');
+      if (!el) return;
+      const badges = data.badges || [];
+      if (badges.length === 0) { el.innerHTML = '<p style="color:#8b949e; font-size:0.85rem;">バッジなし</p>'; return; }
+      el.innerHTML = badges.map(b => `
+        <div class="admin-item-card" id="badge-card-${b.id}">
+          ${b.image_url ? `<img class="admin-badge-preview" src="${b.image_url}" onerror="this.style.display='none'">` : ''}
+          <div id="badge-view-${b.id}">
+            <div style="font-size:0.9rem; font-weight:bold; margin-bottom:4px;">${b.label}</div>
+            <div style="font-size:0.75rem; color:#8b949e; margin-bottom:8px; word-break:break-all;">${b.image_url || 'URLなし'}</div>
+            <div style="display:flex; gap:8px;">
+              <button class="admin-btn admin-btn-secondary" onclick="startEditBadge('${b.id}', '${b.label.replace(/'/g,"\\'")}', '${b.image_url.replace(/'/g,"\\'")}')">編集</button>
+              <button class="admin-btn admin-btn-danger" onclick="deleteBadge('${b.id}')">削除</button>
+            </div>
+          </div>
+          <div id="badge-edit-${b.id}" style="display:none;">
+            <input class="admin-input" id="edit-badge-label-${b.id}" value="${b.label}">
+            <input class="admin-input" id="edit-badge-url-${b.id}" value="${b.image_url}">
+            <div style="display:flex; gap:8px;">
+              <button class="admin-btn admin-btn-primary" onclick="saveBadge('${b.id}')">保存</button>
+              <button class="admin-btn admin-btn-secondary" onclick="cancelEditBadge('${b.id}')">キャンセル</button>
+            </div>
+          </div>
+        </div>`).join('');
+    } catch (e) {}
+  }
+
+  function startEditBadge(id, label, url) {
+    document.getElementById(`badge-view-${id}`).style.display = 'none';
+    document.getElementById(`badge-edit-${id}`).style.display = 'block';
+  }
+
+  function cancelEditBadge(id) {
+    document.getElementById(`badge-view-${id}`).style.display = 'block';
+    document.getElementById(`badge-edit-${id}`).style.display = 'none';
+  }
+
+  async function saveBadge(id) {
+    const label = document.getElementById(`edit-badge-label-${id}`).value.trim();
+    const image_url = document.getElementById(`edit-badge-url-${id}`).value.trim();
+    try {
+      const res = await fetch(`/api/web_badges/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, label, image_url }) });
+      const data = await res.json();
+      if (data.success) loadAdminBadges();
+    } catch (e) {}
+  }
+
+  async function deleteBadge(id) {
+    if (!confirm('このバッジを削除しますか？')) return;
+    try {
+      const res = await fetch(`/api/web_badges/${id}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId }) });
+      const data = await res.json();
+      if (data.success) loadAdminBadges();
+    } catch (e) {}
+  }
+
+  // ===== バナー管理 =====
+  function previewBannerImage() {
+    const url = document.getElementById('new-banner-url').value.trim();
+    if (!url) return;
+    const wrap = document.getElementById('new-banner-preview-wrap');
+    const img = document.getElementById('new-banner-preview');
+    img.src = url;
+    wrap.style.display = 'block';
+  }
+
+  async function createBanner() {
+    if (currentUserId !== '1225788050894753865') return;
+    const label = document.getElementById('new-banner-label').value.trim();
+    const image_url = document.getElementById('new-banner-url').value.trim();
+    const msg = document.getElementById('banner-create-msg');
+    if (!label) { msg.style.color = '#f85149'; msg.textContent = 'バナー名を入力してください'; return; }
+    try {
+      const res = await fetch('/api/web_banners', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, label, image_url }) });
+      const data = await res.json();
+      if (data.success) {
+        msg.style.color = '#238636';
+        msg.textContent = 'バナーを作成しました！';
+        document.getElementById('new-banner-label').value = '';
+        document.getElementById('new-banner-url').value = '';
+        document.getElementById('new-banner-preview-wrap').style.display = 'none';
+        loadAdminBanners();
+      } else {
+        msg.style.color = '#f85149';
+        msg.textContent = data.error || 'エラーが発生しました';
+      }
+    } catch (e) { msg.style.color = '#f85149'; msg.textContent = 'エラーが発生しました'; }
+  }
+
+  async function loadAdminBanners() {
+    try {
+      const res = await fetch('/api/web_banners');
+      const data = await res.json();
+      const el = document.getElementById('admin-banner-list');
+      if (!el) return;
+      const banners = data.banners || [];
+      if (banners.length === 0) { el.innerHTML = '<p style="color:#8b949e; font-size:0.85rem;">バナーなし</p>'; return; }
+      el.innerHTML = banners.map(b => `
+        <div class="admin-item-card" id="banner-card-${b.id}">
+          ${b.image_url ? `<img class="admin-item-preview" src="${b.image_url}" onerror="this.style.display='none'">` : ''}
+          <div id="banner-view-${b.id}">
+            <div style="font-size:0.9rem; font-weight:bold; margin-bottom:4px;">${b.label}</div>
+            <div style="font-size:0.75rem; color:#8b949e; margin-bottom:8px; word-break:break-all;">${b.image_url || 'URLなし'}</div>
+            <div style="display:flex; gap:8px;">
+              <button class="admin-btn admin-btn-secondary" onclick="startEditBanner('${b.id}')">編集</button>
+              <button class="admin-btn admin-btn-danger" onclick="deleteBanner('${b.id}')">削除</button>
+            </div>
+          </div>
+          <div id="banner-edit-${b.id}" style="display:none;">
+            <input class="admin-input" id="edit-banner-label-${b.id}" value="${b.label}">
+            <input class="admin-input" id="edit-banner-url-${b.id}" value="${b.image_url}">
+            <div style="display:flex; gap:8px;">
+              <button class="admin-btn admin-btn-primary" onclick="saveBanner('${b.id}')">保存</button>
+              <button class="admin-btn admin-btn-secondary" onclick="cancelEditBanner('${b.id}')">キャンセル</button>
+            </div>
+          </div>
+        </div>`).join('');
+    } catch (e) {}
+  }
+
+  function startEditBanner(id) {
+    document.getElementById(`banner-view-${id}`).style.display = 'none';
+    document.getElementById(`banner-edit-${id}`).style.display = 'block';
+  }
+
+  function cancelEditBanner(id) {
+    document.getElementById(`banner-view-${id}`).style.display = 'block';
+    document.getElementById(`banner-edit-${id}`).style.display = 'none';
+  }
+
+  async function saveBanner(id) {
+    const label = document.getElementById(`edit-banner-label-${id}`).value.trim();
+    const image_url = document.getElementById(`edit-banner-url-${id}`).value.trim();
+    try {
+      const res = await fetch(`/api/web_banners/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, label, image_url }) });
+      const data = await res.json();
+      if (data.success) loadAdminBanners();
+    } catch (e) {}
+  }
+
+  async function deleteBanner(id) {
+    if (!confirm('このバナーを削除しますか？')) return;
+    try {
+      const res = await fetch(`/api/web_banners/${id}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId }) });
+      const data = await res.json();
+      if (data.success) loadAdminBanners();
+    } catch (e) {}
   }
 </script>
 </body>
