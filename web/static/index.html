@@ -64,7 +64,7 @@
     .tab-btn:hover { color: #e6edf3; }
     .tab-btn.active { color: #58a6ff; border-bottom-color: #58a6ff; }
     .tab-content { display: none; }
-    .tab-content.active { display: block; }
+    .tab-content.active { display: block; padding-bottom: 32px; }
 
     /* バッジ・バナー設定 */
     .badge-grid { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -247,6 +247,51 @@
   </div>
   <div class="accordion-body" id="body-admin-mypage">
     <div id="admin-mypage-list" style="padding-top:4px;"></div>
+  </div>
+
+  <div class="accordion-header" onclick="toggleAccordion('admin-preview'); loadPreviewLists();">
+    <span>バッジ・バナープレビュー</span>
+    <span class="accordion-arrow" id="arrow-admin-preview">▼</span>
+  </div>
+  <div class="accordion-body" id="body-admin-preview">
+    <div style="padding-top:8px;">
+      <div style="font-size:0.85rem; color:#8b949e; margin-bottom:12px;">バッジとバナーを選択するとネームプレートに反映されます</div>
+
+      <!-- プレビュー選択UI -->
+      <div style="margin-bottom:10px;">
+        <div style="font-size:0.8rem; color:#8b949e; margin-bottom:6px;">バッジ</div>
+        <div id="preview-badge-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+          <div class="badge-item selected" onclick="selectPreviewBadge(null, this)">なし</div>
+        </div>
+        <div style="font-size:0.8rem; color:#8b949e; margin-bottom:6px;">バナー</div>
+        <div id="preview-banner-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;">
+          <div class="badge-item selected" onclick="selectPreviewBanner(null, this)">なし</div>
+        </div>
+      </div>
+
+      <!-- ネームプレートプレビュー -->
+      <div style="font-size:0.8rem; color:#8b949e; margin-bottom:8px;">プレビュー</div>
+      <div id="nameplate-preview" style="
+        display: flex;
+        align-items: stretch;
+        border: 1px solid #30363d;
+        border-radius: 12px;
+        overflow: hidden;
+        min-height: 72px;
+      ">
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8px 14px; background:#161b22; min-width:64px; flex-shrink:0;">
+          <div style="font-size:1.2rem; font-weight:bold; color:#8b949e; line-height:1;">1</div>
+          <div style="font-size:0.85rem; font-weight:bold; color:#58a6ff; margin-top:6px; line-height:1;">2500</div>
+        </div>
+        <div id="nameplate-banner-area" style="flex:1; display:flex; align-items:center; padding:12px 14px; gap:12px; position:relative; background:#0d1117; overflow:hidden;">
+          <img id="nameplate-avatar" style="width:36px; height:36px; border-radius:50%; object-fit:cover; flex-shrink:0; position:relative; z-index:1;" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="">
+          <div style="font-size:0.95rem; font-weight:bold; position:relative; z-index:1;">たまき</div>
+        </div>
+        <div id="nameplate-badge-area" style="display:none; align-items:center; justify-content:center; padding:0 12px; background:#161b22; flex-shrink:0;">
+          <img id="nameplate-badge-img" style="width:28px; height:28px; object-fit:cover; border-radius:4px;" src="" alt="">
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="accordion-header" onclick="toggleAccordion('admin-badges'); loadAdminBadges();">
@@ -536,10 +581,10 @@
             </div>
           </div>
           ${d.play_type ? `
-          <div style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:12px; margin-bottom:14px;">
-            <div style="font-size:0.75rem; color:#8b949e; margin-bottom:4px;">あなたのスタイルは</div>
-            <div style="font-size:1.5rem; font-weight:bold; color:#58a6ff; margin-bottom:6px;">${d.play_type}</div>
-            <div style="font-size:0.8rem; color:#8b949e; line-height:1.6;">${PLAY_TYPE_DESC[d.play_type] || ''}</div>
+          <div style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin-bottom:14px; text-align:center;">
+            <div style="font-size:0.75rem; color:#8b949e; margin-bottom:6px;">あなたのスタイルは</div>
+            <div style="font-size:2rem; font-weight:bold; color:#58a6ff; margin-bottom:8px; letter-spacing:0.05em;">${d.play_type}</div>
+            <div style="font-size:0.8rem; color:#8b949e; line-height:1.6; text-align:left;">${PLAY_TYPE_DESC[d.play_type] || ''}</div>
           </div>` : ''}
           <div class="stats-grid">
             <div class="stat-box"><div class="stat-label">勝ち</div><div class="stat-value">${d.wins}</div></div>
@@ -849,6 +894,85 @@
     if (!body || !arrow) return;
     body.classList.toggle('open');
     arrow.classList.toggle('open');
+  }
+
+  // ===== バッジ・バナープレビュー =====
+  let previewSelectedBadge = null;
+  let previewSelectedBanner = null;
+
+  async function loadPreviewLists() {
+    const [badgesRes, bannersRes] = await Promise.all([
+      fetch('/api/web_badges'),
+      fetch('/api/web_banners'),
+    ]);
+    const badgesData = await badgesRes.json();
+    const bannersData = await bannersRes.json();
+
+    const badgeList = document.getElementById('preview-badge-list');
+    const bannerList = document.getElementById('preview-banner-list');
+    if (!badgeList || !bannerList) return;
+
+    const badges = badgesData.badges || [];
+    const banners = bannersData.banners || [];
+
+    badgeList.innerHTML = `<div class="badge-item selected" onclick="selectPreviewBadge(null, this)">なし</div>` +
+      badges.map(b => `
+        <div class="badge-item" onclick="selectPreviewBadge(${JSON.stringify(b)}, this)">
+          ${b.image_url ? `<img class="badge-img" src="${b.image_url}" onerror="this.style.display='none'">` : ''}
+          ${b.label}
+        </div>`).join('');
+
+    bannerList.innerHTML = `<div class="badge-item selected" onclick="selectPreviewBanner(null, this)">なし</div>` +
+      banners.map(b => `
+        <div class="badge-item" onclick="selectPreviewBanner(${JSON.stringify(b)}, this)">
+          ${b.image_url ? `<img class="badge-img" src="${b.image_url}" onerror="this.style.display='none'">` : ''}
+          ${b.label}
+        </div>`).join('');
+  }
+
+  function selectPreviewBadge(badge, el) {
+    document.querySelectorAll('#preview-badge-list .badge-item').forEach(e => e.classList.remove('selected'));
+    el.classList.add('selected');
+    previewSelectedBadge = badge;
+    updateNameplatePreview();
+  }
+
+  function selectPreviewBanner(banner, el) {
+    document.querySelectorAll('#preview-banner-list .badge-item').forEach(e => e.classList.remove('selected'));
+    el.classList.add('selected');
+    previewSelectedBanner = banner;
+    updateNameplatePreview();
+  }
+
+  function updateNameplatePreview() {
+    const bannerArea = document.getElementById('nameplate-banner-area');
+    const badgeArea = document.getElementById('nameplate-badge-area');
+    const badgeImg = document.getElementById('nameplate-badge-img');
+    const nameplate = document.getElementById('nameplate-preview');
+
+    // バナー適用
+    const existingOverlay = bannerArea.querySelector('.banner-overlay');
+    if (existingOverlay) existingOverlay.remove();
+
+    if (previewSelectedBanner && previewSelectedBanner.image_url) {
+      bannerArea.style.background = `url('${previewSelectedBanner.image_url}') center/cover no-repeat`;
+      const overlay = document.createElement('div');
+      overlay.className = 'banner-overlay';
+      overlay.style.cssText = 'position:absolute; inset:0; background:rgba(0,0,0,0.45);';
+      bannerArea.insertBefore(overlay, bannerArea.firstChild);
+      nameplate.style.borderColor = '#58a6ff';
+    } else {
+      bannerArea.style.background = '#0d1117';
+      nameplate.style.borderColor = '#30363d';
+    }
+
+    // バッジ適用
+    if (previewSelectedBadge && previewSelectedBadge.image_url) {
+      badgeArea.style.display = 'flex';
+      badgeImg.src = previewSelectedBadge.image_url;
+    } else {
+      badgeArea.style.display = 'none';
+    }
   }
 
   // ===== バッジ管理 =====
