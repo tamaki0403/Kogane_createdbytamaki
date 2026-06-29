@@ -5435,6 +5435,267 @@ from fastapi.responses import JSONResponse
 
 api = FastAPI()
 
+# =========================
+# Web用バッジ・バナー定義（/data/に保存）
+# =========================
+# 以下をbot.pyのFastAPI部分（@api.get("/api/health") の直前あたり）に追加してください
+
+WEB_BADGE_FILE = os.path.join(DATA_DIR, "web_badge_definitions.json")
+WEB_BANNER_FILE = os.path.join(DATA_DIR, "web_banner_definitions.json")
+
+def load_web_badges():
+    try:
+        with open(WEB_BADGE_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+def save_web_badges(data):
+    with open(WEB_BADGE_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+def load_web_banners():
+    try:
+        with open(WEB_BANNER_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+def save_web_banners(data):
+    with open(WEB_BANNER_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+# =========================
+# バッジ CRUD API
+# =========================
+
+@api.get("/api/web_badges")
+def get_web_badges():
+    return JSONResponse(content={"badges": load_web_badges()})
+
+@api.post("/api/web_badges")
+async def create_web_badge(request: Request):
+    body = await request.json()
+    user_id = body.get("user_id")
+    if user_id != str(OWNER_ID):
+        return JSONResponse(content={"error": "権限がありません"}, status_code=403)
+
+    label = body.get("label", "").strip()
+    image_url = body.get("image_url", "").strip()
+
+    if not label:
+        return JSONResponse(content={"error": "ラベルは必須です"}, status_code=400)
+
+    badges = load_web_badges()
+    import uuid
+    new_badge = {
+        "id": str(uuid.uuid4())[:8],
+        "label": label,
+        "image_url": image_url,
+    }
+    badges.append(new_badge)
+    save_web_badges(badges)
+    return JSONResponse(content={"success": True, "badge": new_badge})
+
+@api.put("/api/web_badges/{badge_id}")
+async def update_web_badge(badge_id: str, request: Request):
+    body = await request.json()
+    user_id = body.get("user_id")
+    if user_id != str(OWNER_ID):
+        return JSONResponse(content={"error": "権限がありません"}, status_code=403)
+
+    badges = load_web_badges()
+    for badge in badges:
+        if badge["id"] == badge_id:
+            badge["label"] = body.get("label", badge["label"]).strip()
+            badge["image_url"] = body.get("image_url", badge["image_url"]).strip()
+            save_web_badges(badges)
+            return JSONResponse(content={"success": True, "badge": badge})
+
+    return JSONResponse(content={"error": "バッジが見つかりません"}, status_code=404)
+
+@api.delete("/api/web_badges/{badge_id}")
+async def delete_web_badge(badge_id: str, request: Request):
+    body = await request.json()
+    user_id = body.get("user_id")
+    if user_id != str(OWNER_ID):
+        return JSONResponse(content={"error": "権限がありません"}, status_code=403)
+
+    badges = load_web_badges()
+    new_badges = [b for b in badges if b["id"] != badge_id]
+    if len(new_badges) == len(badges):
+        return JSONResponse(content={"error": "バッジが見つかりません"}, status_code=404)
+
+    save_web_badges(new_badges)
+    return JSONResponse(content={"success": True})
+
+
+# =========================
+# バナー CRUD API
+# =========================
+
+@api.get("/api/web_banners")
+def get_web_banners():
+    return JSONResponse(content={"banners": load_web_banners()})
+
+@api.post("/api/web_banners")
+async def create_web_banner(request: Request):
+    body = await request.json()
+    user_id = body.get("user_id")
+    if user_id != str(OWNER_ID):
+        return JSONResponse(content={"error": "権限がありません"}, status_code=403)
+
+    label = body.get("label", "").strip()
+    image_url = body.get("image_url", "").strip()
+
+    if not label:
+        return JSONResponse(content={"error": "ラベルは必須です"}, status_code=400)
+
+    banners = load_web_banners()
+    import uuid
+    new_banner = {
+        "id": str(uuid.uuid4())[:8],
+        "label": label,
+        "image_url": image_url,
+    }
+    banners.append(new_banner)
+    save_web_banners(banners)
+    return JSONResponse(content={"success": True, "banner": new_banner})
+
+@api.put("/api/web_banners/{banner_id}")
+async def update_web_banner(banner_id: str, request: Request):
+    body = await request.json()
+    user_id = body.get("user_id")
+    if user_id != str(OWNER_ID):
+        return JSONResponse(content={"error": "権限がありません"}, status_code=403)
+
+    banners = load_web_banners()
+    for banner in banners:
+        if banner["id"] == banner_id:
+            banner["label"] = body.get("label", banner["label"]).strip()
+            banner["image_url"] = body.get("image_url", banner["image_url"]).strip()
+            save_web_banners(banners)
+            return JSONResponse(content={"success": True, "banner": banner})
+
+    return JSONResponse(content={"error": "バナーが見つかりません"}, status_code=404)
+
+@api.delete("/api/web_banners/{banner_id}")
+async def delete_web_banner(banner_id: str, request: Request):
+    body = await request.json()
+    user_id = body.get("user_id")
+    if user_id != str(OWNER_ID):
+        return JSONResponse(content={"error": "権限がありません"}, status_code=403)
+
+    banners = load_web_banners()
+    new_banners = [b for b in banners if b["id"] != banner_id]
+    if len(new_banners) == len(banners):
+        return JSONResponse(content={"error": "バナーが見つかりません"}, status_code=404)
+
+    save_web_banners(new_banners)
+    return JSONResponse(content={"success": True})
+
+
+# =========================
+# プレイヤーへのバッジ・バナー付与 API
+# =========================
+
+@api.post("/api/web_badge/grant")
+async def grant_web_badge(request: Request):
+    """プレイヤーにWebバッジを付与する"""
+    body = await request.json()
+    user_id = body.get("user_id")      # 付与する側（管理者）
+    target_id = body.get("target_id")  # 付与される側のユーザーID
+    badge_id = body.get("badge_id")
+
+    if user_id != str(OWNER_ID):
+        return JSONResponse(content={"error": "権限がありません"}, status_code=403)
+
+    badges = load_web_badges()
+    badge_ids = [b["id"] for b in badges]
+    if badge_id not in badge_ids:
+        return JSONResponse(content={"error": "バッジが存在しません"}, status_code=404)
+
+    profile = get_player_profile(int(target_id))
+    owned = profile.get("owned_web_badges", [])
+    if badge_id not in owned:
+        owned.append(badge_id)
+        profile["owned_web_badges"] = owned
+        save_player_profiles(player_profiles)
+
+    return JSONResponse(content={"success": True})
+
+@api.post("/api/web_banner/grant")
+async def grant_web_banner(request: Request):
+    """プレイヤーにWebバナーを付与する"""
+    body = await request.json()
+    user_id = body.get("user_id")
+    target_id = body.get("target_id")
+    banner_id = body.get("banner_id")
+
+    if user_id != str(OWNER_ID):
+        return JSONResponse(content={"error": "権限がありません"}, status_code=403)
+
+    banners = load_web_banners()
+    banner_ids = [b["id"] for b in banners]
+    if banner_id not in banner_ids:
+        return JSONResponse(content={"error": "バナーが存在しません"}, status_code=404)
+
+    profile = get_player_profile(int(target_id))
+    owned = profile.get("owned_web_banners", [])
+    if banner_id not in owned:
+        owned.append(banner_id)
+        profile["owned_web_banners"] = owned
+        save_player_profiles(player_profiles)
+
+    return JSONResponse(content={"success": True})
+
+@api.post("/api/web_badge/set")
+async def set_web_badge(request: Request):
+    """プレイヤーが自分のWebバッジを設定する"""
+    body = await request.json()
+    user_id = body.get("user_id")
+    badge_id = body.get("badge_id")  # Noneまたは空文字で解除
+
+    if not user_id:
+        return JSONResponse(content={"error": "user_id is required"}, status_code=400)
+
+    profile = get_player_profile(int(user_id))
+
+    if not badge_id:
+        profile["selected_web_badge"] = None
+    else:
+        owned = profile.get("owned_web_badges", [])
+        if badge_id not in owned:
+            return JSONResponse(content={"error": "そのバッジは所持していません"}, status_code=403)
+        profile["selected_web_badge"] = badge_id
+
+    save_player_profiles(player_profiles)
+    return JSONResponse(content={"success": True})
+
+@api.post("/api/web_banner/set")
+async def set_web_banner(request: Request):
+    """プレイヤーが自分のWebバナーを設定する"""
+    body = await request.json()
+    user_id = body.get("user_id")
+    banner_id = body.get("banner_id")
+
+    if not user_id:
+        return JSONResponse(content={"error": "user_id is required"}, status_code=400)
+
+    profile = get_player_profile(int(user_id))
+
+    if not banner_id:
+        profile["selected_web_banner"] = None
+    else:
+        owned = profile.get("owned_web_banners", [])
+        if banner_id not in owned:
+            return JSONResponse(content={"error": "そのバナーは所持していません"}, status_code=403)
+        profile["selected_web_banner"] = banner_id
+
+    save_player_profiles(player_profiles)
+    return JSONResponse(content={"success": True})
+
 @api.get("/api/health")
 def health():
     return JSONResponse(content={"status": "ok"}, media_type="application/json; charset=utf-8")
