@@ -2932,6 +2932,27 @@ class HomeView(discord.ui.View):
             ephemeral=True
         )
 
+class AdminConfirmView(discord.ui.View):
+    """管理者ボタン用の確認ダイアログ"""
+    def __init__(self, action_label: str, callback):
+        super().__init__(timeout=30)
+        self.callback_fn = callback
+
+    @discord.ui.button(label="実行する", style=discord.ButtonStyle.danger)
+    async def confirm_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.disable_all_buttons()
+        await interaction.response.edit_message(view=self)
+        await self.callback_fn(interaction)
+
+    @discord.ui.button(label="キャンセル", style=discord.ButtonStyle.secondary)
+    async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.disable_all_buttons()
+        await interaction.response.edit_message(content="キャンセルしました", view=self)
+
+    def disable_all_buttons(self):
+        for child in self.children:
+            child.disabled = True
+            
 class AdminButtonView_Ranking(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -2941,29 +2962,43 @@ class AdminButtonView_Ranking(discord.ui.View):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
             return
-        await interaction.response.send_message("更新中...", ephemeral=True)
-        await post_ranking(interaction.guild)
-        await post_peak_ranking(interaction.guild)
-        await interaction.edit_original_response(content="ランキングを更新しました")
+        async def do_action(i):
+            await post_ranking(i.guild)
+            await post_peak_ranking(i.guild)
+            await i.followup.send("ランキングを更新しました", ephemeral=True)
+        await interaction.response.send_message(
+            "ランキング更新を実行しますか？",
+            view=AdminConfirmView("ランキング更新", do_action),
+            ephemeral=True
+        )
 
     @discord.ui.button(label="秘匿ランキング", style=discord.ButtonStyle.primary, custom_id="admin_secret_ranking")
     async def secret_ranking_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
             return
-        await interaction.response.send_message("送信中...", ephemeral=True)
-        await post_secret_ranking(interaction.guild)
-        await interaction.edit_original_response(content="秘匿ランキングを送信しました")
+        async def do_action(i):
+            await post_secret_ranking(i.guild)
+            await i.followup.send("秘匿ランキングを送信しました", ephemeral=True)
+        await interaction.response.send_message(
+            "秘匿ランキングを送信しますか？",
+            view=AdminConfirmView("秘匿ランキング", do_action),
+            ephemeral=True
+        )
 
     @discord.ui.button(label="ホーム更新", style=discord.ButtonStyle.primary, custom_id="admin_home_update")
     async def home_update_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
             return
-        await interaction.response.send_message("更新中...", ephemeral=True)
-        await post_home_message(interaction.guild)
-        await interaction.edit_original_response(content="ホームを更新しました")
-
+        async def do_action(i):
+            await post_home_message(i.guild)
+            await i.followup.send("ホームを更新しました", ephemeral=True)
+        await interaction.response.send_message(
+            "ホームを更新しますか？",
+            view=AdminConfirmView("ホーム更新", do_action),
+            ephemeral=True
+        )
 
 class AdminButtonView_List(discord.ui.View):
     def __init__(self):
@@ -3062,48 +3097,7 @@ class AdminButtonView_List(discord.ui.View):
                     await admin_ch.send(chunk)
         await interaction.edit_original_response(content="ユーザーID一覧を送信しました")
 
-    @discord.ui.button(label="名前更新", style=discord.ButtonStyle.secondary, custom_id="admin_name_update")
-    async def name_update_button(self, interaction: discord.Interaction, button):
-        if interaction.user.id != OWNER_ID:
-            await interaction.response.send_message("管理者専用です", ephemeral=True)
-            return
-        await interaction.response.send_message("更新中...", ephemeral=True)
-        try:
-            members = [member async for member in interaction.guild.fetch_members(limit=None)]
-        except Exception:
-            members = interaction.guild.members
-        count = 0
-        for member in members:
-            if member.bot:
-                continue
-            profile = get_player_profile(member.id)
-            profile["display_name"] = member.display_name
-            count += 1
-        save_player_profiles(player_profiles)
-        await interaction.edit_original_response(content=f"{count}人の名前を更新しました")
-
-    @discord.ui.button(label="アバター更新", style=discord.ButtonStyle.secondary, custom_id="admin_avatar_update")
-    async def avatar_update_button(self, interaction: discord.Interaction, button):
-        if interaction.user.id != OWNER_ID:
-            await interaction.response.send_message("管理者専用です", ephemeral=True)
-            return
-        await interaction.response.send_message("更新中...", ephemeral=True)
-        try:
-            members = [member async for member in interaction.guild.fetch_members(limit=None)]
-        except Exception:
-            members = interaction.guild.members
-        count = 0
-        for member in members:
-            if member.bot:
-                continue
-            profile = get_player_profile(member.id)
-            if member.avatar:
-                profile["avatar_url"] = str(member.avatar.url)
-            else:
-                profile["avatar_url"] = "https://cdn.discordapp.com/embed/avatars/0.png"
-            count += 1
-        save_player_profiles(player_profiles)
-        await interaction.edit_original_response(content=f"{count}人のアバターを更新しました")
+    
 
 
 class AdminButtonView_Badge(discord.ui.View):
@@ -3119,11 +3113,17 @@ class AdminButtonView_Badge(discord.ui.View):
         select = discord.ui.Select(placeholder="バッジを選択", options=options)
         async def callback(i: discord.Interaction):
             badge_id = select.values[0]
-            badge_bulk_waiting[i.guild.id] = {"mode": "grant", "badge_id": badge_id, "user_id": i.user.id}
-            admin_ch = get_admin_channel(i.guild)
-            if admin_ch:
-                await admin_ch.send(f"バッジ付与モード（{badge_id}）\nユーザーIDを1行ずつ送ってください。キャンセルで終了。")
-            await i.response.send_message("運営チャンネルでユーザーIDを送ってください", ephemeral=True)
+            async def do_action(i2):
+                badge_bulk_waiting[i2.guild.id] = {"mode": "grant", "badge_id": badge_id, "user_id": i2.user.id}
+                admin_ch = get_admin_channel(i2.guild)
+                if admin_ch:
+                    await admin_ch.send(f"バッジ付与モード（{badge_id}）\nユーザーIDを1行ずつ送ってください。キャンセルで終了。")
+                await i2.followup.send("運営チャンネルでユーザーIDを送ってください", ephemeral=True)
+            await i.response.send_message(
+                f"バッジ「{badge_id}」の付与モードを開始しますか？",
+                view=AdminConfirmView("バッジ付与", do_action),
+                ephemeral=True
+            )
         select.callback = callback
         view = discord.ui.View(timeout=60)
         view.add_item(select)
@@ -3138,11 +3138,17 @@ class AdminButtonView_Badge(discord.ui.View):
         select = discord.ui.Select(placeholder="バッジを選択", options=options)
         async def callback(i: discord.Interaction):
             badge_id = select.values[0]
-            badge_bulk_waiting[i.guild.id] = {"mode": "remove", "badge_id": badge_id, "user_id": i.user.id}
-            admin_ch = get_admin_channel(i.guild)
-            if admin_ch:
-                await admin_ch.send(f"バッジ削除モード（{badge_id}）\nユーザーIDを1行ずつ送ってください。キャンセルで終了。")
-            await i.response.send_message("運営チャンネルでユーザーIDを送ってください", ephemeral=True)
+            async def do_action(i2):
+                badge_bulk_waiting[i2.guild.id] = {"mode": "remove", "badge_id": badge_id, "user_id": i2.user.id}
+                admin_ch = get_admin_channel(i2.guild)
+                if admin_ch:
+                    await admin_ch.send(f"バッジ削除モード（{badge_id}）\nユーザーIDを1行ずつ送ってください。キャンセルで終了。")
+                await i2.followup.send("運営チャンネルでユーザーIDを送ってください", ephemeral=True)
+            await i.response.send_message(
+                f"バッジ「{badge_id}」の削除モードを開始しますか？",
+                view=AdminConfirmView("バッジ削除", do_action),
+                ephemeral=True
+            )
         select.callback = callback
         view = discord.ui.View(timeout=60)
         view.add_item(select)
@@ -3157,11 +3163,17 @@ class AdminButtonView_Badge(discord.ui.View):
         select = discord.ui.Select(placeholder="バッジを選択", options=options)
         async def callback(i: discord.Interaction):
             badge_id = select.values[0]
-            badge_bulk_waiting[i.guild.id] = {"mode": "force_grant", "badge_id": badge_id, "user_id": i.user.id}
-            admin_ch = get_admin_channel(i.guild)
-            if admin_ch:
-                await admin_ch.send(f"バッジ強制付与モード（{badge_id}）\nユーザーIDを1行ずつ送ってください。キャンセルで終了。")
-            await i.response.send_message("運営チャンネルでユーザーIDを送ってください", ephemeral=True)
+            async def do_action(i2):
+                badge_bulk_waiting[i2.guild.id] = {"mode": "force_grant", "badge_id": badge_id, "user_id": i2.user.id}
+                admin_ch = get_admin_channel(i2.guild)
+                if admin_ch:
+                    await admin_ch.send(f"バッジ強制付与モード（{badge_id}）\nユーザーIDを1行ずつ送ってください。キャンセルで終了。")
+                await i2.followup.send("運営チャンネルでユーザーIDを送ってください", ephemeral=True)
+            await i.response.send_message(
+                f"バッジ「{badge_id}」の強制付与モードを開始しますか？",
+                view=AdminConfirmView("バッジ強制付与", do_action),
+                ephemeral=True
+            )
         select.callback = callback
         view = discord.ui.View(timeout=60)
         view.add_item(select)
@@ -3200,7 +3212,6 @@ class AdminButtonView_Badge(discord.ui.View):
         view.add_item(select)
         await interaction.response.send_message("バッジを選択してください", view=view, ephemeral=True)
 
-
 class AdminButtonView_Rate(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -3210,11 +3221,17 @@ class AdminButtonView_Rate(discord.ui.View):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
             return
-        bulk_rate_change_waiting[interaction.guild.id] = interaction.user.id
-        admin_ch = get_admin_channel(interaction.guild)
-        if admin_ch:
-            await admin_ch.send("レート値変更モード\nユーザーID レート値 を1行ずつ送ってください。キャンセルで終了。")
-        await interaction.response.send_message("運営チャンネルで入力してください", ephemeral=True)
+        async def do_action(i):
+            bulk_rate_change_waiting[i.guild.id] = i.user.id
+            admin_ch = get_admin_channel(i.guild)
+            if admin_ch:
+                await admin_ch.send("レート値変更モード\nユーザーID レート値 を1行ずつ送ってください。キャンセルで終了。")
+            await i.followup.send("運営チャンネルで入力してください", ephemeral=True)
+        await interaction.response.send_message(
+            "レート値変更モードを開始しますか？",
+            view=AdminConfirmView("レート値変更", do_action),
+            ephemeral=True
+        )
 
     @discord.ui.button(label="全員RD設定", style=discord.ButtonStyle.danger, custom_id="admin_rd_set")
     async def rd_set_button(self, interaction: discord.Interaction, button):
@@ -3228,24 +3245,53 @@ class AdminButtonView_Rate(discord.ui.View):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
             return
-        await interaction.response.send_message("⚠️ 本当にリセットしますか？\n確認のため `!全員レートリセット` を運営チャンネルで実行してください", ephemeral=True)
+        async def do_action(i):
+            members = await get_human_members(i.guild)
+            for member in members:
+                uid = str(member.id)
+                ratings[uid] = {"rating": float(DEFAULT_RATING), "rd": DEFAULT_RD, "volatility": DEFAULT_VOLATILITY}
+                profile = get_player_profile(member.id)
+                profile.update({
+                    "initial_applied": False, "can_apply_initial_bonus": True,
+                    "coins": 0, "tickets": [], "active_effect": None,
+                    "next_coin_at": None, "win_streak": 0, "last_played": None,
+                })
+            save_ratings(ratings)
+            save_player_profiles(player_profiles)
+            await post_ranking(i.guild)
+            await post_home_message(i.guild)
+            home_channel = get_home_channel(i.guild)
+            if home_channel:
+                await home_channel.send(
+                    "【シーズン開始】\n武器登録と最高XP登録をしてください。\n"
+                    "XP補正を反映したい人は、プレイヤー登録ボタンからもう一度登録してくれ。"
+                )
+            await i.followup.send(f"全プレイヤーのレートを {DEFAULT_RATING} にリセットしました", ephemeral=True)
+        await interaction.response.send_message(
+            "⚠️ 全員のレートをリセットします。本当に実行しますか？",
+            view=AdminConfirmView("全員レートリセット", do_action),
+            ephemeral=True
+        )
 
     @discord.ui.button(label="最高レート初期化", style=discord.ButtonStyle.danger, custom_id="admin_peak_init")
     async def peak_init_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
             return
-        await interaction.response.send_message("初期化中...", ephemeral=True)
-        count = 0
-        for uid, profile in player_profiles.items():
-            if profile.get("peak_rating") is None:
-                current = get_user_rating(uid)
-                profile["peak_rating"] = current
-                count += 1
-        save_player_profiles(player_profiles)
-        await interaction.edit_original_response(content=f"{count}人の最高レートを初期化しました")
-
-
+        async def do_action(i):
+            count = 0
+            for uid, profile in player_profiles.items():
+                if profile.get("peak_rating") is None:
+                    current = get_user_rating(uid)
+                    profile["peak_rating"] = current
+                    count += 1
+            save_player_profiles(player_profiles)
+            await i.followup.send(f"{count}人の最高レートを初期化しました", ephemeral=True)
+        await interaction.response.send_message(
+            "最高レートを初期化しますか？",
+            view=AdminConfirmView("最高レート初期化", do_action),
+            ephemeral=True
+        )
 class AdminButtonView_Bulk(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -3255,17 +3301,23 @@ class AdminButtonView_Bulk(discord.ui.View):
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("管理者専用です", ephemeral=True)
             return
-        bulk_admin_waiting[interaction.guild.id] = interaction.user.id
-        admin_ch = get_admin_channel(interaction.guild)
-        if admin_ch:
-            await admin_ch.send(
-                "運営一括モード\nユーザーID コマンド 内容 を1行ずつ送ってください。\n\n"
-                "使えるコマンド:\n武器 / 武器削除 / XP / XP削除\n"
-                "バッジ付与 / バッジ削除 / バッジ強制付与\n"
-                "レート / 初期補正付与 / 初期補正剥奪\nコイン / チケット付与\n\n"
-                "やめるときは キャンセル"
-            )
-        await interaction.response.send_message("運営チャンネルで入力してください", ephemeral=True)
+        async def do_action(i):
+            bulk_admin_waiting[i.guild.id] = i.user.id
+            admin_ch = get_admin_channel(i.guild)
+            if admin_ch:
+                await admin_ch.send(
+                    "運営一括モード\nユーザーID コマンド 内容 を1行ずつ送ってください。\n\n"
+                    "使えるコマンド:\n武器 / 武器削除 / XP / XP削除\n"
+                    "バッジ付与 / バッジ削除 / バッジ強制付与\n"
+                    "レート / 初期補正付与 / 初期補正剥奪\nコイン / チケット付与\n\n"
+                    "やめるときは キャンセル"
+                )
+            await i.followup.send("運営チャンネルで入力してください", ephemeral=True)
+        await interaction.response.send_message(
+            "運営一括モードを開始しますか？",
+            view=AdminConfirmView("運営一括", do_action),
+            ephemeral=True
+        )
 
     @discord.ui.button(label="運営一覧1", style=discord.ButtonStyle.secondary, custom_id="admin_dump_1")
     async def dump1_button(self, interaction: discord.Interaction, button):
@@ -3495,6 +3547,58 @@ class AdminButtonView_Bulk(discord.ui.View):
                     await admin_ch.send(chunk)
         await interaction.edit_original_response(content="運営一覧7を送信しました")
 
+    @discord.ui.button(label="名前更新", style=discord.ButtonStyle.secondary, custom_id="admin_name_update")
+    async def name_update_button(self, interaction: discord.Interaction, button):
+        if interaction.user.id != OWNER_ID:
+            await interaction.response.send_message("管理者専用です", ephemeral=True)
+            return
+        async def do_action(i):
+            try:
+                members = [member async for member in i.guild.fetch_members(limit=None)]
+            except Exception:
+                members = i.guild.members
+            count = 0
+            for member in members:
+                if member.bot:
+                    continue
+                profile = get_player_profile(member.id)
+                profile["display_name"] = member.display_name
+                count += 1
+            save_player_profiles(player_profiles)
+            await i.followup.send(f"{count}人の名前を更新しました", ephemeral=True)
+        await interaction.response.send_message(
+            "全員の名前を更新しますか？",
+            view=AdminConfirmView("名前更新", do_action),
+            ephemeral=True
+        )
+
+    @discord.ui.button(label="アバター更新", style=discord.ButtonStyle.secondary, custom_id="admin_avatar_update")
+    async def avatar_update_button(self, interaction: discord.Interaction, button):
+        if interaction.user.id != OWNER_ID:
+            await interaction.response.send_message("管理者専用です", ephemeral=True)
+            return
+        async def do_action(i):
+            try:
+                members = [member async for member in i.guild.fetch_members(limit=None)]
+            except Exception:
+                members = i.guild.members
+            count = 0
+            for member in members:
+                if member.bot:
+                    continue
+                profile = get_player_profile(member.id)
+                if member.avatar:
+                    profile["avatar_url"] = str(member.avatar.url)
+                else:
+                    profile["avatar_url"] = "https://cdn.discordapp.com/embed/avatars/0.png"
+                count += 1
+            save_player_profiles(player_profiles)
+            await i.followup.send(f"{count}人のアバターを更新しました", ephemeral=True)
+        await interaction.response.send_message(
+            "全員のアバターを更新しますか？",
+            view=AdminConfirmView("アバター更新", do_action),
+            ephemeral=True
+        )
 
 async def post_admin_buttons(guild):
     channel = guild.get_channel(ADMIN_BUTTON_CHANNEL_ID)
@@ -5732,20 +5836,26 @@ async def join_request(request: Request):
     if not user_id or not name or not x_id:
         return JSONResponse(content={"error": "入力が不足しています"}, status_code=400)
 
-    admin_channel_id = ADMIN_CHANNEL_ID
-    for guild in bot.guilds:
-        channel = guild.get_channel(admin_channel_id)
-        if channel:
-            await channel.send(
-                f"【加入申請】\n"
-                f"Discord ID: {user_id}\n"
-                f"名前: {name}\n"
-                f"X: @{x_id}"
-            )
-            break
+    async def send_message():
+        for guild in bot.guilds:
+            channel = guild.get_channel(ADMIN_CHANNEL_ID)
+            if channel:
+                await channel.send(
+                    f"【加入申請】\n"
+                    f"Discord ID: {user_id}\n"
+                    f"名前: {name}\n"
+                    f"X: @{x_id}"
+                )
+                break
+
+    import asyncio
+    future = asyncio.run_coroutine_threadsafe(send_message(), bot.loop)
+    try:
+        future.result(timeout=10)
+    except Exception as e:
+        print(f"join_request send error: {e}")
 
     return JSONResponse(content={"success": True})
-
 
 @api.post("/api/badge/set")
 async def set_badge(request: Request):
