@@ -1032,6 +1032,7 @@ def create_room_state():
         "phase1_choices": {},
         "disconnect_vote": None,
         "current_stage": None,
+        "next_stage": None,
         "excluded_stages": [],
         "lost_enabled": False,
         "lost_stages": [],
@@ -1067,6 +1068,7 @@ def reset_room_state(room_state):
     room_state["phase1_choices"] = {}
     room_state["disconnect_vote"] = None
     room_state["current_stage"] = None
+    room_state["next_stage"] = None
     room_state["excluded_stages"] = []
 
 
@@ -1499,28 +1501,33 @@ def create_playing_text(team_alpha, team_bravo, room_key=None):
     excluded = []
     lost_stages = []
     lost_enabled = False
+    preset_stage = None
     if room_key:
         excluded = room_states[room_key].get("excluded_stages", [])
         lost_enabled = room_states[room_key].get("lost_enabled", False)
         lost_stages = room_states[room_key].get("lost_stages", [])
+        preset_stage = room_states[room_key].pop("next_stage", None)
 
-    if lost_enabled:
-        available_stages = [s for s in STAGES if s not in excluded and s not in lost_stages]
-        if not available_stages:
-            room_states[room_key]["lost_stages"] = []
-            lost_stages = []
-            available_stages = [s for s in STAGES if s not in excluded]
+    if preset_stage:
+        stage = preset_stage
     else:
-        available_stages = [s for s in STAGES if s not in excluded]
+        if lost_enabled:
+            available_stages = [s for s in STAGES if s not in excluded and s not in lost_stages]
+            if not available_stages:
+                room_states[room_key]["lost_stages"] = []
+                lost_stages = []
+                available_stages = [s for s in STAGES if s not in excluded]
+        else:
+            available_stages = [s for s in STAGES if s not in excluded]
 
-    if not available_stages:
-        available_stages = STAGES
+        if not available_stages:
+            available_stages = STAGES
 
-    stage = random.choice(available_stages)
+        stage = random.choice(available_stages)
 
     if room_key:
         room_states[room_key]["current_stage"] = stage
-        if lost_enabled:
+        if lost_enabled and stage not in room_states[room_key]["lost_stages"]:
             room_states[room_key]["lost_stages"].append(stage)
 
     def fmt(team):
@@ -1556,6 +1563,7 @@ def create_finished_text(room_state, room_key=None):
             if not available:
                 available = STAGES
             next_stage = random.choice(available)
+            room_state["next_stage"] = next_stage
         else:
             next_stage = None
 
@@ -1948,7 +1956,7 @@ class RecruitView(discord.ui.View):
         if total >= capacity:
             return
 
-        notify_msg = await recruit_channel.send(f"{plave_content} あと{remaining}人")
+        notify_msg = await recruit_channel.send(f"{plave_content}@{remaining}")
         recruit_data["notify_message_id"] = notify_msg.id
 
     @discord.ui.button(label="参加", style=discord.ButtonStyle.primary, custom_id="recruit_join")
