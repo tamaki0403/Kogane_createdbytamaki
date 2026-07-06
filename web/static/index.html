@@ -6,161 +6,163 @@
   <title>Kogane</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Russo+One&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      /* ゲーミング/eスポーツ・ネオンテーマ トークン */
-      --neon-bg: #0b0e1a;
-      --neon-bg-elevated: #0f1424;
-      --neon-card: #12172a;
-      --neon-border: rgba(0, 229, 255, 0.16);
-      --neon-text: #eaf6ff;
-      --neon-text-muted: #93a5c9;
+      /* グラスモーフィズム トークン */
+      --glass-page-bg: linear-gradient(160deg, #4c1d95 0%, #9d174d 55%, #c2410c 100%);
+      --glass-bg: rgba(12, 10, 28, 0.62);
+      --glass-bg-elevated: rgba(20, 16, 40, 0.72);
+      --glass-card: rgba(20, 14, 40, 0.42);
+      --glass-border: rgba(255, 255, 255, 0.22);
+      --glass-blur: 16px;
+      --glass-text: #ffffff;
+      --glass-text-muted: rgba(255, 255, 255, 0.72);
 
-      --neon-cyan: #00e5ff;
-      --neon-cyan-rgb: 0, 229, 255;
-      --neon-green: #39ff88;
-      --neon-green-solid: #0a7d43;
-      --neon-danger: #ff3b5c;
-      --neon-danger-solid: #d42a55;
-      --neon-violet-solid: #5b3ce0;
-      --neon-violet-hover: #4a2fc4;
-      --neon-gold: #ffc93c;
-      --neon-silver: #cdd8f0;
-      --neon-bronze: #ff9d66;
+      --glass-cyan: #67e8f9;
+      --glass-cyan-rgb: 103, 232, 249;
+      --glass-green: #86efac;
+      --glass-green-solid: #0a7d43;
+      --glass-danger: #ffb3c0;
+      --glass-danger-solid: #d42a55;
+      --glass-violet-solid: #7c3aed;
+      --glass-violet-hover: #6425c9;
+      --glass-gold: #fde047;
+      --glass-silver: #e5e7eb;
+      --glass-bronze: #fdba74;
 
-      --neon-radius-sm: 8px;
-      --neon-radius-md: 12px;
-      --neon-radius-pill: 999px;
-      --neon-ease: cubic-bezier(0.16, 1, 0.3, 1);
-      --neon-duration-fast: 150ms;
-      --neon-duration-base: 220ms;
+      --glass-radius-sm: 12px;
+      --glass-radius-md: 20px;
+      --glass-radius-pill: 999px;
+      --glass-ease: cubic-bezier(0.16, 1, 0.3, 1);
+      --glass-duration-fast: 150ms;
+      --glass-duration-base: 220ms;
 
-      --neon-font-heading: 'Russo One', 'Hiragino Sans', sans-serif;
-      --neon-font-body: 'Chakra Petch', 'Hiragino Sans', sans-serif;
-      --neon-font-stat: 'Orbitron', 'Chakra Petch', sans-serif;
+      --glass-font-heading: 'Poppins', 'Hiragino Sans', sans-serif;
+      --glass-font-body: 'Open Sans', 'Hiragino Sans', sans-serif;
+      --glass-font-stat: 'Poppins', 'Hiragino Sans', sans-serif;
 
-      --neon-glow-cyan-sm: 0 0 8px rgba(var(--neon-cyan-rgb), 0.5), 0 0 20px rgba(var(--neon-cyan-rgb), 0.25);
-      --neon-glow-green-sm: 0 0 10px rgba(10, 125, 67, 0.6);
-      --neon-glow-danger-sm: 0 0 10px rgba(212, 42, 85, 0.6);
-      --neon-shadow-card: 0 4px 20px rgba(0, 0, 0, 0.45);
+      --glass-glow-cyan-sm: 0 0 0 1px rgba(var(--glass-cyan-rgb), 0.45), 0 0 24px rgba(var(--glass-cyan-rgb), 0.22);
+      --glass-glow-green-sm: 0 0 10px rgba(10, 125, 67, 0.6);
+      --glass-glow-danger-sm: 0 0 10px rgba(212, 42, 85, 0.6);
+      --glass-shadow-card: 0 8px 32px rgba(0, 0, 0, 0.32);
     }
-    body { background: var(--neon-bg); color: var(--neon-text); font-family: var(--neon-font-body), 'Hiragino Sans', sans-serif; min-height: 100vh; }
-    nav { background: var(--neon-card); border-bottom: 1px solid var(--neon-border); padding: 0 16px; display: flex; align-items: center; height: 52px; position: sticky; top: 0; z-index: 100; }
-    .nav-brand { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--neon-text); text-decoration: none; }
+    body { background: var(--glass-page-bg); background-attachment: fixed; color: var(--glass-text); font-family: var(--glass-font-body), 'Hiragino Sans', sans-serif; min-height: 100vh; }
+    nav { background: var(--glass-card); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); border-bottom: 1px solid var(--glass-border); padding: 0 16px; display: flex; align-items: center; height: 52px; position: sticky; top: 0; z-index: 100; }
+    .nav-brand { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--glass-text); text-decoration: none; }
     .nav-brand-icon { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
-    .nav-brand-text { font-size: 1rem; font-weight: bold; font-family: var(--neon-font-heading); letter-spacing: 0.03em; }
+    .nav-brand-text { font-size: 1rem; font-weight: bold; font-family: var(--glass-font-heading); letter-spacing: 0.03em; }
     .nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-    .login-btn { background: var(--neon-violet-solid); color: #fff; border: none; border-radius: var(--neon-radius-pill); padding: 6px 14px; font-size: 0.85rem; cursor: pointer; text-decoration: none; white-space: nowrap; transition: background var(--neon-duration-base) var(--neon-ease), box-shadow var(--neon-duration-base) var(--neon-ease); }
-    .login-btn:hover { background: var(--neon-violet-hover); box-shadow: 0 0 10px rgba(91, 60, 224, 0.6); }
+    .login-btn { background: var(--glass-violet-solid); color: #fff; border: none; border-radius: var(--glass-radius-pill); padding: 6px 14px; font-size: 0.85rem; cursor: pointer; text-decoration: none; white-space: nowrap; transition: background var(--glass-duration-base) var(--glass-ease), box-shadow var(--glass-duration-base) var(--glass-ease); }
+    .login-btn:hover { background: var(--glass-violet-hover); box-shadow: 0 0 10px rgba(91, 60, 224, 0.6); }
     .user-info { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 8px; border-radius: 8px; transition: background 0.2s; }
-    .user-info:hover { background: var(--neon-bg-elevated); }
+    .user-info:hover { background: var(--glass-bg-elevated); }
     .user-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
-    .user-name { font-size: 0.85rem; color: var(--neon-text); max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .user-name { font-size: 0.85rem; color: var(--glass-text); max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .hamburger { background: none; border: none; cursor: pointer; padding: 6px; display: flex; flex-direction: column; gap: 5px; margin-left: 12px; }
-    .hamburger span { display: block; width: 22px; height: 2px; background: var(--neon-text); border-radius: 2px; transition: all 0.3s; }
+    .hamburger span { display: block; width: 22px; height: 2px; background: var(--glass-text); border-radius: 2px; transition: all 0.3s; }
     .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
     .hamburger.open span:nth-child(2) { opacity: 0; }
     .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-    .drawer { position: fixed; top: 52px; left: 0; right: 0; background: var(--neon-card); border-bottom: 1px solid var(--neon-border); z-index: 99; display: none; flex-direction: column; padding: 8px 0; }
+    .drawer { position: fixed; top: 52px; left: 0; right: 0; background: var(--glass-card); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); border-bottom: 1px solid var(--glass-border); z-index: 99; display: none; flex-direction: column; padding: 8px 0; }
     .drawer.open { display: flex; }
-    .drawer a { padding: 14px 20px; color: var(--neon-text); text-decoration: none; font-size: 1rem; border-bottom: 1px solid var(--neon-bg-elevated); transition: background 0.2s; }
+    .drawer a { padding: 14px 20px; color: var(--glass-text); text-decoration: none; font-size: 1rem; border-bottom: 1px solid var(--glass-bg-elevated); transition: background 0.2s; }
     .drawer a:last-child { border-bottom: none; }
-    .drawer a:hover { background: var(--neon-bg-elevated); }
-    .drawer a.active { color: var(--neon-cyan); }
+    .drawer a:hover { background: var(--glass-bg-elevated); }
+    .drawer a.active { color: var(--glass-cyan); }
     .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 98; }
     .overlay.open { display: block; }
     .page { display: none; padding: 20px 16px; max-width: 640px; margin: 0 auto; }
     .page.active { display: block; }
-    .home-title { font-size: 1.4rem; font-weight: bold; margin-bottom: 8px; font-family: var(--neon-font-heading); letter-spacing: 0.03em; text-shadow: 0 0 18px rgba(var(--neon-cyan-rgb), 0.35); }
-    .home-desc { color: var(--neon-text-muted); font-size: 0.9rem; margin-bottom: 28px; }
-    .card-link { display: block; background: var(--neon-card); border: 1px solid var(--neon-border); border-radius: var(--neon-radius-md); padding: 20px; margin-bottom: 12px; color: inherit; cursor: pointer; box-shadow: var(--neon-shadow-card); transition: border-color var(--neon-duration-base) var(--neon-ease), transform var(--neon-duration-base) var(--neon-ease), box-shadow var(--neon-duration-base) var(--neon-ease); }
-    .card-link:hover { border-color: var(--neon-cyan); transform: translateY(-2px); box-shadow: var(--neon-shadow-card), var(--neon-glow-cyan-sm); }
-    .card-link .card-title { font-size: 1rem; font-weight: bold; margin-bottom: 4px; font-family: var(--neon-font-heading); letter-spacing: 0.02em; }
-    .card-link .card-desc { font-size: 0.85rem; color: var(--neon-text-muted); }
-    .page-title { font-size: 1.3rem; font-weight: bold; margin-bottom: 4px; font-family: var(--neon-font-heading); letter-spacing: 0.02em; }
-    .subtitle { font-size: 0.85rem; color: var(--neon-text-muted); margin-bottom: 20px; }
-    .profile-header { background: var(--neon-card); border: 1px solid var(--neon-border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .home-title { font-size: 1.4rem; font-weight: bold; margin-bottom: 8px; font-family: var(--glass-font-heading); letter-spacing: 0.03em; text-shadow: 0 0 18px rgba(var(--glass-cyan-rgb), 0.35); }
+    .home-desc { color: var(--glass-text-muted); font-size: 0.9rem; margin-bottom: 28px; }
+    .card-link { display: block; background: var(--glass-card); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--glass-border); border-radius: var(--glass-radius-md); padding: 20px; margin-bottom: 12px; color: inherit; cursor: pointer; box-shadow: var(--glass-shadow-card); transition: border-color var(--glass-duration-base) var(--glass-ease), transform var(--glass-duration-base) var(--glass-ease), box-shadow var(--glass-duration-base) var(--glass-ease); }
+    .card-link:hover { border-color: var(--glass-cyan); transform: translateY(-2px); box-shadow: var(--glass-shadow-card), var(--glass-glow-cyan-sm); }
+    .card-link .card-title { font-size: 1rem; font-weight: bold; margin-bottom: 4px; font-family: var(--glass-font-heading); letter-spacing: 0.02em; }
+    .card-link .card-desc { font-size: 0.85rem; color: var(--glass-text-muted); }
+    .page-title { font-size: 1.3rem; font-weight: bold; margin-bottom: 4px; font-family: var(--glass-font-heading); letter-spacing: 0.02em; }
+    .subtitle { font-size: 0.85rem; color: var(--glass-text-muted); margin-bottom: 20px; }
+    .profile-header { background: var(--glass-card); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--glass-border); border-radius: var(--glass-radius-md); padding: 20px; margin-bottom: 16px; box-shadow: var(--glass-shadow-card); }
     .profile-top { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
     .profile-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
-    .profile-name { font-size: 1.3rem; font-weight: bold; font-family: var(--neon-font-heading); letter-spacing: 0.02em; }
+    .profile-name { font-size: 1.3rem; font-weight: bold; font-family: var(--glass-font-heading); letter-spacing: 0.02em; }
     .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-    .stat-box { background: var(--neon-bg); border: 1px solid var(--neon-border); border-radius: 8px; padding: 12px; text-align: center; }
-    .stat-label { font-size: 0.75rem; color: var(--neon-text-muted); margin-bottom: 4px; }
-    .stat-value { font-size: 1.3rem; font-weight: bold; color: var(--neon-cyan); font-family: var(--neon-font-stat); letter-spacing: 0.02em; }
-    .section-card { background: var(--neon-card); border: 1px solid var(--neon-border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-    .section-title { font-size: 0.85rem; color: var(--neon-text-muted); margin-bottom: 12px; font-weight: bold; }
-    .graph-container { background: var(--neon-card); border: 1px solid var(--neon-border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-    .stage-row { background: var(--neon-bg); border: 1px solid var(--neon-border); border-radius: 8px; padding: 12px 16px; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; }
-    .stage-no-record { background: var(--neon-bg); border: 1px solid var(--neon-border); border-radius: 8px; padding: 12px 16px; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; opacity: 0.4; }
+    .stat-box { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 8px; padding: 12px; text-align: center; }
+    .stat-label { font-size: 0.75rem; color: var(--glass-text-muted); margin-bottom: 4px; }
+    .stat-value { font-size: 1.3rem; font-weight: bold; color: var(--glass-cyan); font-family: var(--glass-font-stat); letter-spacing: 0.02em; }
+    .section-card { background: var(--glass-card); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--glass-border); border-radius: var(--glass-radius-md); padding: 16px; margin-bottom: 16px; box-shadow: var(--glass-shadow-card); }
+    .section-title { font-size: 0.85rem; color: var(--glass-text-muted); margin-bottom: 12px; font-weight: bold; }
+    .graph-container { background: var(--glass-card); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--glass-border); border-radius: var(--glass-radius-md); padding: 16px; margin-bottom: 16px; box-shadow: var(--glass-shadow-card); }
+    .stage-row { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 8px; padding: 12px 16px; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; }
+    .stage-no-record { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 8px; padding: 12px 16px; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; opacity: 0.4; }
     .stage-name { flex: 1; font-size: 0.9rem; }
-    .stage-record { font-size: 0.85rem; color: var(--neon-text-muted); }
-    .stage-winrate { font-size: 0.95rem; font-weight: bold; color: var(--neon-cyan); min-width: 48px; text-align: right; font-family: var(--neon-font-stat); }
+    .stage-record { font-size: 0.85rem; color: var(--glass-text-muted); }
+    .stage-winrate { font-size: 0.95rem; font-weight: bold; color: var(--glass-cyan); min-width: 48px; text-align: right; font-family: var(--glass-font-stat); }
 
     /* タブUI */
-    .tab-bar { display: flex; border-bottom: 1px solid var(--neon-border); margin-bottom: 16px; gap: 0; overflow-x: auto; }
-    .tab-btn { background: none; border: none; color: var(--neon-text-muted); font-size: 0.9rem; padding: 12px 16px; cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.2s, border-color 0.2s; }
-    .tab-btn:hover { color: var(--neon-text); }
-    .tab-btn.active { color: var(--neon-cyan); border-bottom-color: var(--neon-cyan); text-shadow: 0 0 10px rgba(var(--neon-cyan-rgb), 0.5); }
+    .tab-bar { display: flex; border-bottom: 1px solid var(--glass-border); margin-bottom: 16px; gap: 0; overflow-x: auto; }
+    .tab-btn { background: none; border: none; color: var(--glass-text-muted); font-size: 0.9rem; padding: 12px 16px; cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.2s, border-color 0.2s; }
+    .tab-btn:hover { color: var(--glass-text); }
+    .tab-btn.active { color: var(--glass-cyan); border-bottom-color: var(--glass-cyan); text-shadow: 0 0 10px rgba(var(--glass-cyan-rgb), 0.5); }
     .tab-content { display: none; }
     .tab-content.active { display: block; padding-bottom: 32px; }
 
     /* バッジ・バナー設定 */
     .badge-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-    .badge-item { padding: 6px 12px; border-radius: var(--neon-radius-pill); cursor: pointer; font-size: 0.85rem; border: 1px solid var(--neon-border); color: var(--neon-text-muted); background: var(--neon-bg); display: flex; align-items: center; gap: 6px; transition: border-color var(--neon-duration-base) var(--neon-ease), box-shadow var(--neon-duration-base) var(--neon-ease); }
-    .badge-item:hover { border-color: var(--neon-cyan); }
-    .badge-item.selected { border-color: var(--neon-cyan); color: var(--neon-cyan); background: var(--neon-bg-elevated); box-shadow: var(--neon-glow-cyan-sm); }
+    .badge-item { padding: 6px 12px; border-radius: var(--glass-radius-pill); cursor: pointer; font-size: 0.85rem; border: 1px solid var(--glass-border); color: var(--glass-text-muted); background: var(--glass-bg); display: flex; align-items: center; gap: 6px; transition: border-color var(--glass-duration-base) var(--glass-ease), box-shadow var(--glass-duration-base) var(--glass-ease); }
+    .badge-item:hover { border-color: var(--glass-cyan); }
+    .badge-item.selected { border-color: var(--glass-cyan); color: var(--glass-cyan); background: var(--glass-bg-elevated); box-shadow: var(--glass-glow-cyan-sm); }
     .badge-img { width: 24px; height: 24px; border-radius: 4px; object-fit: cover; }
-    .banner-item { border-radius: var(--neon-radius-sm); cursor: pointer; border: 2px solid var(--neon-border); overflow: hidden; transition: border-color var(--neon-duration-base) var(--neon-ease), box-shadow var(--neon-duration-base) var(--neon-ease); margin-bottom: 8px; }
-    .banner-item:hover { border-color: var(--neon-cyan); }
-    .banner-item.selected { border-color: var(--neon-cyan); box-shadow: var(--neon-glow-cyan-sm); }
-    .banner-preview { width: 100%; height: 60px; object-fit: cover; display: block; background: var(--neon-bg); }
-    .banner-label { padding: 6px 10px; font-size: 0.8rem; color: var(--neon-text-muted); background: var(--neon-card); }
+    .banner-item { border-radius: var(--glass-radius-sm); cursor: pointer; border: 2px solid var(--glass-border); overflow: hidden; transition: border-color var(--glass-duration-base) var(--glass-ease), box-shadow var(--glass-duration-base) var(--glass-ease); margin-bottom: 8px; }
+    .banner-item:hover { border-color: var(--glass-cyan); }
+    .banner-item.selected { border-color: var(--glass-cyan); box-shadow: var(--glass-glow-cyan-sm); }
+    .banner-preview { width: 100%; height: 60px; object-fit: cover; display: block; background: var(--glass-bg); }
+    .banner-label { padding: 6px 10px; font-size: 0.8rem; color: var(--glass-text-muted); background: var(--glass-card); }
 
     /* vs */
-    .vs-select { width: 100%; padding: 10px 14px; background: var(--neon-bg); border: 1px solid var(--neon-border); border-radius: 8px; color: var(--neon-text); font-size: 0.95rem; outline: none; margin-bottom: 12px; }
-    .vs-select:focus { border-color: var(--neon-cyan); }
+    .vs-select { width: 100%; padding: 10px 14px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--glass-text); font-size: 0.95rem; outline: none; margin-bottom: 12px; }
+    .vs-select:focus { border-color: var(--glass-cyan); }
     .vs-result { display: none; }
     .vs-name { font-size: 1rem; font-weight: bold; margin-bottom: 6px; }
-    .vs-record { font-size: 0.85rem; color: var(--neon-text-muted); margin-bottom: 10px; }
-    .vs-bar-wrap { background: var(--neon-bg); border-radius: 6px; height: 28px; overflow: hidden; display: flex; }
-    .vs-bar-win { background: var(--neon-green-solid); height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; color: #fff; transition: width 0.4s; }
-    .vs-bar-loss { background: var(--neon-danger-solid); height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; color: #fff; transition: width 0.4s; }
+    .vs-record { font-size: 0.85rem; color: var(--glass-text-muted); margin-bottom: 10px; }
+    .vs-bar-wrap { background: var(--glass-bg); border-radius: 6px; height: 28px; overflow: hidden; display: flex; }
+    .vs-bar-win { background: var(--glass-green-solid); height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; color: #fff; transition: width 0.4s; }
+    .vs-bar-loss { background: var(--glass-danger-solid); height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; color: #fff; transition: width 0.4s; }
 
     /* ガチャ・チケット */
-    .gacha-btn { width: 100%; padding: 12px; background: var(--neon-green-solid); color: #fff; border: none; border-radius: var(--neon-radius-pill); font-size: 0.95rem; font-weight: bold; cursor: pointer; margin-bottom: 10px; transition: box-shadow var(--neon-duration-base) var(--neon-ease), transform var(--neon-duration-fast) var(--neon-ease); }
-    .gacha-btn:hover:not(:disabled) { box-shadow: var(--neon-glow-green-sm); transform: translateY(-1px); }
-    .gacha-btn:disabled { background: var(--neon-bg-elevated); cursor: not-allowed; }
-    .ticket-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--neon-bg); border: 1px solid var(--neon-border); border-radius: 8px; margin-bottom: 8px; }
+    .gacha-btn { width: 100%; padding: 12px; background: var(--glass-green-solid); color: #fff; border: none; border-radius: var(--glass-radius-pill); font-size: 0.95rem; font-weight: bold; cursor: pointer; margin-bottom: 10px; transition: box-shadow var(--glass-duration-base) var(--glass-ease), transform var(--glass-duration-fast) var(--glass-ease); }
+    .gacha-btn:hover:not(:disabled) { box-shadow: var(--glass-glow-green-sm); transform: translateY(-1px); }
+    .gacha-btn:disabled { background: var(--glass-bg-elevated); cursor: not-allowed; }
+    .ticket-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 8px; margin-bottom: 8px; }
     .ticket-label { font-size: 0.85rem; }
-    .ticket-use-btn { padding: 4px 12px; background: var(--neon-violet-solid); color: #fff; border: none; border-radius: var(--neon-radius-pill); font-size: 0.8rem; cursor: pointer; transition: box-shadow var(--neon-duration-base) var(--neon-ease); }
+    .ticket-use-btn { padding: 4px 12px; background: var(--glass-violet-solid); color: #fff; border: none; border-radius: var(--glass-radius-pill); font-size: 0.8rem; cursor: pointer; transition: box-shadow var(--glass-duration-base) var(--glass-ease); }
     .ticket-use-btn:hover:not(:disabled) { box-shadow: 0 0 10px rgba(91, 60, 224, 0.6); }
-    .ticket-use-btn:disabled { background: var(--neon-bg-elevated); cursor: not-allowed; }
-    .result-box { padding: 12px; background: var(--neon-bg); border: 1px solid var(--neon-border); border-radius: 8px; font-size: 0.9rem; margin-top: 8px; }
+    .ticket-use-btn:disabled { background: var(--glass-bg-elevated); cursor: not-allowed; }
+    .result-box { padding: 12px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 8px; font-size: 0.9rem; margin-top: 8px; }
 
     /* ランキング */
-    .loading { text-align: center; color: var(--neon-text-muted); margin-top: 60px; }
-    .error { text-align: center; color: var(--neon-danger); margin-top: 60px; }
+    .loading { text-align: center; color: var(--glass-text-muted); margin-top: 60px; }
+    .error { text-align: center; color: var(--glass-danger); margin-top: 60px; }
     .hero-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.4); cursor: pointer; transition: background 0.3s, box-shadow 0.3s; }
-    .hero-dot.active { background: var(--neon-cyan); box-shadow: var(--neon-glow-cyan-sm); }
+    .hero-dot.active { background: var(--glass-cyan); box-shadow: var(--glass-glow-cyan-sm); }
 
     /* 管理UI */
-    .admin-input { width: 100%; padding: 10px 14px; background: var(--neon-bg); border: 1px solid var(--neon-border); border-radius: 8px; color: var(--neon-text); font-size: 0.95rem; outline: none; margin-bottom: 8px; }
-    .admin-input:focus { border-color: var(--neon-cyan); }
-    .admin-btn { padding: 8px 16px; border: none; border-radius: var(--neon-radius-pill); font-size: 0.9rem; cursor: pointer; font-weight: bold; transition: box-shadow var(--neon-duration-base) var(--neon-ease); }
-    .admin-btn-primary { background: var(--neon-green-solid); color: #fff; }
-    .admin-btn-primary:hover { box-shadow: var(--neon-glow-green-sm); }
-    .admin-btn-secondary { background: var(--neon-bg-elevated); color: var(--neon-text); }
-    .admin-btn-danger { background: var(--neon-danger-solid); color: #fff; }
-    .admin-btn-danger:hover { box-shadow: var(--neon-glow-danger-sm); }
-    .admin-item-card { background: var(--neon-bg); border: 1px solid var(--neon-border); border-radius: 10px; padding: 14px; margin-bottom: 10px; }
-    .admin-item-preview { width: 100%; height: 80px; object-fit: cover; border-radius: 6px; margin-bottom: 8px; background: var(--neon-card); display: block; }
-    .admin-badge-preview { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; margin-bottom: 8px; background: var(--neon-card); display: block; }
+    .admin-input { width: 100%; padding: 10px 14px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--glass-text); font-size: 0.95rem; outline: none; margin-bottom: 8px; }
+    .admin-input:focus { border-color: var(--glass-cyan); }
+    .admin-btn { padding: 8px 16px; border: none; border-radius: var(--glass-radius-pill); font-size: 0.9rem; cursor: pointer; font-weight: bold; transition: box-shadow var(--glass-duration-base) var(--glass-ease); }
+    .admin-btn-primary { background: var(--glass-green-solid); color: #fff; }
+    .admin-btn-primary:hover { box-shadow: var(--glass-glow-green-sm); }
+    .admin-btn-secondary { background: var(--glass-bg-elevated); color: var(--glass-text); }
+    .admin-btn-danger { background: var(--glass-danger-solid); color: #fff; }
+    .admin-btn-danger:hover { box-shadow: var(--glass-glow-danger-sm); }
+    .admin-item-card { background: var(--glass-card); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--glass-border); border-radius: var(--glass-radius-sm); padding: 14px; margin-bottom: 10px; }
+    .admin-item-preview { width: 100%; height: 80px; object-fit: cover; border-radius: 6px; margin-bottom: 8px; background: var(--glass-card); display: block; }
+    .admin-badge-preview { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; margin-bottom: 8px; background: var(--glass-card); display: block; }
 
     /* accordion */
-    .accordion-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 14px 0; border-bottom: 1px solid var(--neon-border); color: var(--neon-text-muted); font-size: 0.95rem; font-weight: bold; user-select: none; }
-    .accordion-header:hover { color: var(--neon-text); }
+    .accordion-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 14px 0; border-bottom: 1px solid var(--glass-border); color: var(--glass-text-muted); font-size: 0.95rem; font-weight: bold; user-select: none; }
+    .accordion-header:hover { color: var(--glass-text); }
     .accordion-arrow { font-size: 0.8rem; transition: transform 0.2s; }
     .accordion-arrow.open { transform: rotate(180deg); }
     .accordion-body { display: none; padding-top: 12px; }
@@ -212,12 +214,12 @@
       <div class="hero-dot" onclick="goSlide(2)"></div>
       <div class="hero-dot" onclick="goSlide(3)"></div>
     </div>
-    <div style="position:absolute; bottom:0; left:0; right:0; height:80px; background:linear-gradient(transparent, var(--neon-bg));"></div>
+    <div style="position:absolute; bottom:0; left:0; right:0; height:80px; background:linear-gradient(transparent, var(--glass-bg));"></div>
   </div>
   <div style="padding: 0 16px;">
     <div class="home-title">Kogane</div>
     <div class="home-desc">死滅回游形式のスプラトゥーン内部戦サーバー</div>
-    <div class="card-link" onclick="showPage('join')" style="border-color:var(--neon-violet-solid);">
+    <div class="card-link" onclick="showPage('join')" style="border-color:var(--glass-violet-solid);">
       <div class="card-title">たまき鯖に加入する</div>
       <div class="card-desc">加入申請フォームはこちら</div>
     </div>
@@ -241,17 +243,17 @@
   <div class="page-title">加入申請</div>
   <div class="subtitle">必要事項を入力して送信してください</div>
   <div style="margin-bottom:12px;">
-    <div style="font-size:0.85rem; color:var(--neon-text-muted); margin-bottom:6px;">名前</div>
-    <input id="join-name" type="text" placeholder="例：たまき" maxlength="50" style="width:100%; padding:10px 14px; background:var(--neon-bg); border:1px solid var(--neon-border); border-radius:8px; color:var(--neon-text); font-size:0.95rem; outline:none;">
+    <div style="font-size:0.85rem; color:var(--glass-text-muted); margin-bottom:6px;">名前</div>
+    <input id="join-name" type="text" placeholder="例：たまき" maxlength="50" style="width:100%; padding:10px 14px; background:var(--glass-bg); border:1px solid var(--glass-border); border-radius:8px; color:var(--glass-text); font-size:0.95rem; outline:none;">
   </div>
   <div style="margin-bottom:20px;">
-    <div style="font-size:0.85rem; color:var(--neon-text-muted); margin-bottom:6px;">XアカウントID（@なし）</div>
-    <input id="join-xid" type="text" placeholder="例：tamaki0403" maxlength="50" style="width:100%; padding:10px 14px; background:var(--neon-bg); border:1px solid var(--neon-border); border-radius:8px; color:var(--neon-text); font-size:0.95rem; outline:none;">
+    <div style="font-size:0.85rem; color:var(--glass-text-muted); margin-bottom:6px;">XアカウントID（@なし）</div>
+    <input id="join-xid" type="text" placeholder="例：tamaki0403" maxlength="50" style="width:100%; padding:10px 14px; background:var(--glass-bg); border:1px solid var(--glass-border); border-radius:8px; color:var(--glass-text); font-size:0.95rem; outline:none;">
   </div>
-  <div id="join-login-warning" style="display:none; color:var(--neon-danger); font-size:0.85rem; margin-bottom:12px;">Discordログインが必要です</div>
-  <div id="join-success" style="display:none; color:var(--neon-green); font-size:0.85rem; margin-bottom:12px;">申請を送信しました！</div>
-  <div id="join-error" style="display:none; color:var(--neon-danger); font-size:0.85rem; margin-bottom:12px;"></div>
-  <button onclick="submitJoinRequest()" style="width:100%; padding:12px; background:var(--neon-violet-solid); color:#fff; border:none; border-radius:var(--neon-radius-pill); font-size:1rem; font-weight:bold; cursor:pointer;">申請を送信</button>
+  <div id="join-login-warning" style="display:none; color:var(--glass-danger); font-size:0.85rem; margin-bottom:12px;">Discordログインが必要です</div>
+  <div id="join-success" style="display:none; color:var(--glass-green); font-size:0.85rem; margin-bottom:12px;">申請を送信しました！</div>
+  <div id="join-error" style="display:none; color:var(--glass-danger); font-size:0.85rem; margin-bottom:12px;"></div>
+  <button onclick="submitJoinRequest()" style="width:100%; padding:12px; background:var(--glass-violet-solid); color:#fff; border:none; border-radius:var(--glass-radius-pill); font-size:1rem; font-weight:bold; cursor:pointer;">申請を送信</button>
 </div>
 
 <!-- レートランキング -->
@@ -275,7 +277,7 @@
 
 <!-- 戦績入力（全件） -->
 <div class="page" id="page-stats-input">
-  <a href="#" onclick="showMyPage()" style="color:var(--neon-cyan); font-size:0.85rem; text-decoration:none; display:inline-block; margin-bottom:12px;">← マイページに戻る</a>
+  <a href="#" onclick="showMyPage()" style="color:var(--glass-cyan); font-size:0.85rem; text-decoration:none; display:inline-block; margin-bottom:12px;">← マイページに戻る</a>
   <div class="page-title">戦績入力</div>
   <div class="subtitle">過去の試合の戦績を入力・編集できます</div>
   <div id="stats-input-all-list"><p class="loading">読み込み中...</p></div>
@@ -308,37 +310,37 @@
   </div>
   <div class="accordion-body" id="body-admin-preview">
     <div style="padding-top:8px;">
-      <div style="font-size:0.85rem; color:var(--neon-text-muted); margin-bottom:12px;">バッジとバナーを選択するとネームプレートに反映されます</div>
+      <div style="font-size:0.85rem; color:var(--glass-text-muted); margin-bottom:12px;">バッジとバナーを選択するとネームプレートに反映されます</div>
 
       <!-- プレビュー選択UI -->
       <div style="margin-bottom:10px;">
-        <div style="font-size:0.8rem; color:var(--neon-text-muted); margin-bottom:6px;">バッジ</div>
+        <div style="font-size:0.8rem; color:var(--glass-text-muted); margin-bottom:6px;">バッジ</div>
         <div id="preview-badge-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
           <div class="badge-item selected" onclick="selectPreviewBadge(null, this)">なし</div>
         </div>
-        <div style="font-size:0.8rem; color:var(--neon-text-muted); margin-bottom:6px;">バナー</div>
+        <div style="font-size:0.8rem; color:var(--glass-text-muted); margin-bottom:6px;">バナー</div>
         <div id="preview-banner-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;">
           <div class="badge-item selected" onclick="selectPreviewBanner(null, this)">なし</div>
         </div>
       </div>
 
       <!-- ネームプレートプレビュー -->
-      <div style="font-size:0.8rem; color:var(--neon-text-muted); margin-bottom:8px;">プレビュー</div>
+      <div style="font-size:0.8rem; color:var(--glass-text-muted); margin-bottom:8px;">プレビュー</div>
       <div id="nameplate-preview" style="
         display: flex;
         align-items: stretch;
-        border: 1px solid var(--neon-border);
+        border: 1px solid var(--glass-border);
         border-radius: 12px;
         overflow: hidden;
         min-height: 72px;
       ">
-        <div style="position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8px 14px; background:var(--neon-card); min-width:64px; flex-shrink:0; z-index:2;">
-          <div style="font-size:1.2rem; font-weight:bold; color:var(--neon-text-muted); line-height:1;">1</div>
-          <div style="font-size:0.85rem; font-weight:bold; color:var(--neon-cyan); margin-top:6px; line-height:1;">2500</div>
+        <div style="position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8px 14px; background:var(--glass-card); min-width:64px; flex-shrink:0; z-index:2;">
+          <div style="font-size:1.2rem; font-weight:bold; color:var(--glass-text-muted); line-height:1;">1</div>
+          <div style="font-size:0.85rem; font-weight:bold; color:var(--glass-cyan); margin-top:6px; line-height:1;">2500</div>
           <!-- 右側グラデーション -->
-          <div id="nameplate-left-fade" style="position:absolute; right:-24px; top:0; bottom:0; width:24px; background:linear-gradient(to right, var(--neon-card), transparent); pointer-events:none; z-index:3;"></div>
+          <div id="nameplate-left-fade" style="position:absolute; right:-24px; top:0; bottom:0; width:24px; background:linear-gradient(to right, var(--glass-card), transparent); pointer-events:none; z-index:3;"></div>
         </div>
-        <div id="nameplate-banner-area" style="flex:1; display:flex; align-items:center; padding:12px 14px 12px 24px; gap:12px; position:relative; background:var(--neon-bg); overflow:hidden;">
+        <div id="nameplate-banner-area" style="flex:1; display:flex; align-items:center; padding:12px 14px 12px 24px; gap:12px; position:relative; background:var(--glass-bg); overflow:hidden;">
           <img id="nameplate-avatar" style="width:36px; height:36px; border-radius:50%; object-fit:cover; flex-shrink:0; position:relative; z-index:1;" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="">
           <div style="font-size:0.95rem; font-weight:bold; position:relative; z-index:1;">たまき</div>
         </div>
@@ -355,17 +357,17 @@
   </div>
   <div class="accordion-body" id="body-admin-badges">
     <div style="padding-top:8px;">
-      <div style="font-size:0.85rem; color:var(--neon-text-muted); margin-bottom:8px;">新規バッジ作成</div>
+      <div style="font-size:0.85rem; color:var(--glass-text-muted); margin-bottom:8px;">新規バッジ作成</div>
       <input class="admin-input" id="new-badge-label" placeholder="バッジ名（例：石狩）">
       <input class="admin-input" id="new-badge-url" placeholder="画像URL">
       <div id="new-badge-preview-wrap" style="margin-bottom:8px; display:none;">
-        <img id="new-badge-preview" src="" style="width:48px; height:48px; object-fit:cover; border-radius:6px; border:1px solid var(--neon-border);">
+        <img id="new-badge-preview" src="" style="width:48px; height:48px; object-fit:cover; border-radius:6px; border:1px solid var(--glass-border);">
       </div>
       <button class="admin-btn admin-btn-primary" onclick="previewBadgeImage()" style="margin-bottom:8px; margin-right:8px;">プレビュー</button>
       <button class="admin-btn admin-btn-primary" onclick="createBadge()">作成</button>
       <div id="badge-create-msg" style="font-size:0.85rem; margin-top:8px;"></div>
 
-      <div style="font-size:0.85rem; color:var(--neon-text-muted); margin-top:16px; margin-bottom:8px;">作成済みバッジ</div>
+      <div style="font-size:0.85rem; color:var(--glass-text-muted); margin-top:16px; margin-bottom:8px;">作成済みバッジ</div>
       <div id="admin-badge-list"></div>
     </div>
   </div>
@@ -376,17 +378,17 @@
   </div>
   <div class="accordion-body" id="body-admin-banners">
     <div style="padding-top:8px;">
-      <div style="font-size:0.85rem; color:var(--neon-text-muted); margin-bottom:8px;">新規バナー作成</div>
+      <div style="font-size:0.85rem; color:var(--glass-text-muted); margin-bottom:8px;">新規バナー作成</div>
       <input class="admin-input" id="new-banner-label" placeholder="バナー名（例：夏バナー）">
       <input class="admin-input" id="new-banner-url" placeholder="画像URL">
       <div id="new-banner-preview-wrap" style="margin-bottom:8px; display:none;">
-        <img id="new-banner-preview" src="" style="width:100%; height:80px; object-fit:cover; border-radius:6px; border:1px solid var(--neon-border);">
+        <img id="new-banner-preview" src="" style="width:100%; height:80px; object-fit:cover; border-radius:6px; border:1px solid var(--glass-border);">
       </div>
       <button class="admin-btn admin-btn-primary" onclick="previewBannerImage()" style="margin-bottom:8px; margin-right:8px;">プレビュー</button>
       <button class="admin-btn admin-btn-primary" onclick="createBanner()">作成</button>
       <div id="banner-create-msg" style="font-size:0.85rem; margin-top:8px;"></div>
 
-      <div style="font-size:0.85rem; color:var(--neon-text-muted); margin-top:16px; margin-bottom:8px;">作成済みバナー</div>
+      <div style="font-size:0.85rem; color:var(--glass-text-muted); margin-top:16px; margin-bottom:8px;">作成済みバナー</div>
       <div id="admin-banner-list"></div>
     </div>
   </div>
@@ -501,20 +503,20 @@
     const rank = p.rank;
     const banner = p.selected_banner_url || null;
     const badge = p.selected_badge_emoji || '';
-    const rankColor = rank === 1 ? 'var(--neon-gold)' : rank === 2 ? 'var(--neon-silver)' : rank === 3 ? 'var(--neon-bronze)' : 'var(--neon-text-muted)';
-    const borderColor = rank === 1 ? 'var(--neon-gold)' : rank === 2 ? 'var(--neon-silver)' : rank === 3 ? 'var(--neon-bronze)' : 'var(--neon-border)';
+    const rankColor = rank === 1 ? 'var(--glass-gold)' : rank === 2 ? 'var(--glass-silver)' : rank === 3 ? 'var(--glass-bronze)' : 'var(--glass-text-muted)';
+    const borderColor = rank === 1 ? 'var(--glass-gold)' : rank === 2 ? 'var(--glass-silver)' : rank === 3 ? 'var(--glass-bronze)' : 'var(--glass-border)';
     return `
-      <div style="display:flex; align-items:stretch; border:1px solid ${borderColor}; border-radius:var(--neon-radius-md); overflow:hidden; margin-bottom:8px; min-height:72px;">
-        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8px 14px; background:var(--neon-card); min-width:64px; flex-shrink:0;">
-          <div style="font-size:1.2rem; font-weight:bold; color:${rankColor}; line-height:1; font-family:var(--neon-font-stat);">${rank}</div>
-          <div style="font-size:0.85rem; font-weight:bold; color:var(--neon-cyan); margin-top:6px; line-height:1; font-family:var(--neon-font-stat);">${rating}</div>
+      <div style="display:flex; align-items:stretch; border:1px solid ${borderColor}; border-radius:var(--glass-radius-md); overflow:hidden; margin-bottom:8px; min-height:72px;">
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8px 14px; background:var(--glass-card); min-width:64px; flex-shrink:0;">
+          <div style="font-size:1.2rem; font-weight:bold; color:${rankColor}; line-height:1; font-family:var(--glass-font-stat);">${rank}</div>
+          <div style="font-size:0.85rem; font-weight:bold; color:var(--glass-cyan); margin-top:6px; line-height:1; font-family:var(--glass-font-stat);">${rating}</div>
         </div>
-        <div style="flex:1; display:flex; align-items:center; padding:12px 14px; gap:12px; position:relative; background:${banner ? `url('${banner}') center/cover no-repeat` : 'var(--neon-bg)'}; overflow:hidden;">
+        <div style="flex:1; display:flex; align-items:center; padding:12px 14px; gap:12px; position:relative; background:${banner ? `url('${banner}') center/cover no-repeat` : 'var(--glass-bg)'}; overflow:hidden;">
           ${banner ? `<div style="position:absolute; inset:0; background:rgba(0,0,0,0.45);"></div>` : ''}
           <img style="width:36px; height:36px; border-radius:50%; object-fit:cover; flex-shrink:0; position:relative; z-index:1;" src="${avatar}" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'" alt="">
           <div style="font-size:0.95rem; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; position:relative; z-index:1;">${name}</div>
         </div>
-        ${badge ? `<div style="display:flex; align-items:center; justify-content:center; padding:0 12px; background:var(--neon-card); flex-shrink:0; font-size:1.2rem;">${badge}</div>` : ''}
+        ${badge ? `<div style="display:flex; align-items:center; justify-content:center; padding:0 12px; background:var(--glass-card); flex-shrink:0; font-size:1.2rem;">${badge}</div>` : ''}
       </div>`;
   }
 
@@ -611,21 +613,21 @@
         <div style="margin-bottom:12px;">
           <div class="section-title">バナー設定</div>
           <div class="banner-item ${!selectedWebBanner ? 'selected' : ''}" onclick="setWebBanner('')">
-            <div style="height:40px; background:var(--neon-bg); display:flex; align-items:center; justify-content:center;">
-              <span style="font-size:0.8rem; color:var(--neon-text-muted);">なし</span>
+            <div style="height:40px; background:var(--glass-bg); display:flex; align-items:center; justify-content:center;">
+              <span style="font-size:0.8rem; color:var(--glass-text-muted);">なし</span>
             </div>
           </div>
           ${myWebBanners.map(b => `
             <div class="banner-item ${selectedWebBanner === b.id ? 'selected' : ''}" onclick="setWebBanner('${b.id}')">
-              ${b.image_url ? `<img class="banner-preview" src="${b.image_url}" onerror="this.style.display='none'">` : '<div class="banner-preview" style="background:var(--neon-bg-elevated);"></div>'}
+              ${b.image_url ? `<img class="banner-preview" src="${b.image_url}" onerror="this.style.display='none'">` : '<div class="banner-preview" style="background:var(--glass-bg-elevated);"></div>'}
               <div class="banner-label">${b.label}</div>
             </div>`).join('')}
         </div>` : '';
 
       const adminLinkHtml = `
-        <div style="border-top:1px solid var(--neon-border); padding-top:12px; margin-top:4px; display:flex; gap:8px; flex-wrap:wrap;">
-          <div onclick="showStatsInputPage()" style="display:inline-block; padding:6px 16px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:var(--neon-bg-elevated); border:1px solid var(--neon-border); color:var(--neon-text-muted);">過去の戦績を入力</div>
-          ${currentUserId === '1225788050894753865' ? `<div onclick="showAdminPage()" style="display:inline-block; padding:6px 16px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:var(--neon-bg-elevated); border:1px solid var(--neon-border); color:var(--neon-text-muted);">運営ページ</div>` : ''}
+        <div style="border-top:1px solid var(--glass-border); padding-top:12px; margin-top:4px; display:flex; gap:8px; flex-wrap:wrap;">
+          <div onclick="showStatsInputPage()" style="display:inline-block; padding:6px 16px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:var(--glass-bg-elevated); border:1px solid var(--glass-border); color:var(--glass-text-muted);">過去の戦績を入力</div>
+          ${currentUserId === '1225788050894753865' ? `<div onclick="showAdminPage()" style="display:inline-block; padding:6px 16px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:var(--glass-bg-elevated); border:1px solid var(--glass-border); color:var(--glass-text-muted);">運営ページ</div>` : ''}
         </div>`;
 
       document.getElementById('mypage-content').innerHTML = `
@@ -638,10 +640,10 @@
             </div>
           </div>
           ${d.play_type ? `
-          <div style="background:var(--neon-bg); border:1px solid var(--neon-border); border-radius:8px; padding:16px; margin-bottom:14px; text-align:center;">
-            <div style="font-size:0.75rem; color:var(--neon-text-muted); margin-bottom:6px;">あなたのスタイルは</div>
-            <div style="font-size:2rem; font-weight:bold; color:var(--neon-cyan); margin-bottom:8px; letter-spacing:0.05em; font-family:var(--neon-font-heading); text-shadow:0 0 18px rgba(var(--neon-cyan-rgb),0.4);">${d.play_type}</div>
-            <div style="font-size:0.8rem; color:var(--neon-text-muted); line-height:1.6; text-align:left;">${PLAY_TYPE_DESC[d.play_type] || ''}</div>
+          <div style="background:var(--glass-bg); border:1px solid var(--glass-border); border-radius:8px; padding:16px; margin-bottom:14px; text-align:center;">
+            <div style="font-size:0.75rem; color:var(--glass-text-muted); margin-bottom:6px;">あなたのスタイルは</div>
+            <div style="font-size:2rem; font-weight:bold; color:var(--glass-cyan); margin-bottom:8px; letter-spacing:0.05em; font-family:var(--glass-font-heading); text-shadow:0 0 18px rgba(var(--glass-cyan-rgb),0.4);">${d.play_type}</div>
+            <div style="font-size:0.8rem; color:var(--glass-text-muted); line-height:1.6; text-align:left;">${PLAY_TYPE_DESC[d.play_type] || ''}</div>
           </div>` : ''}
           <div class="stats-grid">
             <div class="stat-box"><div class="stat-label">勝ち</div><div class="stat-value">${d.wins}</div></div>
@@ -682,7 +684,7 @@
         <!-- 対プレイヤータブ -->
         <div class="tab-content active" id="tab-vs">
           ${vsStatsData.length === 0
-            ? '<p style="color:var(--neon-text-muted); font-size:0.85rem; padding:12px 0;">対戦記録がありません</p>'
+            ? '<p style="color:var(--glass-text-muted); font-size:0.85rem; padding:12px 0;">対戦記録がありません</p>'
             : `<select class="vs-select" id="vs-select" onchange="updateVsResult()">
                 <option value="">プレイヤーを選択...</option>
                 ${vsOptions}
@@ -706,14 +708,14 @@
 
         <!-- チケットタブ -->
         <div class="tab-content" id="tab-ticket">
-          <div style="font-size:0.85rem; color:var(--neon-text-muted); margin-bottom:10px;">
+          <div style="font-size:0.85rem; color:var(--glass-text-muted); margin-bottom:10px;">
             ${d.active_effect ? `有効中: ${d.active_effect.label}（残り${d.active_effect.remaining_matches}試合）` : '有効中の効果なし'}
           </div>
           ${(d.tickets && d.tickets.length > 0) ? d.tickets.map((t, i) => `
             <div class="ticket-row">
               <div class="ticket-label">${t.label}</div>
               <button class="ticket-use-btn" onclick="useTicket(${i})" ${d.active_effect ? 'disabled' : ''}>${d.active_effect ? '効果中' : '使用'}</button>
-            </div>`).join('') : '<div style="font-size:0.85rem; color:var(--neon-text-muted);">チケットなし</div>'}
+            </div>`).join('') : '<div style="font-size:0.85rem; color:var(--glass-text-muted);">チケットなし</div>'}
           <div id="ticket-result" style="display:none;" class="result-box"></div>
         </div>
       `;
@@ -726,16 +728,16 @@
           type: 'line',
           data: {
             labels: rateHistory.map((_, i) => `${i + 1}戦`),
-            datasets: [{ data: rateHistory.map(r => r.rating), borderColor: '#00e5ff', backgroundColor: 'rgba(0,229,255,0.12)', borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#00e5ff', fill: true, tension: 0.3 }]
+            datasets: [{ data: rateHistory.map(r => r.rating), borderColor: '#67e8f9', backgroundColor: 'rgba(103,232,249,0.14)', borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#67e8f9', fill: true, tension: 0.3 }]
           },
           options: {
             responsive: true,
             plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `レート: ${ctx.parsed.y}`, afterLabel: ctx => { const h = rateHistory[ctx.dataIndex]; return h.stage ? `ステージ: ${h.stage}` : ''; } } } },
-            scales: { x: { ticks: { color: '#93a5c9', font: { size: 10 } }, grid: { color: 'rgba(0,229,255,0.08)' } }, y: { ticks: { color: '#93a5c9' }, grid: { color: 'rgba(0,229,255,0.08)' } } }
+            scales: { x: { ticks: { color: 'rgba(255,255,255,0.72)', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.12)' } }, y: { ticks: { color: 'rgba(255,255,255,0.72)' }, grid: { color: 'rgba(255,255,255,0.12)' } } }
           }
         });
       } else {
-        document.getElementById('rateChart').parentElement.innerHTML += '<p style="color:var(--neon-text-muted); font-size:0.85rem; padding:8px 0;">試合記録がありません</p>';
+        document.getElementById('rateChart').parentElement.innerHTML += '<p style="color:var(--glass-text-muted); font-size:0.85rem; padding:8px 0;">試合記録がありません</p>';
         document.getElementById('rateChart').style.display = 'none';
       }
 
@@ -801,8 +803,8 @@
       const data = await res.json();
       const resultEl = document.getElementById('ticket-result');
       resultEl.style.display = 'block';
-      if (data.success) { resultEl.style.color = 'var(--neon-green)'; resultEl.textContent = `${data.label} を使用しました！`; loadMyPage(); }
-      else { resultEl.style.color = 'var(--neon-danger)'; resultEl.textContent = data.error || 'エラーが発生しました'; }
+      if (data.success) { resultEl.style.color = 'var(--glass-green)'; resultEl.textContent = `${data.label} を使用しました！`; loadMyPage(); }
+      else { resultEl.style.color = 'var(--glass-danger)'; resultEl.textContent = data.error || 'エラーが発生しました'; }
     } catch (e) {}
   }
 
@@ -879,10 +881,10 @@
     const dateStr = formatMatchDate(m.timestamp);
     const isWin = m.my_team === m.winner;
     const resultText = isWin ? '勝利' : '敗北';
-    const resultColor = isWin ? 'var(--neon-green)' : 'var(--neon-danger)';
+    const resultColor = isWin ? 'var(--glass-green)' : 'var(--glass-danger)';
     const header = `
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <div style="font-size:0.85rem; color:var(--neon-text-muted);">${dateStr}　${m.stage}</div>
+        <div style="font-size:0.85rem; color:var(--glass-text-muted);">${dateStr}　${m.stage}</div>
         <div style="font-size:0.8rem; font-weight:bold; color:${resultColor};">${resultText}</div>
       </div>`;
 
@@ -945,7 +947,7 @@
       const res = await fetch(`/api/my_matches_all/${currentUserId}`);
       const data = await res.json();
       if (!data.matches || data.matches.length === 0) {
-        el.innerHTML = '<p style="color:var(--neon-text-muted); font-size:0.85rem;">参加した試合がありません</p>';
+        el.innerHTML = '<p style="color:var(--glass-text-muted); font-size:0.85rem;">参加した試合がありません</p>';
         return;
       }
       el.innerHTML = data.matches.map(renderStatsMatchCard).join('');
@@ -991,20 +993,20 @@
         const ctx = document.getElementById('siteChart').getContext('2d');
         siteChartInstance = new Chart(ctx, {
           type: 'line',
-          data: { labels: siteLog.map(s => s.date), datasets: [{ data: siteLog.map(s => s.count), borderColor: '#00e5ff', backgroundColor: 'rgba(0,229,255,0.12)', borderWidth: 2, pointRadius: 3, fill: true, tension: 0.3 }] },
-          options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#93a5c9', font: { size: 10 } }, grid: { color: 'rgba(0,229,255,0.08)' } }, y: { ticks: { color: '#93a5c9' }, grid: { color: 'rgba(0,229,255,0.08)' } } } }
+          data: { labels: siteLog.map(s => s.date), datasets: [{ data: siteLog.map(s => s.count), borderColor: '#67e8f9', backgroundColor: 'rgba(103,232,249,0.14)', borderWidth: 2, pointRadius: 3, fill: true, tension: 0.3 }] },
+          options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: 'rgba(255,255,255,0.72)', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.12)' } }, y: { ticks: { color: 'rgba(255,255,255,0.72)' }, grid: { color: 'rgba(255,255,255,0.12)' } } } }
         });
       }
       const mypageList = document.getElementById('admin-mypage-list');
       if (mypageList) {
         const stats = data.mypage_stats || [];
-        if (stats.length === 0) { mypageList.innerHTML = '<p style="color:var(--neon-text-muted); font-size:0.85rem;">データなし</p>'; }
+        if (stats.length === 0) { mypageList.innerHTML = '<p style="color:var(--glass-text-muted); font-size:0.85rem;">データなし</p>'; }
         else {
           const max = stats[0].count;
           mypageList.innerHTML = stats.map(s => `
             <div style="margin-bottom:10px;">
-              <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;"><span>${s.display_name}</span><span style="color:var(--neon-cyan);">${s.count}回</span></div>
-              <div style="background:var(--neon-bg); border-radius:4px; height:8px; overflow:hidden;"><div style="background:var(--neon-cyan); height:100%; width:${Math.round(s.count/max*100)}%; transition:width 0.4s;"></div></div>
+              <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;"><span>${s.display_name}</span><span style="color:var(--glass-cyan);">${s.count}回</span></div>
+              <div style="background:var(--glass-bg); border-radius:4px; height:8px; overflow:hidden;"><div style="background:var(--glass-cyan); height:100%; width:${Math.round(s.count/max*100)}%; transition:width 0.4s;"></div></div>
             </div>`).join('');
         }
       }
@@ -1088,12 +1090,12 @@
       overlay.className = 'banner-overlay';
       overlay.style.cssText = 'position:absolute; inset:0; background:rgba(0,0,0,0.45);';
       bannerArea.insertBefore(overlay, bannerArea.firstChild);
-      nameplate.style.borderColor = 'var(--neon-cyan)';
-      if (leftFade) leftFade.style.background = 'linear-gradient(to right, var(--neon-card), transparent)';
+      nameplate.style.borderColor = 'var(--glass-cyan)';
+      if (leftFade) leftFade.style.background = 'linear-gradient(to right, var(--glass-card), transparent)';
     } else {
-      bannerArea.style.background = 'var(--neon-bg)';
-      nameplate.style.borderColor = 'var(--neon-border)';
-      if (leftFade) leftFade.style.background = 'linear-gradient(to right, var(--neon-card), transparent)';
+      bannerArea.style.background = 'var(--glass-bg)';
+      nameplate.style.borderColor = 'var(--glass-border)';
+      if (leftFade) leftFade.style.background = 'linear-gradient(to right, var(--glass-card), transparent)';
     }
 
     // バッジ適用
@@ -1120,22 +1122,22 @@
     const label = document.getElementById('new-badge-label').value.trim();
     const image_url = document.getElementById('new-badge-url').value.trim();
     const msg = document.getElementById('badge-create-msg');
-    if (!label) { msg.style.color = 'var(--neon-danger)'; msg.textContent = 'バッジ名を入力してください'; return; }
+    if (!label) { msg.style.color = 'var(--glass-danger)'; msg.textContent = 'バッジ名を入力してください'; return; }
     try {
       const res = await fetch('/api/web_badges', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, label, image_url }) });
       const data = await res.json();
       if (data.success) {
-        msg.style.color = 'var(--neon-green)';
+        msg.style.color = 'var(--glass-green)';
         msg.textContent = 'バッジを作成しました！';
         document.getElementById('new-badge-label').value = '';
         document.getElementById('new-badge-url').value = '';
         document.getElementById('new-badge-preview-wrap').style.display = 'none';
         loadAdminBadges();
       } else {
-        msg.style.color = 'var(--neon-danger)';
+        msg.style.color = 'var(--glass-danger)';
         msg.textContent = data.error || 'エラーが発生しました';
       }
-    } catch (e) { msg.style.color = 'var(--neon-danger)'; msg.textContent = 'エラーが発生しました'; }
+    } catch (e) { msg.style.color = 'var(--glass-danger)'; msg.textContent = 'エラーが発生しました'; }
   }
 
   async function loadAdminBadges() {
@@ -1145,13 +1147,13 @@
       const el = document.getElementById('admin-badge-list');
       if (!el) return;
       const badges = data.badges || [];
-      if (badges.length === 0) { el.innerHTML = '<p style="color:var(--neon-text-muted); font-size:0.85rem;">バッジなし</p>'; return; }
+      if (badges.length === 0) { el.innerHTML = '<p style="color:var(--glass-text-muted); font-size:0.85rem;">バッジなし</p>'; return; }
       el.innerHTML = badges.map(b => `
         <div class="admin-item-card" id="badge-card-${b.id}">
           ${b.image_url ? `<img class="admin-badge-preview" src="${b.image_url}" onerror="this.style.display='none'">` : ''}
           <div id="badge-view-${b.id}">
             <div style="font-size:0.9rem; font-weight:bold; margin-bottom:4px;">${b.label}</div>
-            <div style="font-size:0.75rem; color:var(--neon-text-muted); margin-bottom:8px; word-break:break-all;">${b.image_url || 'URLなし'}</div>
+            <div style="font-size:0.75rem; color:var(--glass-text-muted); margin-bottom:8px; word-break:break-all;">${b.image_url || 'URLなし'}</div>
             <div style="display:flex; gap:8px;">
               <button class="admin-btn admin-btn-secondary" onclick="startEditBadge('${b.id}', '${b.label.replace(/'/g,"\\'")}', '${b.image_url.replace(/'/g,"\\'")}')">編集</button>
               <button class="admin-btn admin-btn-danger" onclick="deleteBadge('${b.id}')">削除</button>
@@ -1213,22 +1215,22 @@
     const label = document.getElementById('new-banner-label').value.trim();
     const image_url = document.getElementById('new-banner-url').value.trim();
     const msg = document.getElementById('banner-create-msg');
-    if (!label) { msg.style.color = 'var(--neon-danger)'; msg.textContent = 'バナー名を入力してください'; return; }
+    if (!label) { msg.style.color = 'var(--glass-danger)'; msg.textContent = 'バナー名を入力してください'; return; }
     try {
       const res = await fetch('/api/web_banners', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, label, image_url }) });
       const data = await res.json();
       if (data.success) {
-        msg.style.color = 'var(--neon-green)';
+        msg.style.color = 'var(--glass-green)';
         msg.textContent = 'バナーを作成しました！';
         document.getElementById('new-banner-label').value = '';
         document.getElementById('new-banner-url').value = '';
         document.getElementById('new-banner-preview-wrap').style.display = 'none';
         loadAdminBanners();
       } else {
-        msg.style.color = 'var(--neon-danger)';
+        msg.style.color = 'var(--glass-danger)';
         msg.textContent = data.error || 'エラーが発生しました';
       }
-    } catch (e) { msg.style.color = 'var(--neon-danger)'; msg.textContent = 'エラーが発生しました'; }
+    } catch (e) { msg.style.color = 'var(--glass-danger)'; msg.textContent = 'エラーが発生しました'; }
   }
 
   async function loadAdminBanners() {
@@ -1238,13 +1240,13 @@
       const el = document.getElementById('admin-banner-list');
       if (!el) return;
       const banners = data.banners || [];
-      if (banners.length === 0) { el.innerHTML = '<p style="color:var(--neon-text-muted); font-size:0.85rem;">バナーなし</p>'; return; }
+      if (banners.length === 0) { el.innerHTML = '<p style="color:var(--glass-text-muted); font-size:0.85rem;">バナーなし</p>'; return; }
       el.innerHTML = banners.map(b => `
         <div class="admin-item-card" id="banner-card-${b.id}">
           ${b.image_url ? `<img class="admin-item-preview" src="${b.image_url}" onerror="this.style.display='none'">` : ''}
           <div id="banner-view-${b.id}">
             <div style="font-size:0.9rem; font-weight:bold; margin-bottom:4px;">${b.label}</div>
-            <div style="font-size:0.75rem; color:var(--neon-text-muted); margin-bottom:8px; word-break:break-all;">${b.image_url || 'URLなし'}</div>
+            <div style="font-size:0.75rem; color:var(--glass-text-muted); margin-bottom:8px; word-break:break-all;">${b.image_url || 'URLなし'}</div>
             <div style="display:flex; gap:8px;">
               <button class="admin-btn admin-btn-secondary" onclick="startEditBanner('${b.id}')">編集</button>
               <button class="admin-btn admin-btn-danger" onclick="deleteBanner('${b.id}')">削除</button>
