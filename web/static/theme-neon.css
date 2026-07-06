@@ -1,0 +1,209 @@
+/*
+ * Kogane - ゲーミング/eスポーツ・ネオンテイスト デザインシステム（提案）
+ * ------------------------------------------------------------
+ * 現状のGitHub風ダークテーマ（index.html内スタイル）を置き換えるものではなく、
+ * 並行して検証できるよう独立ファイルにしてあります。
+ *
+ * 有効化方法（このファイルはまだどこからも読み込まれていません）:
+ *   1. index.html の <head> に <link rel="stylesheet" href="theme-neon.css"> を追加
+ *   2. <html> か <body> タグに class="theme-neon" を付与
+ *   （クラスを付けない限り :root.theme-neon 配下の変数は一切適用されず、
+ *    既存ページの見た目には影響しません）
+ *
+ * フォント読み込み（見出し: Russo One / 本文: Chakra Petch）:
+ *   <link rel="preconnect" href="https://fonts.googleapis.com">
+ *   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+ *   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Russo+One&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+ */
+
+:root.theme-neon {
+  /* ===== カラー: ベース ===== */
+  /* 純黒(#000)は避け、わずかに青紫を帯びた深色にしてOLED滲みと圧迫感を軽減 */
+  --neon-bg: #0b0e1a;
+  --neon-bg-elevated: #0f1424;      /* ヘッダー等、bgより一段明るい面 */
+  --neon-card: #12172a;             /* カード/パネル背景 */
+  --neon-card-hover: #161d34;
+  --neon-border: rgba(0, 229, 255, 0.16);       /* ニュートラル枠線をシアン味に */
+  --neon-border-strong: rgba(0, 229, 255, 0.4);
+
+  /* ===== カラー: テキスト ===== */
+  --neon-text: #eaf6ff;             /* 本文用: bg比 17.5:1 (AAA) */
+  --neon-text-muted: #93a5c9;       /* 補助テキスト: bg比 7.75:1 (AAA) */
+
+  /* ===== カラー: ネオンアクセント =====
+     本文の色として多用しない（可読性・目の疲労配慮）。
+     見出しのグロー、ボタン、枠線、ステータス表示、グラフ等の「主張したい箇所」に限定。 */
+  --neon-cyan: #00e5ff;             /* プライマリアクセント: bg比 12.5:1 */
+  --neon-magenta: #ff2e9a;          /* セカンダリアクセント: bg比 5.59:1 */
+  --neon-violet: #9d4cff;           /* 補助アクセント（バナー/装飾） */
+  --neon-green: #39ff88;            /* 勝利/成功: bg比 14.5:1 */
+  --neon-danger: #ff3b5c;           /* 敗北/警告: bg比 5.52:1 */
+  --neon-gold: #ffc93c;             /* 1位/最高ランク装飾 */
+
+  /* 各アクセントの「on-color」テキスト（アクセント背景の上に載せる文字色） */
+  --neon-on-cyan: #051014;
+  --neon-on-magenta: #1a0410;
+  --neon-on-green: #04150a;
+
+  /* ===== タイポグラフィ ===== */
+  --neon-font-heading: 'Russo One', 'Hiragino Sans', sans-serif;   /* 見出し: インパクト重視 */
+  --neon-font-body: 'Chakra Petch', 'Hiragino Sans', sans-serif;   /* 本文: テック風だが可読性を維持 */
+  --neon-font-stat: 'Orbitron', 'Chakra Petch', sans-serif;        /* レート/K-D等の数値HUD表示専用（任意） */
+
+  /* ===== 角丸 ===== */
+  /* 既存UIのカード/ボタン(8-12px)との連続性を保ちつつ、ピル型要素を追加 */
+  --neon-radius-sm: 8px;
+  --neon-radius-md: 12px;
+  --neon-radius-lg: 20px;
+  --neon-radius-pill: 999px;
+
+  /* ===== モーション ===== */
+  --neon-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --neon-duration-fast: 150ms;
+  --neon-duration-base: 220ms;
+
+  /* ===== 影・グロー ===== */
+  --neon-shadow-card: 0 4px 20px rgba(0, 0, 0, 0.45);
+  --neon-glow-cyan-sm: 0 0 8px rgba(0, 229, 255, 0.55), 0 0 20px rgba(0, 229, 255, 0.25);
+  --neon-glow-cyan-lg: 0 0 16px rgba(0, 229, 255, 0.65), 0 0 48px rgba(0, 229, 255, 0.35);
+  --neon-glow-magenta-sm: 0 0 8px rgba(255, 46, 154, 0.55), 0 0 20px rgba(255, 46, 154, 0.25);
+  --neon-glow-magenta-lg: 0 0 16px rgba(255, 46, 154, 0.65), 0 0 48px rgba(255, 46, 154, 0.35);
+  --neon-glow-green-sm: 0 0 8px rgba(57, 255, 136, 0.55), 0 0 20px rgba(57, 255, 136, 0.25);
+  --neon-glow-gold-sm: 0 0 8px rgba(255, 201, 60, 0.55), 0 0 20px rgba(255, 201, 60, 0.25);
+}
+
+/* ==========================================================
+ * 参考実装: ベースコンポーネント
+ * .theme-neon 配下でのみ有効。既存の .card-link / .badge-tile 等の
+ * クラスと同名衝突を避けるため "neon-" プレフィックスを付けています。
+ * ========================================================== */
+
+.theme-neon {
+  background: var(--neon-bg);
+  color: var(--neon-text);
+  font-family: var(--neon-font-body);
+}
+
+.theme-neon h1,
+.theme-neon h2,
+.theme-neon h3,
+.theme-neon .neon-heading {
+  font-family: var(--neon-font-heading);
+  letter-spacing: 0.02em;
+  color: var(--neon-text);
+  text-shadow: 0 0 18px rgba(0, 229, 255, 0.35);
+}
+
+/* 数値表示（レート、K/D、勝敗数など）専用の任意ユーティリティ */
+.theme-neon .neon-stat {
+  font-family: var(--neon-font-stat);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+}
+
+/* ---------- カード ---------- */
+.theme-neon .neon-card {
+  background: var(--neon-card);
+  border: 1px solid var(--neon-border);
+  border-radius: var(--neon-radius-md);
+  box-shadow: var(--neon-shadow-card);
+  transition: border-color var(--neon-duration-base) var(--neon-ease),
+              transform var(--neon-duration-base) var(--neon-ease),
+              box-shadow var(--neon-duration-base) var(--neon-ease);
+}
+
+.theme-neon .neon-card:hover {
+  background: var(--neon-card-hover);
+  border-color: var(--neon-border-strong);
+  transform: translateY(-2px);
+  box-shadow: var(--neon-shadow-card), var(--neon-glow-cyan-sm);
+}
+
+/* ---------- ボタン: プライマリ（塗りつぶし + グロー） ---------- */
+.theme-neon .neon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 20px;
+  border-radius: var(--neon-radius-pill);
+  border: none;
+  font-family: var(--neon-font-body);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: transform var(--neon-duration-fast) var(--neon-ease),
+              box-shadow var(--neon-duration-base) var(--neon-ease),
+              background var(--neon-duration-base) var(--neon-ease);
+}
+
+.theme-neon .neon-btn:focus-visible {
+  outline: 2px solid var(--neon-cyan);
+  outline-offset: 2px;
+}
+
+.theme-neon .neon-btn-primary {
+  background: var(--neon-cyan);
+  color: var(--neon-on-cyan);
+  box-shadow: var(--neon-glow-cyan-sm);
+}
+
+.theme-neon .neon-btn-primary:hover {
+  box-shadow: var(--neon-glow-cyan-lg);
+  transform: translateY(-1px);
+}
+
+.theme-neon .neon-btn-primary:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* ---------- ボタン: セカンダリ（アウトライン） ---------- */
+.theme-neon .neon-btn-outline {
+  background: transparent;
+  color: var(--neon-magenta);
+  border: 1.5px solid var(--neon-magenta);
+}
+
+.theme-neon .neon-btn-outline:hover {
+  background: rgba(255, 46, 154, 0.1);
+  box-shadow: var(--neon-glow-magenta-sm);
+}
+
+/* ---------- ボタン: 無効状態 ---------- */
+.theme-neon .neon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+/* ---------- ステータスバッジ（勝敗・ランク等） ---------- */
+.theme-neon .neon-badge-win {
+  color: var(--neon-green);
+  border: 1px solid rgba(57, 255, 136, 0.4);
+  box-shadow: var(--neon-glow-green-sm);
+}
+
+.theme-neon .neon-badge-loss {
+  color: var(--neon-danger);
+  border: 1px solid rgba(255, 59, 92, 0.4);
+}
+
+.theme-neon .neon-badge-rank-1 {
+  color: var(--neon-gold);
+  border: 1px solid rgba(255, 201, 60, 0.4);
+  box-shadow: var(--neon-glow-gold-sm);
+}
+
+/* prefers-reduced-motion: グロー明滅やhover移動を必要とするユーザーだけに限定 */
+@media (prefers-reduced-motion: reduce) {
+  .theme-neon .neon-card,
+  .theme-neon .neon-btn {
+    transition: none;
+  }
+  .theme-neon .neon-card:hover,
+  .theme-neon .neon-btn-primary:hover {
+    transform: none;
+  }
+}

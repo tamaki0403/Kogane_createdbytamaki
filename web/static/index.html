@@ -4,139 +4,163 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kogane</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Russo+One&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #0d1117; color: #e6edf3; font-family: 'Segoe UI', 'Hiragino Sans', sans-serif; min-height: 100vh; }
-    nav { background: #161b22; border-bottom: 1px solid #30363d; padding: 0 16px; display: flex; align-items: center; height: 52px; position: sticky; top: 0; z-index: 100; }
-    .nav-brand { display: flex; align-items: center; gap: 8px; cursor: pointer; color: #e6edf3; text-decoration: none; }
+    :root {
+      /* ゲーミング/eスポーツ・ネオンテーマ トークン */
+      --neon-bg: #0b0e1a;
+      --neon-bg-elevated: #0f1424;
+      --neon-card: #12172a;
+      --neon-border: rgba(0, 229, 255, 0.16);
+      --neon-text: #eaf6ff;
+      --neon-text-muted: #93a5c9;
+
+      --neon-cyan: #00e5ff;
+      --neon-cyan-rgb: 0, 229, 255;
+      --neon-green: #39ff88;
+      --neon-green-solid: #0a7d43;
+      --neon-danger: #ff3b5c;
+      --neon-danger-solid: #d42a55;
+      --neon-violet-solid: #5b3ce0;
+      --neon-violet-hover: #4a2fc4;
+      --neon-gold: #ffc93c;
+      --neon-silver: #cdd8f0;
+      --neon-bronze: #ff9d66;
+
+      --neon-radius-sm: 8px;
+      --neon-radius-md: 12px;
+      --neon-radius-pill: 999px;
+      --neon-ease: cubic-bezier(0.16, 1, 0.3, 1);
+      --neon-duration-fast: 150ms;
+      --neon-duration-base: 220ms;
+
+      --neon-font-heading: 'Russo One', 'Hiragino Sans', sans-serif;
+      --neon-font-body: 'Chakra Petch', 'Hiragino Sans', sans-serif;
+      --neon-font-stat: 'Orbitron', 'Chakra Petch', sans-serif;
+
+      --neon-glow-cyan-sm: 0 0 8px rgba(var(--neon-cyan-rgb), 0.5), 0 0 20px rgba(var(--neon-cyan-rgb), 0.25);
+      --neon-glow-green-sm: 0 0 10px rgba(10, 125, 67, 0.6);
+      --neon-glow-danger-sm: 0 0 10px rgba(212, 42, 85, 0.6);
+      --neon-shadow-card: 0 4px 20px rgba(0, 0, 0, 0.45);
+    }
+    body { background: var(--neon-bg); color: var(--neon-text); font-family: var(--neon-font-body), 'Hiragino Sans', sans-serif; min-height: 100vh; }
+    nav { background: var(--neon-card); border-bottom: 1px solid var(--neon-border); padding: 0 16px; display: flex; align-items: center; height: 52px; position: sticky; top: 0; z-index: 100; }
+    .nav-brand { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--neon-text); text-decoration: none; }
     .nav-brand-icon { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
-    .nav-brand-text { font-size: 1rem; font-weight: bold; }
+    .nav-brand-text { font-size: 1rem; font-weight: bold; font-family: var(--neon-font-heading); letter-spacing: 0.03em; }
     .nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-    .login-btn { background: #5865f2; color: #fff; border: none; border-radius: 6px; padding: 6px 14px; font-size: 0.85rem; cursor: pointer; text-decoration: none; white-space: nowrap; }
-    .login-btn:hover { background: #4752c4; }
+    .login-btn { background: var(--neon-violet-solid); color: #fff; border: none; border-radius: var(--neon-radius-pill); padding: 6px 14px; font-size: 0.85rem; cursor: pointer; text-decoration: none; white-space: nowrap; transition: background var(--neon-duration-base) var(--neon-ease), box-shadow var(--neon-duration-base) var(--neon-ease); }
+    .login-btn:hover { background: var(--neon-violet-hover); box-shadow: 0 0 10px rgba(91, 60, 224, 0.6); }
     .user-info { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 8px; border-radius: 8px; transition: background 0.2s; }
-    .user-info:hover { background: #21262d; }
+    .user-info:hover { background: var(--neon-bg-elevated); }
     .user-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
-    .user-name { font-size: 0.85rem; color: #e6edf3; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .user-name { font-size: 0.85rem; color: var(--neon-text); max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .hamburger { background: none; border: none; cursor: pointer; padding: 6px; display: flex; flex-direction: column; gap: 5px; margin-left: 12px; }
-    .hamburger span { display: block; width: 22px; height: 2px; background: #e6edf3; border-radius: 2px; transition: all 0.3s; }
+    .hamburger span { display: block; width: 22px; height: 2px; background: var(--neon-text); border-radius: 2px; transition: all 0.3s; }
     .hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
     .hamburger.open span:nth-child(2) { opacity: 0; }
     .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-    .drawer { position: fixed; top: 52px; left: 0; right: 0; background: #161b22; border-bottom: 1px solid #30363d; z-index: 99; display: none; flex-direction: column; padding: 8px 0; }
+    .drawer { position: fixed; top: 52px; left: 0; right: 0; background: var(--neon-card); border-bottom: 1px solid var(--neon-border); z-index: 99; display: none; flex-direction: column; padding: 8px 0; }
     .drawer.open { display: flex; }
-    .drawer a { padding: 14px 20px; color: #e6edf3; text-decoration: none; font-size: 1rem; border-bottom: 1px solid #21262d; transition: background 0.2s; }
+    .drawer a { padding: 14px 20px; color: var(--neon-text); text-decoration: none; font-size: 1rem; border-bottom: 1px solid var(--neon-bg-elevated); transition: background 0.2s; }
     .drawer a:last-child { border-bottom: none; }
-    .drawer a:hover { background: #21262d; }
-    .drawer a.active { color: #58a6ff; }
+    .drawer a:hover { background: var(--neon-bg-elevated); }
+    .drawer a.active { color: var(--neon-cyan); }
     .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 98; }
     .overlay.open { display: block; }
     .page { display: none; padding: 20px 16px; max-width: 640px; margin: 0 auto; }
     .page.active { display: block; }
-    .home-title { font-size: 1.4rem; font-weight: bold; margin-bottom: 8px; }
-    .home-desc { color: #8b949e; font-size: 0.9rem; margin-bottom: 28px; }
-    .card-link { display: block; background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; margin-bottom: 12px; color: inherit; cursor: pointer; transition: border-color 0.2s; }
-    .card-link:hover { border-color: #58a6ff; }
-    .card-link .card-title { font-size: 1rem; font-weight: bold; margin-bottom: 4px; }
-    .card-link .card-desc { font-size: 0.85rem; color: #8b949e; }
-    .page-title { font-size: 1.3rem; font-weight: bold; margin-bottom: 4px; }
-    .subtitle { font-size: 0.85rem; color: #8b949e; margin-bottom: 20px; }
-    .profile-header { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .home-title { font-size: 1.4rem; font-weight: bold; margin-bottom: 8px; font-family: var(--neon-font-heading); letter-spacing: 0.03em; text-shadow: 0 0 18px rgba(var(--neon-cyan-rgb), 0.35); }
+    .home-desc { color: var(--neon-text-muted); font-size: 0.9rem; margin-bottom: 28px; }
+    .card-link { display: block; background: var(--neon-card); border: 1px solid var(--neon-border); border-radius: var(--neon-radius-md); padding: 20px; margin-bottom: 12px; color: inherit; cursor: pointer; box-shadow: var(--neon-shadow-card); transition: border-color var(--neon-duration-base) var(--neon-ease), transform var(--neon-duration-base) var(--neon-ease), box-shadow var(--neon-duration-base) var(--neon-ease); }
+    .card-link:hover { border-color: var(--neon-cyan); transform: translateY(-2px); box-shadow: var(--neon-shadow-card), var(--neon-glow-cyan-sm); }
+    .card-link .card-title { font-size: 1rem; font-weight: bold; margin-bottom: 4px; font-family: var(--neon-font-heading); letter-spacing: 0.02em; }
+    .card-link .card-desc { font-size: 0.85rem; color: var(--neon-text-muted); }
+    .page-title { font-size: 1.3rem; font-weight: bold; margin-bottom: 4px; font-family: var(--neon-font-heading); letter-spacing: 0.02em; }
+    .subtitle { font-size: 0.85rem; color: var(--neon-text-muted); margin-bottom: 20px; }
+    .profile-header { background: var(--neon-card); border: 1px solid var(--neon-border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
     .profile-top { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
     .profile-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
-    .profile-name { font-size: 1.3rem; font-weight: bold; }
+    .profile-name { font-size: 1.3rem; font-weight: bold; font-family: var(--neon-font-heading); letter-spacing: 0.02em; }
     .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-    .stat-box { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 12px; text-align: center; }
-    .stat-label { font-size: 0.75rem; color: #8b949e; margin-bottom: 4px; }
-    .stat-value { font-size: 1.3rem; font-weight: bold; color: #58a6ff; }
-    .section-card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-    .section-title { font-size: 0.85rem; color: #8b949e; margin-bottom: 12px; font-weight: bold; }
-    .graph-container { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-    .stage-row { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; }
-    .stage-no-record { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; opacity: 0.4; }
+    .stat-box { background: var(--neon-bg); border: 1px solid var(--neon-border); border-radius: 8px; padding: 12px; text-align: center; }
+    .stat-label { font-size: 0.75rem; color: var(--neon-text-muted); margin-bottom: 4px; }
+    .stat-value { font-size: 1.3rem; font-weight: bold; color: var(--neon-cyan); font-family: var(--neon-font-stat); letter-spacing: 0.02em; }
+    .section-card { background: var(--neon-card); border: 1px solid var(--neon-border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    .section-title { font-size: 0.85rem; color: var(--neon-text-muted); margin-bottom: 12px; font-weight: bold; }
+    .graph-container { background: var(--neon-card); border: 1px solid var(--neon-border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    .stage-row { background: var(--neon-bg); border: 1px solid var(--neon-border); border-radius: 8px; padding: 12px 16px; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; }
+    .stage-no-record { background: var(--neon-bg); border: 1px solid var(--neon-border); border-radius: 8px; padding: 12px 16px; margin-bottom: 6px; display: flex; align-items: center; gap: 12px; opacity: 0.4; }
     .stage-name { flex: 1; font-size: 0.9rem; }
-    .stage-record { font-size: 0.85rem; color: #8b949e; }
-    .stage-winrate { font-size: 0.95rem; font-weight: bold; color: #58a6ff; min-width: 48px; text-align: right; }
+    .stage-record { font-size: 0.85rem; color: var(--neon-text-muted); }
+    .stage-winrate { font-size: 0.95rem; font-weight: bold; color: var(--neon-cyan); min-width: 48px; text-align: right; font-family: var(--neon-font-stat); }
 
     /* タブUI */
-    .tab-bar { display: flex; border-bottom: 1px solid #30363d; margin-bottom: 16px; gap: 0; overflow-x: auto; }
-    .tab-btn { background: none; border: none; color: #8b949e; font-size: 0.9rem; padding: 12px 16px; cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.2s, border-color 0.2s; }
-    .tab-btn:hover { color: #e6edf3; }
-    .tab-btn.active { color: #58a6ff; border-bottom-color: #58a6ff; }
+    .tab-bar { display: flex; border-bottom: 1px solid var(--neon-border); margin-bottom: 16px; gap: 0; overflow-x: auto; }
+    .tab-btn { background: none; border: none; color: var(--neon-text-muted); font-size: 0.9rem; padding: 12px 16px; cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.2s, border-color 0.2s; }
+    .tab-btn:hover { color: var(--neon-text); }
+    .tab-btn.active { color: var(--neon-cyan); border-bottom-color: var(--neon-cyan); text-shadow: 0 0 10px rgba(var(--neon-cyan-rgb), 0.5); }
     .tab-content { display: none; }
     .tab-content.active { display: block; padding-bottom: 32px; }
 
     /* バッジ・バナー設定 */
     .badge-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-    .badge-item { padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; border: 1px solid #30363d; color: #8b949e; background: #0d1117; display: flex; align-items: center; gap: 6px; transition: border-color 0.2s; }
-    .badge-item:hover { border-color: #58a6ff; }
-    .badge-item.selected { border-color: #58a6ff; color: #58a6ff; background: #21262d; }
+    .badge-item { padding: 6px 12px; border-radius: var(--neon-radius-pill); cursor: pointer; font-size: 0.85rem; border: 1px solid var(--neon-border); color: var(--neon-text-muted); background: var(--neon-bg); display: flex; align-items: center; gap: 6px; transition: border-color var(--neon-duration-base) var(--neon-ease), box-shadow var(--neon-duration-base) var(--neon-ease); }
+    .badge-item:hover { border-color: var(--neon-cyan); }
+    .badge-item.selected { border-color: var(--neon-cyan); color: var(--neon-cyan); background: var(--neon-bg-elevated); box-shadow: var(--neon-glow-cyan-sm); }
     .badge-img { width: 24px; height: 24px; border-radius: 4px; object-fit: cover; }
-    /* バッジダッシュボード（マイページ） */
-    .badge-dash { margin-bottom: 12px; }
-    .badge-dash-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-    .badge-dash-count { font-size: 0.8rem; font-weight: bold; color: #58a6ff; background: #0d1117; border: 1px solid #30363d; border-radius: 999px; padding: 3px 10px; }
-    .badge-dash-progress { height: 4px; background: #0d1117; border: 1px solid #21262d; border-radius: 999px; overflow: hidden; margin-bottom: 14px; }
-    .badge-dash-progress-fill { height: 100%; background: linear-gradient(90deg, #58a6ff, #79c0ff); border-radius: 999px; transition: width 0.5s ease-out; }
-    .badge-dash-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; }
-    .badge-tile { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 88px; padding: 10px 6px; background: #0d1117; border: 1px solid #30363d; border-radius: 10px; cursor: pointer; text-align: center; transition: border-color 0.15s ease-out, transform 0.15s ease-out, box-shadow 0.15s ease-out; }
-    .badge-tile:hover { border-color: #58a6ff; transform: translateY(-2px); }
-    .badge-tile:focus-visible { outline: none; border-color: #58a6ff; box-shadow: 0 0 0 3px rgba(88,166,255,0.35); }
-    .badge-tile.selected { border-color: #58a6ff; background: #131c2b; box-shadow: 0 0 0 1px #58a6ff, 0 0 16px rgba(88,166,255,0.25); }
-    .badge-tile.locked { cursor: default; opacity: 0.45; }
-    .badge-tile.locked:hover { border-color: #30363d; transform: none; }
-    .badge-tile-icon { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; color: #8b949e; }
-    .badge-tile-icon img { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; }
-    .badge-tile.selected .badge-tile-icon { color: #58a6ff; }
-    .badge-tile-label { font-size: 0.72rem; color: #8b949e; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-    .badge-tile.selected .badge-tile-label { color: #e6edf3; font-weight: bold; }
-    .badge-tile-check { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; background: #58a6ff; color: #0d1117; display: flex; align-items: center; justify-content: center; border: 2px solid #161b22; }
-    .badge-tile-lock { position: absolute; bottom: 6px; right: 6px; width: 16px; height: 16px; color: #8b949e; }
-    .banner-item { border-radius: 8px; cursor: pointer; border: 2px solid #30363d; overflow: hidden; transition: border-color 0.2s; margin-bottom: 8px; }
-    .banner-item:hover { border-color: #58a6ff; }
-    .banner-item.selected { border-color: #58a6ff; }
-    .banner-preview { width: 100%; height: 60px; object-fit: cover; display: block; background: #0d1117; }
-    .banner-label { padding: 6px 10px; font-size: 0.8rem; color: #8b949e; background: #161b22; }
+    .banner-item { border-radius: var(--neon-radius-sm); cursor: pointer; border: 2px solid var(--neon-border); overflow: hidden; transition: border-color var(--neon-duration-base) var(--neon-ease), box-shadow var(--neon-duration-base) var(--neon-ease); margin-bottom: 8px; }
+    .banner-item:hover { border-color: var(--neon-cyan); }
+    .banner-item.selected { border-color: var(--neon-cyan); box-shadow: var(--neon-glow-cyan-sm); }
+    .banner-preview { width: 100%; height: 60px; object-fit: cover; display: block; background: var(--neon-bg); }
+    .banner-label { padding: 6px 10px; font-size: 0.8rem; color: var(--neon-text-muted); background: var(--neon-card); }
 
     /* vs */
-    .vs-select { width: 100%; padding: 10px 14px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; color: #e6edf3; font-size: 0.95rem; outline: none; margin-bottom: 12px; }
-    .vs-select:focus { border-color: #58a6ff; }
+    .vs-select { width: 100%; padding: 10px 14px; background: var(--neon-bg); border: 1px solid var(--neon-border); border-radius: 8px; color: var(--neon-text); font-size: 0.95rem; outline: none; margin-bottom: 12px; }
+    .vs-select:focus { border-color: var(--neon-cyan); }
     .vs-result { display: none; }
     .vs-name { font-size: 1rem; font-weight: bold; margin-bottom: 6px; }
-    .vs-record { font-size: 0.85rem; color: #8b949e; margin-bottom: 10px; }
-    .vs-bar-wrap { background: #0d1117; border-radius: 6px; height: 28px; overflow: hidden; display: flex; }
-    .vs-bar-win { background: #238636; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; color: #fff; transition: width 0.4s; }
-    .vs-bar-loss { background: #da3633; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; color: #fff; transition: width 0.4s; }
+    .vs-record { font-size: 0.85rem; color: var(--neon-text-muted); margin-bottom: 10px; }
+    .vs-bar-wrap { background: var(--neon-bg); border-radius: 6px; height: 28px; overflow: hidden; display: flex; }
+    .vs-bar-win { background: var(--neon-green-solid); height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; color: #fff; transition: width 0.4s; }
+    .vs-bar-loss { background: var(--neon-danger-solid); height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; color: #fff; transition: width 0.4s; }
 
     /* ガチャ・チケット */
-    .gacha-btn { width: 100%; padding: 12px; background: #238636; color: #fff; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
-    .gacha-btn:disabled { background: #21262d; cursor: not-allowed; }
-    .ticket-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; margin-bottom: 8px; }
+    .gacha-btn { width: 100%; padding: 12px; background: var(--neon-green-solid); color: #fff; border: none; border-radius: var(--neon-radius-pill); font-size: 0.95rem; font-weight: bold; cursor: pointer; margin-bottom: 10px; transition: box-shadow var(--neon-duration-base) var(--neon-ease), transform var(--neon-duration-fast) var(--neon-ease); }
+    .gacha-btn:hover:not(:disabled) { box-shadow: var(--neon-glow-green-sm); transform: translateY(-1px); }
+    .gacha-btn:disabled { background: var(--neon-bg-elevated); cursor: not-allowed; }
+    .ticket-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--neon-bg); border: 1px solid var(--neon-border); border-radius: 8px; margin-bottom: 8px; }
     .ticket-label { font-size: 0.85rem; }
-    .ticket-use-btn { padding: 4px 12px; background: #5865f2; color: #fff; border: none; border-radius: 6px; font-size: 0.8rem; cursor: pointer; }
-    .ticket-use-btn:disabled { background: #21262d; cursor: not-allowed; }
-    .result-box { padding: 12px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; font-size: 0.9rem; margin-top: 8px; }
+    .ticket-use-btn { padding: 4px 12px; background: var(--neon-violet-solid); color: #fff; border: none; border-radius: var(--neon-radius-pill); font-size: 0.8rem; cursor: pointer; transition: box-shadow var(--neon-duration-base) var(--neon-ease); }
+    .ticket-use-btn:hover:not(:disabled) { box-shadow: 0 0 10px rgba(91, 60, 224, 0.6); }
+    .ticket-use-btn:disabled { background: var(--neon-bg-elevated); cursor: not-allowed; }
+    .result-box { padding: 12px; background: var(--neon-bg); border: 1px solid var(--neon-border); border-radius: 8px; font-size: 0.9rem; margin-top: 8px; }
 
     /* ランキング */
-    .loading { text-align: center; color: #8b949e; margin-top: 60px; }
-    .error { text-align: center; color: #f85149; margin-top: 60px; }
-    .hero-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.4); cursor: pointer; transition: background 0.3s; }
-    .hero-dot.active { background: #fff; }
+    .loading { text-align: center; color: var(--neon-text-muted); margin-top: 60px; }
+    .error { text-align: center; color: var(--neon-danger); margin-top: 60px; }
+    .hero-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.4); cursor: pointer; transition: background 0.3s, box-shadow 0.3s; }
+    .hero-dot.active { background: var(--neon-cyan); box-shadow: var(--neon-glow-cyan-sm); }
 
     /* 管理UI */
-    .admin-input { width: 100%; padding: 10px 14px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px; color: #e6edf3; font-size: 0.95rem; outline: none; margin-bottom: 8px; }
-    .admin-input:focus { border-color: #58a6ff; }
-    .admin-btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 0.9rem; cursor: pointer; font-weight: bold; }
-    .admin-btn-primary { background: #238636; color: #fff; }
-    .admin-btn-secondary { background: #21262d; color: #e6edf3; }
-    .admin-btn-danger { background: #da3633; color: #fff; }
-    .admin-item-card { background: #0d1117; border: 1px solid #30363d; border-radius: 10px; padding: 14px; margin-bottom: 10px; }
-    .admin-item-preview { width: 100%; height: 80px; object-fit: cover; border-radius: 6px; margin-bottom: 8px; background: #161b22; display: block; }
-    .admin-badge-preview { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; margin-bottom: 8px; background: #161b22; display: block; }
+    .admin-input { width: 100%; padding: 10px 14px; background: var(--neon-bg); border: 1px solid var(--neon-border); border-radius: 8px; color: var(--neon-text); font-size: 0.95rem; outline: none; margin-bottom: 8px; }
+    .admin-input:focus { border-color: var(--neon-cyan); }
+    .admin-btn { padding: 8px 16px; border: none; border-radius: var(--neon-radius-pill); font-size: 0.9rem; cursor: pointer; font-weight: bold; transition: box-shadow var(--neon-duration-base) var(--neon-ease); }
+    .admin-btn-primary { background: var(--neon-green-solid); color: #fff; }
+    .admin-btn-primary:hover { box-shadow: var(--neon-glow-green-sm); }
+    .admin-btn-secondary { background: var(--neon-bg-elevated); color: var(--neon-text); }
+    .admin-btn-danger { background: var(--neon-danger-solid); color: #fff; }
+    .admin-btn-danger:hover { box-shadow: var(--neon-glow-danger-sm); }
+    .admin-item-card { background: var(--neon-bg); border: 1px solid var(--neon-border); border-radius: 10px; padding: 14px; margin-bottom: 10px; }
+    .admin-item-preview { width: 100%; height: 80px; object-fit: cover; border-radius: 6px; margin-bottom: 8px; background: var(--neon-card); display: block; }
+    .admin-badge-preview { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; margin-bottom: 8px; background: var(--neon-card); display: block; }
 
     /* accordion */
-    .accordion-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 14px 0; border-bottom: 1px solid #30363d; color: #8b949e; font-size: 0.95rem; font-weight: bold; user-select: none; }
-    .accordion-header:hover { color: #e6edf3; }
+    .accordion-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 14px 0; border-bottom: 1px solid var(--neon-border); color: var(--neon-text-muted); font-size: 0.95rem; font-weight: bold; user-select: none; }
+    .accordion-header:hover { color: var(--neon-text); }
     .accordion-arrow { font-size: 0.8rem; transition: transform 0.2s; }
     .accordion-arrow.open { transform: rotate(180deg); }
     .accordion-body { display: none; padding-top: 12px; }
@@ -188,12 +212,12 @@
       <div class="hero-dot" onclick="goSlide(2)"></div>
       <div class="hero-dot" onclick="goSlide(3)"></div>
     </div>
-    <div style="position:absolute; bottom:0; left:0; right:0; height:80px; background:linear-gradient(transparent, #0d1117);"></div>
+    <div style="position:absolute; bottom:0; left:0; right:0; height:80px; background:linear-gradient(transparent, var(--neon-bg));"></div>
   </div>
   <div style="padding: 0 16px;">
     <div class="home-title">Kogane</div>
     <div class="home-desc">死滅回游形式のスプラトゥーン内部戦サーバー</div>
-    <div class="card-link" onclick="showPage('join')" style="border-color:#5865f2;">
+    <div class="card-link" onclick="showPage('join')" style="border-color:var(--neon-violet-solid);">
       <div class="card-title">たまき鯖に加入する</div>
       <div class="card-desc">加入申請フォームはこちら</div>
     </div>
@@ -217,17 +241,17 @@
   <div class="page-title">加入申請</div>
   <div class="subtitle">必要事項を入力して送信してください</div>
   <div style="margin-bottom:12px;">
-    <div style="font-size:0.85rem; color:#8b949e; margin-bottom:6px;">名前</div>
-    <input id="join-name" type="text" placeholder="例：たまき" maxlength="50" style="width:100%; padding:10px 14px; background:#0d1117; border:1px solid #30363d; border-radius:8px; color:#e6edf3; font-size:0.95rem; outline:none;">
+    <div style="font-size:0.85rem; color:var(--neon-text-muted); margin-bottom:6px;">名前</div>
+    <input id="join-name" type="text" placeholder="例：たまき" maxlength="50" style="width:100%; padding:10px 14px; background:var(--neon-bg); border:1px solid var(--neon-border); border-radius:8px; color:var(--neon-text); font-size:0.95rem; outline:none;">
   </div>
   <div style="margin-bottom:20px;">
-    <div style="font-size:0.85rem; color:#8b949e; margin-bottom:6px;">XアカウントID（@なし）</div>
-    <input id="join-xid" type="text" placeholder="例：tamaki0403" maxlength="50" style="width:100%; padding:10px 14px; background:#0d1117; border:1px solid #30363d; border-radius:8px; color:#e6edf3; font-size:0.95rem; outline:none;">
+    <div style="font-size:0.85rem; color:var(--neon-text-muted); margin-bottom:6px;">XアカウントID（@なし）</div>
+    <input id="join-xid" type="text" placeholder="例：tamaki0403" maxlength="50" style="width:100%; padding:10px 14px; background:var(--neon-bg); border:1px solid var(--neon-border); border-radius:8px; color:var(--neon-text); font-size:0.95rem; outline:none;">
   </div>
-  <div id="join-login-warning" style="display:none; color:#f85149; font-size:0.85rem; margin-bottom:12px;">Discordログインが必要です</div>
-  <div id="join-success" style="display:none; color:#238636; font-size:0.85rem; margin-bottom:12px;">申請を送信しました！</div>
-  <div id="join-error" style="display:none; color:#f85149; font-size:0.85rem; margin-bottom:12px;"></div>
-  <button onclick="submitJoinRequest()" style="width:100%; padding:12px; background:#5865f2; color:#fff; border:none; border-radius:8px; font-size:1rem; font-weight:bold; cursor:pointer;">申請を送信</button>
+  <div id="join-login-warning" style="display:none; color:var(--neon-danger); font-size:0.85rem; margin-bottom:12px;">Discordログインが必要です</div>
+  <div id="join-success" style="display:none; color:var(--neon-green); font-size:0.85rem; margin-bottom:12px;">申請を送信しました！</div>
+  <div id="join-error" style="display:none; color:var(--neon-danger); font-size:0.85rem; margin-bottom:12px;"></div>
+  <button onclick="submitJoinRequest()" style="width:100%; padding:12px; background:var(--neon-violet-solid); color:#fff; border:none; border-radius:var(--neon-radius-pill); font-size:1rem; font-weight:bold; cursor:pointer;">申請を送信</button>
 </div>
 
 <!-- レートランキング -->
@@ -251,7 +275,7 @@
 
 <!-- 戦績入力（全件） -->
 <div class="page" id="page-stats-input">
-  <a href="#" onclick="showMyPage()" style="color:#58a6ff; font-size:0.85rem; text-decoration:none; display:inline-block; margin-bottom:12px;">← マイページに戻る</a>
+  <a href="#" onclick="showMyPage()" style="color:var(--neon-cyan); font-size:0.85rem; text-decoration:none; display:inline-block; margin-bottom:12px;">← マイページに戻る</a>
   <div class="page-title">戦績入力</div>
   <div class="subtitle">過去の試合の戦績を入力・編集できます</div>
   <div id="stats-input-all-list"><p class="loading">読み込み中...</p></div>
@@ -284,37 +308,37 @@
   </div>
   <div class="accordion-body" id="body-admin-preview">
     <div style="padding-top:8px;">
-      <div style="font-size:0.85rem; color:#8b949e; margin-bottom:12px;">バッジとバナーを選択するとネームプレートに反映されます</div>
+      <div style="font-size:0.85rem; color:var(--neon-text-muted); margin-bottom:12px;">バッジとバナーを選択するとネームプレートに反映されます</div>
 
       <!-- プレビュー選択UI -->
       <div style="margin-bottom:10px;">
-        <div style="font-size:0.8rem; color:#8b949e; margin-bottom:6px;">バッジ</div>
+        <div style="font-size:0.8rem; color:var(--neon-text-muted); margin-bottom:6px;">バッジ</div>
         <div id="preview-badge-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
           <div class="badge-item selected" onclick="selectPreviewBadge(null, this)">なし</div>
         </div>
-        <div style="font-size:0.8rem; color:#8b949e; margin-bottom:6px;">バナー</div>
+        <div style="font-size:0.8rem; color:var(--neon-text-muted); margin-bottom:6px;">バナー</div>
         <div id="preview-banner-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;">
           <div class="badge-item selected" onclick="selectPreviewBanner(null, this)">なし</div>
         </div>
       </div>
 
       <!-- ネームプレートプレビュー -->
-      <div style="font-size:0.8rem; color:#8b949e; margin-bottom:8px;">プレビュー</div>
+      <div style="font-size:0.8rem; color:var(--neon-text-muted); margin-bottom:8px;">プレビュー</div>
       <div id="nameplate-preview" style="
         display: flex;
         align-items: stretch;
-        border: 1px solid #30363d;
+        border: 1px solid var(--neon-border);
         border-radius: 12px;
         overflow: hidden;
         min-height: 72px;
       ">
-        <div style="position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8px 14px; background:#161b22; min-width:64px; flex-shrink:0; z-index:2;">
-          <div style="font-size:1.2rem; font-weight:bold; color:#8b949e; line-height:1;">1</div>
-          <div style="font-size:0.85rem; font-weight:bold; color:#58a6ff; margin-top:6px; line-height:1;">2500</div>
+        <div style="position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8px 14px; background:var(--neon-card); min-width:64px; flex-shrink:0; z-index:2;">
+          <div style="font-size:1.2rem; font-weight:bold; color:var(--neon-text-muted); line-height:1;">1</div>
+          <div style="font-size:0.85rem; font-weight:bold; color:var(--neon-cyan); margin-top:6px; line-height:1;">2500</div>
           <!-- 右側グラデーション -->
-          <div id="nameplate-left-fade" style="position:absolute; right:-24px; top:0; bottom:0; width:24px; background:linear-gradient(to right, #161b22, transparent); pointer-events:none; z-index:3;"></div>
+          <div id="nameplate-left-fade" style="position:absolute; right:-24px; top:0; bottom:0; width:24px; background:linear-gradient(to right, var(--neon-card), transparent); pointer-events:none; z-index:3;"></div>
         </div>
-        <div id="nameplate-banner-area" style="flex:1; display:flex; align-items:center; padding:12px 14px 12px 24px; gap:12px; position:relative; background:#0d1117; overflow:hidden;">
+        <div id="nameplate-banner-area" style="flex:1; display:flex; align-items:center; padding:12px 14px 12px 24px; gap:12px; position:relative; background:var(--neon-bg); overflow:hidden;">
           <img id="nameplate-avatar" style="width:36px; height:36px; border-radius:50%; object-fit:cover; flex-shrink:0; position:relative; z-index:1;" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="">
           <div style="font-size:0.95rem; font-weight:bold; position:relative; z-index:1;">たまき</div>
         </div>
@@ -331,17 +355,17 @@
   </div>
   <div class="accordion-body" id="body-admin-badges">
     <div style="padding-top:8px;">
-      <div style="font-size:0.85rem; color:#8b949e; margin-bottom:8px;">新規バッジ作成</div>
+      <div style="font-size:0.85rem; color:var(--neon-text-muted); margin-bottom:8px;">新規バッジ作成</div>
       <input class="admin-input" id="new-badge-label" placeholder="バッジ名（例：石狩）">
       <input class="admin-input" id="new-badge-url" placeholder="画像URL">
       <div id="new-badge-preview-wrap" style="margin-bottom:8px; display:none;">
-        <img id="new-badge-preview" src="" style="width:48px; height:48px; object-fit:cover; border-radius:6px; border:1px solid #30363d;">
+        <img id="new-badge-preview" src="" style="width:48px; height:48px; object-fit:cover; border-radius:6px; border:1px solid var(--neon-border);">
       </div>
       <button class="admin-btn admin-btn-primary" onclick="previewBadgeImage()" style="margin-bottom:8px; margin-right:8px;">プレビュー</button>
       <button class="admin-btn admin-btn-primary" onclick="createBadge()">作成</button>
       <div id="badge-create-msg" style="font-size:0.85rem; margin-top:8px;"></div>
 
-      <div style="font-size:0.85rem; color:#8b949e; margin-top:16px; margin-bottom:8px;">作成済みバッジ</div>
+      <div style="font-size:0.85rem; color:var(--neon-text-muted); margin-top:16px; margin-bottom:8px;">作成済みバッジ</div>
       <div id="admin-badge-list"></div>
     </div>
   </div>
@@ -352,17 +376,17 @@
   </div>
   <div class="accordion-body" id="body-admin-banners">
     <div style="padding-top:8px;">
-      <div style="font-size:0.85rem; color:#8b949e; margin-bottom:8px;">新規バナー作成</div>
+      <div style="font-size:0.85rem; color:var(--neon-text-muted); margin-bottom:8px;">新規バナー作成</div>
       <input class="admin-input" id="new-banner-label" placeholder="バナー名（例：夏バナー）">
       <input class="admin-input" id="new-banner-url" placeholder="画像URL">
       <div id="new-banner-preview-wrap" style="margin-bottom:8px; display:none;">
-        <img id="new-banner-preview" src="" style="width:100%; height:80px; object-fit:cover; border-radius:6px; border:1px solid #30363d;">
+        <img id="new-banner-preview" src="" style="width:100%; height:80px; object-fit:cover; border-radius:6px; border:1px solid var(--neon-border);">
       </div>
       <button class="admin-btn admin-btn-primary" onclick="previewBannerImage()" style="margin-bottom:8px; margin-right:8px;">プレビュー</button>
       <button class="admin-btn admin-btn-primary" onclick="createBanner()">作成</button>
       <div id="banner-create-msg" style="font-size:0.85rem; margin-top:8px;"></div>
 
-      <div style="font-size:0.85rem; color:#8b949e; margin-top:16px; margin-bottom:8px;">作成済みバナー</div>
+      <div style="font-size:0.85rem; color:var(--neon-text-muted); margin-top:16px; margin-bottom:8px;">作成済みバナー</div>
       <div id="admin-banner-list"></div>
     </div>
   </div>
@@ -399,23 +423,6 @@
     'アタッカー': '激しい撃ち合いを恐れずに前線を押し上げるプレイヤー。高いキルとデスがその果敢さを物語る。',
     'オールラウンダー': '特定の突出した特徴はないが状況に応じて柔軟に対応できるプレイヤー。どんな場面でも安定して戦える。',
   };
-
-  // バッジダッシュボード用アイコン（インラインSVG）
-  const ICON_CHECK = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-  const ICON_LOCK = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>`;
-  const ICON_BADGE_PLACEHOLDER = `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.39 4.84 5.34.78-3.87 3.77.91 5.32L12 14.14l-4.77 2.57.91-5.32-3.87-3.77 5.34-.78L12 2z"></path></svg>`;
-  const ICON_EMPTY_SLOT = `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="4 3" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle></svg>`;
-
-  function badgeImgFallback(img) {
-    img.style.display = 'none';
-    const holder = img.parentElement;
-    if (holder && !holder.querySelector('.badge-tile-fallback-icon')) {
-      const span = document.createElement('span');
-      span.className = 'badge-tile-fallback-icon';
-      span.innerHTML = ICON_BADGE_PLACEHOLDER;
-      holder.appendChild(span);
-    }
-  }
 
   let allRanking = [];
   let rankingLoaded = false;
@@ -494,20 +501,20 @@
     const rank = p.rank;
     const banner = p.selected_banner_url || null;
     const badge = p.selected_badge_emoji || '';
-    const rankColor = rank === 1 ? '#d4a017' : rank === 2 ? '#a8a9ad' : rank === 3 ? '#b87333' : '#8b949e';
-    const borderColor = rank === 1 ? '#d4a017' : rank === 2 ? '#a8a9ad' : rank === 3 ? '#b87333' : '#30363d';
+    const rankColor = rank === 1 ? 'var(--neon-gold)' : rank === 2 ? 'var(--neon-silver)' : rank === 3 ? 'var(--neon-bronze)' : 'var(--neon-text-muted)';
+    const borderColor = rank === 1 ? 'var(--neon-gold)' : rank === 2 ? 'var(--neon-silver)' : rank === 3 ? 'var(--neon-bronze)' : 'var(--neon-border)';
     return `
-      <div style="display:flex; align-items:stretch; border:1px solid ${borderColor}; border-radius:12px; overflow:hidden; margin-bottom:8px; min-height:72px;">
-        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8px 14px; background:#161b22; min-width:64px; flex-shrink:0;">
-          <div style="font-size:1.2rem; font-weight:bold; color:${rankColor}; line-height:1;">${rank}</div>
-          <div style="font-size:0.85rem; font-weight:bold; color:#58a6ff; margin-top:6px; line-height:1;">${rating}</div>
+      <div style="display:flex; align-items:stretch; border:1px solid ${borderColor}; border-radius:var(--neon-radius-md); overflow:hidden; margin-bottom:8px; min-height:72px;">
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8px 14px; background:var(--neon-card); min-width:64px; flex-shrink:0;">
+          <div style="font-size:1.2rem; font-weight:bold; color:${rankColor}; line-height:1; font-family:var(--neon-font-stat);">${rank}</div>
+          <div style="font-size:0.85rem; font-weight:bold; color:var(--neon-cyan); margin-top:6px; line-height:1; font-family:var(--neon-font-stat);">${rating}</div>
         </div>
-        <div style="flex:1; display:flex; align-items:center; padding:12px 14px; gap:12px; position:relative; background:${banner ? `url('${banner}') center/cover no-repeat` : '#0d1117'}; overflow:hidden;">
+        <div style="flex:1; display:flex; align-items:center; padding:12px 14px; gap:12px; position:relative; background:${banner ? `url('${banner}') center/cover no-repeat` : 'var(--neon-bg)'}; overflow:hidden;">
           ${banner ? `<div style="position:absolute; inset:0; background:rgba(0,0,0,0.45);"></div>` : ''}
           <img style="width:36px; height:36px; border-radius:50%; object-fit:cover; flex-shrink:0; position:relative; z-index:1;" src="${avatar}" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'" alt="">
           <div style="font-size:0.95rem; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; position:relative; z-index:1;">${name}</div>
         </div>
-        ${badge ? `<div style="display:flex; align-items:center; justify-content:center; padding:0 12px; background:#161b22; flex-shrink:0; font-size:1.2rem;">${badge}</div>` : ''}
+        ${badge ? `<div style="display:flex; align-items:center; justify-content:center; padding:0 12px; background:var(--neon-card); flex-shrink:0; font-size:1.2rem;">${badge}</div>` : ''}
       </div>`;
   }
 
@@ -577,44 +584,21 @@
       const vsOptions = vsStatsData.map(v => `<option value="${v.user_id}">${v.display_name}（${v.total}戦）</option>`).join('');
       const rateCount = (d.rate_history || []).length;
 
-      // Webバッジ設定UI（ダッシュボード風：所持バッジは選択可、未所持はロック表示）
+      // Webバッジ設定UI
       const ownedWebBadges = d.owned_web_badges || [];
       const selectedWebBadge = d.selected_web_badge || null;
-      const ownedBadgeCount = webBadges.filter(b => ownedWebBadges.includes(b.id)).length;
-      const badgeProgressPct = webBadges.length > 0 ? Math.round((ownedBadgeCount / webBadges.length) * 100) : 0;
+      const myWebBadges = webBadges.filter(b => ownedWebBadges.includes(b.id));
 
-      const badgeSettingHtml = webBadges.length > 0 ? `
-        <div class="badge-dash">
-          <div class="badge-dash-header">
-            <div class="section-title" style="margin-bottom:0;">バッジコレクション</div>
-            <div class="badge-dash-count">${ownedBadgeCount} / ${webBadges.length}</div>
-          </div>
-          <div class="badge-dash-progress"><div class="badge-dash-progress-fill" style="width:${badgeProgressPct}%;"></div></div>
-          <div class="badge-dash-grid">
-            <div class="badge-tile ${!selectedWebBadge ? 'selected' : ''}" tabindex="0" role="button" aria-pressed="${!selectedWebBadge}" onclick="setWebBadge('')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setWebBadge('');}">
-              <div class="badge-tile-icon">${ICON_EMPTY_SLOT}</div>
-              <div class="badge-tile-label">未設定</div>
-              ${!selectedWebBadge ? `<div class="badge-tile-check">${ICON_CHECK}</div>` : ''}
-            </div>
-            ${webBadges.map(b => {
-              const owned = ownedWebBadges.includes(b.id);
-              const selected = selectedWebBadge === b.id;
-              const icon = b.image_url ? `<img src="${b.image_url}" onerror="badgeImgFallback(this)">` : ICON_BADGE_PLACEHOLDER;
-              if (!owned) {
-                return `
-                  <div class="badge-tile locked" title="未所持のバッジです">
-                    <div class="badge-tile-icon">${icon}</div>
-                    <div class="badge-tile-label">${b.label}</div>
-                    <div class="badge-tile-lock">${ICON_LOCK}</div>
-                  </div>`;
-              }
-              return `
-                <div class="badge-tile ${selected ? 'selected' : ''}" tabindex="0" role="button" aria-pressed="${selected}" onclick="setWebBadge('${b.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setWebBadge('${b.id}');}">
-                  <div class="badge-tile-icon">${icon}</div>
-                  <div class="badge-tile-label">${b.label}</div>
-                  ${selected ? `<div class="badge-tile-check">${ICON_CHECK}</div>` : ''}
-                </div>`;
-            }).join('')}
+      const badgeSettingHtml = myWebBadges.length > 0 ? `
+        <div style="margin-bottom:12px;">
+          <div class="section-title">バッジ設定</div>
+          <div class="badge-grid">
+            <div class="badge-item ${!selectedWebBadge ? 'selected' : ''}" onclick="setWebBadge('')">なし</div>
+            ${myWebBadges.map(b => `
+              <div class="badge-item ${selectedWebBadge === b.id ? 'selected' : ''}" onclick="setWebBadge('${b.id}')">
+                ${b.image_url ? `<img class="badge-img" src="${b.image_url}" onerror="this.style.display='none'">` : ''}
+                ${b.label}
+              </div>`).join('')}
           </div>
         </div>` : '';
 
@@ -627,21 +611,21 @@
         <div style="margin-bottom:12px;">
           <div class="section-title">バナー設定</div>
           <div class="banner-item ${!selectedWebBanner ? 'selected' : ''}" onclick="setWebBanner('')">
-            <div style="height:40px; background:#0d1117; display:flex; align-items:center; justify-content:center;">
-              <span style="font-size:0.8rem; color:#8b949e;">なし</span>
+            <div style="height:40px; background:var(--neon-bg); display:flex; align-items:center; justify-content:center;">
+              <span style="font-size:0.8rem; color:var(--neon-text-muted);">なし</span>
             </div>
           </div>
           ${myWebBanners.map(b => `
             <div class="banner-item ${selectedWebBanner === b.id ? 'selected' : ''}" onclick="setWebBanner('${b.id}')">
-              ${b.image_url ? `<img class="banner-preview" src="${b.image_url}" onerror="this.style.display='none'">` : '<div class="banner-preview" style="background:#21262d;"></div>'}
+              ${b.image_url ? `<img class="banner-preview" src="${b.image_url}" onerror="this.style.display='none'">` : '<div class="banner-preview" style="background:var(--neon-bg-elevated);"></div>'}
               <div class="banner-label">${b.label}</div>
             </div>`).join('')}
         </div>` : '';
 
       const adminLinkHtml = `
-        <div style="border-top:1px solid #30363d; padding-top:12px; margin-top:4px; display:flex; gap:8px; flex-wrap:wrap;">
-          <div onclick="showStatsInputPage()" style="display:inline-block; padding:6px 16px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:#21262d; border:1px solid #30363d; color:#8b949e;">過去の戦績を入力</div>
-          ${currentUserId === '1225788050894753865' ? `<div onclick="showAdminPage()" style="display:inline-block; padding:6px 16px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:#21262d; border:1px solid #30363d; color:#8b949e;">運営ページ</div>` : ''}
+        <div style="border-top:1px solid var(--neon-border); padding-top:12px; margin-top:4px; display:flex; gap:8px; flex-wrap:wrap;">
+          <div onclick="showStatsInputPage()" style="display:inline-block; padding:6px 16px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:var(--neon-bg-elevated); border:1px solid var(--neon-border); color:var(--neon-text-muted);">過去の戦績を入力</div>
+          ${currentUserId === '1225788050894753865' ? `<div onclick="showAdminPage()" style="display:inline-block; padding:6px 16px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:var(--neon-bg-elevated); border:1px solid var(--neon-border); color:var(--neon-text-muted);">運営ページ</div>` : ''}
         </div>`;
 
       document.getElementById('mypage-content').innerHTML = `
@@ -654,10 +638,10 @@
             </div>
           </div>
           ${d.play_type ? `
-          <div style="background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:16px; margin-bottom:14px; text-align:center;">
-            <div style="font-size:0.75rem; color:#8b949e; margin-bottom:6px;">あなたのスタイルは</div>
-            <div style="font-size:2rem; font-weight:bold; color:#58a6ff; margin-bottom:8px; letter-spacing:0.05em;">${d.play_type}</div>
-            <div style="font-size:0.8rem; color:#8b949e; line-height:1.6; text-align:left;">${PLAY_TYPE_DESC[d.play_type] || ''}</div>
+          <div style="background:var(--neon-bg); border:1px solid var(--neon-border); border-radius:8px; padding:16px; margin-bottom:14px; text-align:center;">
+            <div style="font-size:0.75rem; color:var(--neon-text-muted); margin-bottom:6px;">あなたのスタイルは</div>
+            <div style="font-size:2rem; font-weight:bold; color:var(--neon-cyan); margin-bottom:8px; letter-spacing:0.05em; font-family:var(--neon-font-heading); text-shadow:0 0 18px rgba(var(--neon-cyan-rgb),0.4);">${d.play_type}</div>
+            <div style="font-size:0.8rem; color:var(--neon-text-muted); line-height:1.6; text-align:left;">${PLAY_TYPE_DESC[d.play_type] || ''}</div>
           </div>` : ''}
           <div class="stats-grid">
             <div class="stat-box"><div class="stat-label">勝ち</div><div class="stat-value">${d.wins}</div></div>
@@ -698,7 +682,7 @@
         <!-- 対プレイヤータブ -->
         <div class="tab-content active" id="tab-vs">
           ${vsStatsData.length === 0
-            ? '<p style="color:#8b949e; font-size:0.85rem; padding:12px 0;">対戦記録がありません</p>'
+            ? '<p style="color:var(--neon-text-muted); font-size:0.85rem; padding:12px 0;">対戦記録がありません</p>'
             : `<select class="vs-select" id="vs-select" onchange="updateVsResult()">
                 <option value="">プレイヤーを選択...</option>
                 ${vsOptions}
@@ -722,14 +706,14 @@
 
         <!-- チケットタブ -->
         <div class="tab-content" id="tab-ticket">
-          <div style="font-size:0.85rem; color:#8b949e; margin-bottom:10px;">
+          <div style="font-size:0.85rem; color:var(--neon-text-muted); margin-bottom:10px;">
             ${d.active_effect ? `有効中: ${d.active_effect.label}（残り${d.active_effect.remaining_matches}試合）` : '有効中の効果なし'}
           </div>
           ${(d.tickets && d.tickets.length > 0) ? d.tickets.map((t, i) => `
             <div class="ticket-row">
               <div class="ticket-label">${t.label}</div>
               <button class="ticket-use-btn" onclick="useTicket(${i})" ${d.active_effect ? 'disabled' : ''}>${d.active_effect ? '効果中' : '使用'}</button>
-            </div>`).join('') : '<div style="font-size:0.85rem; color:#8b949e;">チケットなし</div>'}
+            </div>`).join('') : '<div style="font-size:0.85rem; color:var(--neon-text-muted);">チケットなし</div>'}
           <div id="ticket-result" style="display:none;" class="result-box"></div>
         </div>
       `;
@@ -742,16 +726,16 @@
           type: 'line',
           data: {
             labels: rateHistory.map((_, i) => `${i + 1}戦`),
-            datasets: [{ data: rateHistory.map(r => r.rating), borderColor: '#58a6ff', backgroundColor: 'rgba(88,166,255,0.1)', borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#58a6ff', fill: true, tension: 0.3 }]
+            datasets: [{ data: rateHistory.map(r => r.rating), borderColor: '#00e5ff', backgroundColor: 'rgba(0,229,255,0.12)', borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#00e5ff', fill: true, tension: 0.3 }]
           },
           options: {
             responsive: true,
             plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `レート: ${ctx.parsed.y}`, afterLabel: ctx => { const h = rateHistory[ctx.dataIndex]; return h.stage ? `ステージ: ${h.stage}` : ''; } } } },
-            scales: { x: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#21262d' } }, y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } } }
+            scales: { x: { ticks: { color: '#93a5c9', font: { size: 10 } }, grid: { color: 'rgba(0,229,255,0.08)' } }, y: { ticks: { color: '#93a5c9' }, grid: { color: 'rgba(0,229,255,0.08)' } } }
           }
         });
       } else {
-        document.getElementById('rateChart').parentElement.innerHTML += '<p style="color:#8b949e; font-size:0.85rem; padding:8px 0;">試合記録がありません</p>';
+        document.getElementById('rateChart').parentElement.innerHTML += '<p style="color:var(--neon-text-muted); font-size:0.85rem; padding:8px 0;">試合記録がありません</p>';
         document.getElementById('rateChart').style.display = 'none';
       }
 
@@ -817,8 +801,8 @@
       const data = await res.json();
       const resultEl = document.getElementById('ticket-result');
       resultEl.style.display = 'block';
-      if (data.success) { resultEl.style.color = '#238636'; resultEl.textContent = `${data.label} を使用しました！`; loadMyPage(); }
-      else { resultEl.style.color = '#f85149'; resultEl.textContent = data.error || 'エラーが発生しました'; }
+      if (data.success) { resultEl.style.color = 'var(--neon-green)'; resultEl.textContent = `${data.label} を使用しました！`; loadMyPage(); }
+      else { resultEl.style.color = 'var(--neon-danger)'; resultEl.textContent = data.error || 'エラーが発生しました'; }
     } catch (e) {}
   }
 
@@ -895,10 +879,10 @@
     const dateStr = formatMatchDate(m.timestamp);
     const isWin = m.my_team === m.winner;
     const resultText = isWin ? '勝利' : '敗北';
-    const resultColor = isWin ? '#238636' : '#da3633';
+    const resultColor = isWin ? 'var(--neon-green)' : 'var(--neon-danger)';
     const header = `
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <div style="font-size:0.85rem; color:#8b949e;">${dateStr}　${m.stage}</div>
+        <div style="font-size:0.85rem; color:var(--neon-text-muted);">${dateStr}　${m.stage}</div>
         <div style="font-size:0.8rem; font-weight:bold; color:${resultColor};">${resultText}</div>
       </div>`;
 
@@ -961,7 +945,7 @@
       const res = await fetch(`/api/my_matches_all/${currentUserId}`);
       const data = await res.json();
       if (!data.matches || data.matches.length === 0) {
-        el.innerHTML = '<p style="color:#8b949e; font-size:0.85rem;">参加した試合がありません</p>';
+        el.innerHTML = '<p style="color:var(--neon-text-muted); font-size:0.85rem;">参加した試合がありません</p>';
         return;
       }
       el.innerHTML = data.matches.map(renderStatsMatchCard).join('');
@@ -1007,20 +991,20 @@
         const ctx = document.getElementById('siteChart').getContext('2d');
         siteChartInstance = new Chart(ctx, {
           type: 'line',
-          data: { labels: siteLog.map(s => s.date), datasets: [{ data: siteLog.map(s => s.count), borderColor: '#58a6ff', backgroundColor: 'rgba(88,166,255,0.1)', borderWidth: 2, pointRadius: 3, fill: true, tension: 0.3 }] },
-          options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#21262d' } }, y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } } } }
+          data: { labels: siteLog.map(s => s.date), datasets: [{ data: siteLog.map(s => s.count), borderColor: '#00e5ff', backgroundColor: 'rgba(0,229,255,0.12)', borderWidth: 2, pointRadius: 3, fill: true, tension: 0.3 }] },
+          options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#93a5c9', font: { size: 10 } }, grid: { color: 'rgba(0,229,255,0.08)' } }, y: { ticks: { color: '#93a5c9' }, grid: { color: 'rgba(0,229,255,0.08)' } } } }
         });
       }
       const mypageList = document.getElementById('admin-mypage-list');
       if (mypageList) {
         const stats = data.mypage_stats || [];
-        if (stats.length === 0) { mypageList.innerHTML = '<p style="color:#8b949e; font-size:0.85rem;">データなし</p>'; }
+        if (stats.length === 0) { mypageList.innerHTML = '<p style="color:var(--neon-text-muted); font-size:0.85rem;">データなし</p>'; }
         else {
           const max = stats[0].count;
           mypageList.innerHTML = stats.map(s => `
             <div style="margin-bottom:10px;">
-              <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;"><span>${s.display_name}</span><span style="color:#58a6ff;">${s.count}回</span></div>
-              <div style="background:#0d1117; border-radius:4px; height:8px; overflow:hidden;"><div style="background:#58a6ff; height:100%; width:${Math.round(s.count/max*100)}%; transition:width 0.4s;"></div></div>
+              <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:4px;"><span>${s.display_name}</span><span style="color:var(--neon-cyan);">${s.count}回</span></div>
+              <div style="background:var(--neon-bg); border-radius:4px; height:8px; overflow:hidden;"><div style="background:var(--neon-cyan); height:100%; width:${Math.round(s.count/max*100)}%; transition:width 0.4s;"></div></div>
             </div>`).join('');
         }
       }
@@ -1104,12 +1088,12 @@
       overlay.className = 'banner-overlay';
       overlay.style.cssText = 'position:absolute; inset:0; background:rgba(0,0,0,0.45);';
       bannerArea.insertBefore(overlay, bannerArea.firstChild);
-      nameplate.style.borderColor = '#58a6ff';
-      if (leftFade) leftFade.style.background = 'linear-gradient(to right, #161b22, transparent)';
+      nameplate.style.borderColor = 'var(--neon-cyan)';
+      if (leftFade) leftFade.style.background = 'linear-gradient(to right, var(--neon-card), transparent)';
     } else {
-      bannerArea.style.background = '#0d1117';
-      nameplate.style.borderColor = '#30363d';
-      if (leftFade) leftFade.style.background = 'linear-gradient(to right, #161b22, transparent)';
+      bannerArea.style.background = 'var(--neon-bg)';
+      nameplate.style.borderColor = 'var(--neon-border)';
+      if (leftFade) leftFade.style.background = 'linear-gradient(to right, var(--neon-card), transparent)';
     }
 
     // バッジ適用
@@ -1136,22 +1120,22 @@
     const label = document.getElementById('new-badge-label').value.trim();
     const image_url = document.getElementById('new-badge-url').value.trim();
     const msg = document.getElementById('badge-create-msg');
-    if (!label) { msg.style.color = '#f85149'; msg.textContent = 'バッジ名を入力してください'; return; }
+    if (!label) { msg.style.color = 'var(--neon-danger)'; msg.textContent = 'バッジ名を入力してください'; return; }
     try {
       const res = await fetch('/api/web_badges', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, label, image_url }) });
       const data = await res.json();
       if (data.success) {
-        msg.style.color = '#238636';
+        msg.style.color = 'var(--neon-green)';
         msg.textContent = 'バッジを作成しました！';
         document.getElementById('new-badge-label').value = '';
         document.getElementById('new-badge-url').value = '';
         document.getElementById('new-badge-preview-wrap').style.display = 'none';
         loadAdminBadges();
       } else {
-        msg.style.color = '#f85149';
+        msg.style.color = 'var(--neon-danger)';
         msg.textContent = data.error || 'エラーが発生しました';
       }
-    } catch (e) { msg.style.color = '#f85149'; msg.textContent = 'エラーが発生しました'; }
+    } catch (e) { msg.style.color = 'var(--neon-danger)'; msg.textContent = 'エラーが発生しました'; }
   }
 
   async function loadAdminBadges() {
@@ -1161,13 +1145,13 @@
       const el = document.getElementById('admin-badge-list');
       if (!el) return;
       const badges = data.badges || [];
-      if (badges.length === 0) { el.innerHTML = '<p style="color:#8b949e; font-size:0.85rem;">バッジなし</p>'; return; }
+      if (badges.length === 0) { el.innerHTML = '<p style="color:var(--neon-text-muted); font-size:0.85rem;">バッジなし</p>'; return; }
       el.innerHTML = badges.map(b => `
         <div class="admin-item-card" id="badge-card-${b.id}">
           ${b.image_url ? `<img class="admin-badge-preview" src="${b.image_url}" onerror="this.style.display='none'">` : ''}
           <div id="badge-view-${b.id}">
             <div style="font-size:0.9rem; font-weight:bold; margin-bottom:4px;">${b.label}</div>
-            <div style="font-size:0.75rem; color:#8b949e; margin-bottom:8px; word-break:break-all;">${b.image_url || 'URLなし'}</div>
+            <div style="font-size:0.75rem; color:var(--neon-text-muted); margin-bottom:8px; word-break:break-all;">${b.image_url || 'URLなし'}</div>
             <div style="display:flex; gap:8px;">
               <button class="admin-btn admin-btn-secondary" onclick="startEditBadge('${b.id}', '${b.label.replace(/'/g,"\\'")}', '${b.image_url.replace(/'/g,"\\'")}')">編集</button>
               <button class="admin-btn admin-btn-danger" onclick="deleteBadge('${b.id}')">削除</button>
@@ -1229,22 +1213,22 @@
     const label = document.getElementById('new-banner-label').value.trim();
     const image_url = document.getElementById('new-banner-url').value.trim();
     const msg = document.getElementById('banner-create-msg');
-    if (!label) { msg.style.color = '#f85149'; msg.textContent = 'バナー名を入力してください'; return; }
+    if (!label) { msg.style.color = 'var(--neon-danger)'; msg.textContent = 'バナー名を入力してください'; return; }
     try {
       const res = await fetch('/api/web_banners', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, label, image_url }) });
       const data = await res.json();
       if (data.success) {
-        msg.style.color = '#238636';
+        msg.style.color = 'var(--neon-green)';
         msg.textContent = 'バナーを作成しました！';
         document.getElementById('new-banner-label').value = '';
         document.getElementById('new-banner-url').value = '';
         document.getElementById('new-banner-preview-wrap').style.display = 'none';
         loadAdminBanners();
       } else {
-        msg.style.color = '#f85149';
+        msg.style.color = 'var(--neon-danger)';
         msg.textContent = data.error || 'エラーが発生しました';
       }
-    } catch (e) { msg.style.color = '#f85149'; msg.textContent = 'エラーが発生しました'; }
+    } catch (e) { msg.style.color = 'var(--neon-danger)'; msg.textContent = 'エラーが発生しました'; }
   }
 
   async function loadAdminBanners() {
@@ -1254,13 +1238,13 @@
       const el = document.getElementById('admin-banner-list');
       if (!el) return;
       const banners = data.banners || [];
-      if (banners.length === 0) { el.innerHTML = '<p style="color:#8b949e; font-size:0.85rem;">バナーなし</p>'; return; }
+      if (banners.length === 0) { el.innerHTML = '<p style="color:var(--neon-text-muted); font-size:0.85rem;">バナーなし</p>'; return; }
       el.innerHTML = banners.map(b => `
         <div class="admin-item-card" id="banner-card-${b.id}">
           ${b.image_url ? `<img class="admin-item-preview" src="${b.image_url}" onerror="this.style.display='none'">` : ''}
           <div id="banner-view-${b.id}">
             <div style="font-size:0.9rem; font-weight:bold; margin-bottom:4px;">${b.label}</div>
-            <div style="font-size:0.75rem; color:#8b949e; margin-bottom:8px; word-break:break-all;">${b.image_url || 'URLなし'}</div>
+            <div style="font-size:0.75rem; color:var(--neon-text-muted); margin-bottom:8px; word-break:break-all;">${b.image_url || 'URLなし'}</div>
             <div style="display:flex; gap:8px;">
               <button class="admin-btn admin-btn-secondary" onclick="startEditBanner('${b.id}')">編集</button>
               <button class="admin-btn admin-btn-danger" onclick="deleteBanner('${b.id}')">削除</button>
