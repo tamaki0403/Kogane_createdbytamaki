@@ -6,7 +6,7 @@
   <title>Kogane</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Poppins:wght@500;600;700&family=Russo+One&family=Chakra+Petch:wght@400;500;600;700&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -27,6 +27,7 @@
       --glass-danger: #ffb3c0;
       --glass-danger-solid: #d42a55;
       --glass-violet-solid: #7c3aed;
+      --glass-violet-rgb: 124, 58, 237;
       --glass-violet-hover: #6425c9;
       --glass-gold: #fde047;
       --glass-silver: #e5e7eb;
@@ -48,6 +49,41 @@
       --glass-glow-danger-sm: 0 0 10px rgba(212, 42, 85, 0.6);
       --glass-shadow-card: 0 8px 32px rgba(0, 0, 0, 0.32);
     }
+
+    /* ===== ネオンテーマ（デザイン切り替えFABで選択時、同じ変数名の値だけを差し替え） ===== */
+    :root[data-theme="neon"] {
+      --glass-page-bg: #0b0e1a;
+      --glass-bg: #0b0e1a;
+      --glass-bg-elevated: #0f1424;
+      --glass-card: #12172a;
+      --glass-border: rgba(0, 229, 255, 0.16);
+      --glass-blur: 0px;
+      --glass-text: #eaf6ff;
+      --glass-text-muted: #93a5c9;
+
+      --glass-cyan: #00e5ff;
+      --glass-cyan-rgb: 0, 229, 255;
+      --glass-green: #39ff88;
+      --glass-green-solid: #0a7d43;
+      --glass-danger: #ff3b5c;
+      --glass-danger-solid: #d42a55;
+      --glass-violet-solid: #5b3ce0;
+      --glass-violet-rgb: 91, 60, 224;
+      --glass-violet-hover: #4a2fc4;
+      --glass-gold: #ffc93c;
+      --glass-silver: #cdd8f0;
+      --glass-bronze: #ff9d66;
+
+      --glass-radius-sm: 8px;
+      --glass-radius-md: 12px;
+
+      --glass-font-heading: 'Russo One', 'Hiragino Sans', sans-serif;
+      --glass-font-body: 'Chakra Petch', 'Hiragino Sans', sans-serif;
+      --glass-font-stat: 'Orbitron', 'Chakra Petch', sans-serif;
+
+      --glass-shadow-card: 0 4px 20px rgba(0, 0, 0, 0.45);
+    }
+
     body { background: var(--glass-page-bg); background-attachment: fixed; color: var(--glass-text); font-family: var(--glass-font-body), 'Hiragino Sans', sans-serif; min-height: 100vh; }
     nav { background: var(--glass-card); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); border-bottom: 1px solid var(--glass-border); padding: 0 16px; display: flex; align-items: center; height: 52px; position: sticky; top: 0; z-index: 100; }
     .nav-brand { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--glass-text); text-decoration: none; }
@@ -77,6 +113,130 @@
     .page.active { display: block; }
     .home-title { font-size: 1.4rem; font-weight: bold; margin-bottom: 8px; font-family: var(--glass-font-heading); letter-spacing: 0.03em; text-shadow: 0 0 18px rgba(var(--glass-cyan-rgb), 0.35); }
     .home-desc { color: var(--glass-text-muted); font-size: 0.9rem; margin-bottom: 28px; }
+
+    /* ===== ホーム画面: 固定1画面・シンプル構成（#page-home配下に限定） ===== */
+    #page-home.active {
+      padding: 0;
+      max-width: none;
+      margin: 0;
+      height: calc(100dvh - 52px);
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background:
+        radial-gradient(ellipse at 26% 22%, rgba(var(--glass-cyan-rgb), 0.18) 0%, transparent 55%),
+        radial-gradient(ellipse at 78% 78%, rgba(var(--glass-violet-rgb), 0.32) 0%, transparent 55%),
+        var(--glass-page-bg);
+    }
+
+    .home-particles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+    .home-particle {
+      position: absolute;
+      border-radius: 50%;
+      background: var(--glass-cyan);
+      box-shadow: 0 0 6px 2px rgba(var(--glass-cyan-rgb), 0.55);
+      animation: home-twinkle 4s ease-in-out infinite;
+    }
+    @keyframes home-twinkle {
+      0%, 100% { opacity: 0.15; transform: scale(0.8); }
+      50% { opacity: 0.85; transform: scale(1.15); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .home-particle { animation: none; opacity: 0.45; }
+    }
+
+    .home-content {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      width: 100%;
+      max-width: 560px;
+      padding: 0 24px;
+    }
+    .home-logo {
+      font-family: var(--glass-font-heading);
+      font-weight: 700;
+      color: var(--glass-text);
+      font-size: clamp(2.2rem, 9vw, 4rem);
+      letter-spacing: 0.03em;
+      text-shadow: 0 0 22px rgba(var(--glass-cyan-rgb), 0.6), 0 0 50px rgba(var(--glass-violet-rgb), 0.45);
+    }
+    .home-subcopy {
+      font-family: var(--glass-font-body);
+      color: var(--glass-text-muted);
+      font-size: clamp(0.85rem, 2.6vw, 1.05rem);
+      margin-top: 10px;
+      line-height: 1.6;
+    }
+    .home-nav-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-top: clamp(22px, 5vh, 44px);
+    }
+    @media (min-width: 640px) {
+      .home-nav-buttons { flex-direction: row; }
+    }
+    @media (max-height: 480px) {
+      .home-logo { font-size: clamp(1.6rem, 6vw, 2.2rem); }
+      .home-subcopy { margin-top: 6px; }
+      .home-nav-buttons { margin-top: 14px; gap: 10px; }
+    }
+    .home-nav-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      flex: 1;
+      min-height: 44px;
+      padding: clamp(13px, 2.4vh, 18px) 22px;
+      border-radius: var(--glass-radius-pill);
+      border: 1px solid var(--glass-border);
+      background: var(--glass-card);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      color: var(--glass-text);
+      font-family: var(--glass-font-heading);
+      font-weight: 600;
+      font-size: clamp(0.95rem, 2.6vw, 1.05rem);
+      cursor: pointer;
+      transition: border-color var(--glass-duration-base) var(--glass-ease), box-shadow var(--glass-duration-base) var(--glass-ease), transform var(--glass-duration-base) var(--glass-ease);
+    }
+    .home-nav-btn:hover, .home-nav-btn:focus-visible {
+      border-color: var(--glass-cyan);
+      box-shadow: var(--glass-glow-cyan-sm);
+      transform: translateY(-2px);
+      outline: none;
+    }
+
+    /* ===== デザイン切り替えFAB（全ページ共通・右下固定） ===== */
+    .theme-fab-wrap { position: fixed; right: 18px; bottom: 18px; z-index: 200; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+    .theme-fab {
+      width: 52px; height: 52px; border-radius: 50%; border: 1px solid var(--glass-border);
+      background: var(--glass-card); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
+      color: var(--glass-cyan); display: flex; align-items: center; justify-content: center; cursor: pointer;
+      box-shadow: var(--glass-shadow-card);
+      transition: border-color 200ms ease-out, box-shadow 200ms ease-out, transform 200ms ease-out;
+    }
+    .theme-fab:hover, .theme-fab:focus-visible { border-color: var(--glass-cyan); box-shadow: var(--glass-glow-cyan-sm); transform: translateY(-2px); outline: none; }
+    .theme-menu {
+      display: none; flex-direction: column; gap: 4px; min-width: 190px;
+      background: var(--glass-card); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
+      border: 1px solid var(--glass-border); border-radius: 14px; padding: 8px; box-shadow: var(--glass-shadow-card);
+    }
+    .theme-menu.open { display: flex; }
+    .theme-menu-item {
+      display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 8px; border: none;
+      background: transparent; color: var(--glass-text-muted); font-family: var(--glass-font-body); font-size: 0.9rem;
+      text-align: left; cursor: pointer; transition: background 150ms ease-out, color 150ms ease-out;
+    }
+    .theme-menu-item:hover { background: var(--glass-bg-elevated); color: var(--glass-text); }
+    .theme-menu-item.active { color: var(--glass-cyan); font-weight: 600; }
+    .theme-menu-item .theme-check { visibility: hidden; flex-shrink: 0; }
+    .theme-menu-item.active .theme-check { visibility: visible; }
+
     .card-link { display: block; background: var(--glass-card); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--glass-border); border-radius: var(--glass-radius-md); padding: 20px; margin-bottom: 12px; color: inherit; cursor: pointer; box-shadow: var(--glass-shadow-card); transition: border-color var(--glass-duration-base) var(--glass-ease), transform var(--glass-duration-base) var(--glass-ease), box-shadow var(--glass-duration-base) var(--glass-ease); }
     .card-link:hover { border-color: var(--glass-cyan); transform: translateY(-2px); box-shadow: var(--glass-shadow-card), var(--glass-glow-cyan-sm); }
     .card-link .card-title { font-size: 1rem; font-weight: bold; margin-bottom: 4px; font-family: var(--glass-font-heading); letter-spacing: 0.02em; }
@@ -201,39 +361,34 @@
 
 <!-- ホーム -->
 <div class="page active" id="page-home">
-  <div id="hero-slider" style="position:relative; width:100vw; left:50%; transform:translateX(-50%); height:500px; overflow:hidden; margin-bottom:24px;">
-    <div id="hero-slides" style="display:flex; height:100%; transition:transform 0.6s ease;">
-      <div style="min-width:100%; height:100%; background:url('https://i.imgur.com/f4W0TGx.jpeg') center/cover no-repeat;"></div>
-      <div style="min-width:100%; height:100%; background:url('https://i.imgur.com/fs94BGp.jpeg') center/cover no-repeat;"></div>
-      <div style="min-width:100%; height:100%; background:url('https://i.imgur.com/Tg5H0Gx.jpeg') center/cover no-repeat;"></div>
-      <div style="min-width:100%; height:100%; background:url('https://i.imgur.com/DxAAKhw.png') center/cover no-repeat;"></div>
-    </div>
-    <div style="position:absolute; bottom:10px; left:50%; transform:translateX(-50%); display:flex; gap:6px;">
-      <div class="hero-dot active" onclick="goSlide(0)"></div>
-      <div class="hero-dot" onclick="goSlide(1)"></div>
-      <div class="hero-dot" onclick="goSlide(2)"></div>
-      <div class="hero-dot" onclick="goSlide(3)"></div>
-    </div>
-    <div style="position:absolute; bottom:0; left:0; right:0; height:80px; background:linear-gradient(transparent, var(--glass-bg));"></div>
+  <div class="home-particles">
+    <div class="home-particle" style="left:63.1%; top:6.3%; width:2.8px; height:2.8px; animation-delay:0.9s; animation-duration:5.2s;"></div>
+    <div class="home-particle" style="left:66.6%; top:86.1%; width:2.3px; height:2.3px; animation-delay:1.7s; animation-duration:3.1s;"></div>
+    <div class="home-particle" style="left:23.6%; top:50.5%; width:2.1px; height:2.1px; animation-delay:0.8s; animation-duration:4.9s;"></div>
+    <div class="home-particle" style="left:54.2%; top:24.3%; width:3.8px; height:3.8px; animation-delay:3.2s; animation-duration:3.0s;"></div>
+    <div class="home-particle" style="left:78.7%; top:68.2%; width:3.0px; height:3.0px; animation-delay:0.6s; animation-duration:5.9s;"></div>
+    <div class="home-particle" style="left:34.6%; top:12.5%; width:2.3px; height:2.3px; animation-delay:3.4s; animation-duration:4.8s;"></div>
+    <div class="home-particle" style="left:78.9%; top:71.1%; width:3.6px; height:3.6px; animation-delay:3.9s; animation-duration:4.1s;"></div>
+    <div class="home-particle" style="left:54.9%; top:80.3%; width:3.9px; height:3.9px; animation-delay:3.4s; animation-duration:4.7s;"></div>
+    <div class="home-particle" style="left:69.2%; top:8.2%; width:2.7px; height:2.7px; animation-delay:1.2s; animation-duration:3.2s;"></div>
+    <div class="home-particle" style="left:24.9%; top:13.3%; width:2.8px; height:2.8px; animation-delay:2.5s; animation-duration:4.1s;"></div>
+    <div class="home-particle" style="left:37.8%; top:23.3%; width:2.8px; height:2.8px; animation-delay:3.7s; animation-duration:4.9s;"></div>
+    <div class="home-particle" style="left:60.3%; top:19.7%; width:4.2px; height:4.2px; animation-delay:0.7s; animation-duration:4.1s;"></div>
+    <div class="home-particle" style="left:96.0%; top:62.9%; width:3.7px; height:3.7px; animation-delay:2.7s; animation-duration:5.5s;"></div>
+    <div class="home-particle" style="left:75.9%; top:25.1%; width:2.1px; height:2.1px; animation-delay:1.3s; animation-duration:3.8s;"></div>
+    <div class="home-particle" style="left:22.8%; top:90.7%; width:4.6px; height:4.6px; animation-delay:1.3s; animation-duration:5.0s;"></div>
+    <div class="home-particle" style="left:40.2%; top:88.1%; width:3.4px; height:3.4px; animation-delay:1.1s; animation-duration:3.7s;"></div>
+    <div class="home-particle" style="left:55.8%; top:28.2%; width:3.8px; height:3.8px; animation-delay:3.6s; animation-duration:4.2s;"></div>
+    <div class="home-particle" style="left:23.6%; top:95.8%; width:3.5px; height:3.5px; animation-delay:0.4s; animation-duration:3.1s;"></div>
   </div>
-  <div style="padding: 0 16px;">
-    <div class="home-title">Kogane</div>
-    <div class="home-desc">死滅回游形式のスプラトゥーン内部戦サーバー</div>
-    <div class="card-link" onclick="showPage('join')" style="border-color:var(--glass-violet-solid);">
-      <div class="card-title">たまき鯖に加入する</div>
-      <div class="card-desc">加入申請フォームはこちら</div>
-    </div>
-    <div class="card-link" onclick="showPage('ranking')">
-      <div class="card-title">レートランキング</div>
-      <div class="card-desc">現在のレートによる順位表</div>
-    </div>
-    <div class="card-link" onclick="showPage('peak')">
-      <div class="card-title">最高レートランキング</div>
-      <div class="card-desc">歴代最高レートTOP5</div>
-    </div>
-    <div class="card-link" id="my-page-card" onclick="showMyPage()" style="display:none;">
-      <div class="card-title">マイページ</div>
-      <div class="card-desc">自分の成績・グラフを確認</div>
+
+  <div class="home-content">
+    <div class="home-logo">Kogane</div>
+    <div class="home-subcopy">死滅回遊 ― たまき鯖 公式サイト</div>
+    <div class="home-nav-buttons">
+      <button class="home-nav-btn" onclick="showMyPage()">マイページ</button>
+      <button class="home-nav-btn" onclick="showPage('ranking')">ランキング</button>
+      <button class="home-nav-btn" onclick="showPage('join')">加入申請</button>
     </div>
   </div>
 </div>
@@ -394,14 +549,39 @@
   </div>
 </div>
 
+<!-- デザイン切り替えFAB（全ページ共通・右下固定） -->
+<div class="theme-fab-wrap">
+  <div class="theme-menu" id="theme-menu">
+    <button class="theme-menu-item" data-theme-choice="glass" onclick="setTheme('glass')">
+      <svg class="theme-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      <span>グラスモーフィズム</span>
+    </button>
+    <button class="theme-menu-item" data-theme-choice="neon" onclick="setTheme('neon')">
+      <svg class="theme-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      <span>ネオン</span>
+    </button>
+  </div>
+  <button class="theme-fab" id="theme-fab" onclick="toggleThemeMenu()" aria-label="デザインを切り替える" aria-haspopup="true" aria-expanded="false">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="13.5" cy="6.5" r="1.4"></circle>
+      <circle cx="17.5" cy="10.5" r="1.4"></circle>
+      <circle cx="8.5" cy="7.5" r="1.4"></circle>
+      <circle cx="6.5" cy="12.5" r="1.4"></circle>
+      <path d="M12 2a10 10 0 1 0 10 10c0-1.1-.9-2-2-2h-1.5a2.5 2.5 0 0 1 0-5H19a2 2 0 0 0 1.2-3.6A9.96 9.96 0 0 0 12 2z"></path>
+    </svg>
+  </button>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
   // ===== スライダー =====
   let heroIndex = 0;
   const heroTotal = 4;
   function goSlide(n) {
+    const slides = document.getElementById('hero-slides');
+    if (!slides) return;
     heroIndex = n;
-    document.getElementById('hero-slides').style.transform = `translateX(-${heroIndex * 100}%)`;
+    slides.style.transform = `translateX(-${heroIndex * 100}%)`;
     document.querySelectorAll('.hero-dot').forEach((d, i) => d.classList.toggle('active', i === heroIndex));
   }
   setInterval(() => goSlide((heroIndex + 1) % heroTotal), 4000);
@@ -451,7 +631,8 @@
 
   if (currentUserId) {
     document.getElementById('login-btn').style.display = 'none';
-    document.getElementById('my-page-card').style.display = 'block';
+    const myPageCard = document.getElementById('my-page-card');
+    if (myPageCard) myPageCard.style.display = 'block';
     document.getElementById('nav-mypage').style.display = 'block';
     document.getElementById('nav-stats-input').style.display = 'block';
     document.getElementById('user-info').style.display = 'flex';
@@ -461,6 +642,45 @@
       .then(d => { if (d.display_name) document.getElementById('user-name').textContent = d.display_name; })
       .catch(() => {});
   }
+
+  // ===== デザイン切り替え（テーマスイッチャー） =====
+  const THEME_STORAGE_KEY = 'kogane_theme';
+
+  function applyTheme(name) {
+    if (name === 'neon') {
+      document.documentElement.setAttribute('data-theme', 'neon');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    document.querySelectorAll('.theme-menu-item').forEach(el => {
+      el.classList.toggle('active', el.dataset.themeChoice === name);
+    });
+  }
+
+  function setTheme(name) {
+    localStorage.setItem(THEME_STORAGE_KEY, name);
+    applyTheme(name);
+    closeThemeMenu();
+  }
+
+  function toggleThemeMenu() {
+    const menu = document.getElementById('theme-menu');
+    const fab = document.getElementById('theme-fab');
+    const isOpen = menu.classList.toggle('open');
+    fab.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  }
+
+  function closeThemeMenu() {
+    document.getElementById('theme-menu').classList.remove('open');
+    document.getElementById('theme-fab').setAttribute('aria-expanded', 'false');
+  }
+
+  document.addEventListener('click', (e) => {
+    const wrap = document.querySelector('.theme-fab-wrap');
+    if (wrap && !wrap.contains(e.target)) closeThemeMenu();
+  });
+
+  applyTheme(localStorage.getItem(THEME_STORAGE_KEY) || 'glass');
 
   function toggleDrawer() {
     const drawer = document.getElementById('drawer');
