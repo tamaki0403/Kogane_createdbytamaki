@@ -6,6 +6,7 @@ import copy
 import time
 import discord
 from discord.ext import commands, tasks
+from itertools import combinations
 
 # =========================
 # ファイルパス / 環境変数
@@ -1357,7 +1358,6 @@ async def get_member_display_name_by_id(guild, user_id: int):
             member = None
     return member.display_name if member else f"ユーザーID:{user_id}"
 
-
 def make_teams_from_choices(room_state):
     joined_players = room_state["joined_players"]
     phase1_choices = room_state["phase1_choices"]
@@ -1366,19 +1366,42 @@ def make_teams_from_choices(room_state):
     bravo_fixed = [u for u in joined_players if phase1_choices.get(str(u.id)) == "bravo"]
     random_users = [u for u in joined_players if phase1_choices.get(str(u.id)) == "random"]
 
-    team_alpha = alpha_fixed[:]
-    team_bravo = bravo_fixed[:]
+    alpha_slots = TEAM_SIZE - len(alpha_fixed)
+    bravo_slots = TEAM_SIZE - len(bravo_fixed)
 
-    random.shuffle(random_users)
+    if alpha_slots < 0 or bravo_slots < 0 or alpha_slots + bravo_slots != len(random_users):
+        raise ValueError("チーム分けに失敗しました。希望人数の設定を確認してください。")
 
-    slot_labels = ["alpha"] * (TEAM_SIZE - len(team_alpha)) + ["bravo"] * (TEAM_SIZE - len(team_bravo))
-    random.shuffle(slot_labels)
+    alpha_fixed_sum = sum(get_user_rating(u.id) for u in alpha_fixed)
+    bravo_fixed_sum = sum(get_user_rating(u.id) for u in bravo_fixed)
 
-    for user, slot in zip(random_users, slot_labels):
-        if slot == "alpha":
-            team_alpha.append(user)
-        else:
-            team_bravo.append(user)
+    candidates = []
+
+    if random_users:
+        for combo in combinations(random_users, alpha_slots):
+            combo_set = set(combo)
+            alpha_random = list(combo)
+            bravo_random = [u for u in random_users if u not in combo_set]
+
+            alpha_sum = alpha_fixed_sum + sum(get_user_rating(u.id) for u in alpha_random)
+            bravo_sum = bravo_fixed_sum + sum(get_user_rating(u.id) for u in bravo_random)
+            diff = abs(alpha_sum - bravo_sum)
+
+            candidates.append((diff, alpha_random, bravo_random))
+
+        candidates.sort(key=lambda x: x[0])
+        top_candidates = candidates[:5]
+    else:
+        top_candidates = [(0, [], [])]
+
+    # 順位に応じた重み: 1位=5, 2位=4, 3位=3, 4位=2, 5位=1
+    rank_weights = [5, 4, 3, 2, 1]
+    weights = rank_weights[:len(top_candidates)]
+
+    _, alpha_random, bravo_random = random.choices(top_candidates, weights=weights, k=1)[0]
+
+    team_alpha = alpha_fixed + alpha_random
+    team_bravo = bravo_fixed + bravo_random
 
     if len(team_alpha) != TEAM_SIZE or len(team_bravo) != TEAM_SIZE:
         raise ValueError("チーム分けに失敗しました。希望人数の設定を確認してください。")
@@ -6285,22 +6308,23 @@ async def web_stats_input(request: Request):
     return JSONResponse(content={"success": True})
 
 
-@api.get("/api/my_matches/{user_id}")
-def get_my_matches(user_id: str):
+@api.get("/api/my_matches_all/{user_id}")
+def get_my_matches_all(user_id: str):
     history = load_match_history()
     user_matches = [
         m for m in history
         if user_id in m.get("alpha", []) or user_id in m.get("bravo", [])
     ]
-    recent = user_matches[-5:][::-1]
     result = []
-    for m in recent:
+    for m in reversed(user_matches):
+        stats = m.get("player_stats", {}).get(user_id)
         result.append({
             "timestamp": m.get("timestamp"),
             "stage": m.get("stage") or "不明",
             "winner": m.get("winner"),
             "my_team": "alpha" if user_id in m.get("alpha", []) else "bravo",
-            "already_input": user_id in m.get("player_stats", {}),
+            "already_input": stats is not None,
+            "stats": stats,
         })
     return JSONResponse(content={"matches": result})
 
