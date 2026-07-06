@@ -72,6 +72,26 @@
     .badge-item:hover { border-color: #58a6ff; }
     .badge-item.selected { border-color: #58a6ff; color: #58a6ff; background: #21262d; }
     .badge-img { width: 24px; height: 24px; border-radius: 4px; object-fit: cover; }
+    /* バッジダッシュボード（マイページ） */
+    .badge-dash { margin-bottom: 12px; }
+    .badge-dash-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .badge-dash-count { font-size: 0.8rem; font-weight: bold; color: #58a6ff; background: #0d1117; border: 1px solid #30363d; border-radius: 999px; padding: 3px 10px; }
+    .badge-dash-progress { height: 4px; background: #0d1117; border: 1px solid #21262d; border-radius: 999px; overflow: hidden; margin-bottom: 14px; }
+    .badge-dash-progress-fill { height: 100%; background: linear-gradient(90deg, #58a6ff, #79c0ff); border-radius: 999px; transition: width 0.5s ease-out; }
+    .badge-dash-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; }
+    .badge-tile { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 88px; padding: 10px 6px; background: #0d1117; border: 1px solid #30363d; border-radius: 10px; cursor: pointer; text-align: center; transition: border-color 0.15s ease-out, transform 0.15s ease-out, box-shadow 0.15s ease-out; }
+    .badge-tile:hover { border-color: #58a6ff; transform: translateY(-2px); }
+    .badge-tile:focus-visible { outline: none; border-color: #58a6ff; box-shadow: 0 0 0 3px rgba(88,166,255,0.35); }
+    .badge-tile.selected { border-color: #58a6ff; background: #131c2b; box-shadow: 0 0 0 1px #58a6ff, 0 0 16px rgba(88,166,255,0.25); }
+    .badge-tile.locked { cursor: default; opacity: 0.45; }
+    .badge-tile.locked:hover { border-color: #30363d; transform: none; }
+    .badge-tile-icon { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; color: #8b949e; }
+    .badge-tile-icon img { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; }
+    .badge-tile.selected .badge-tile-icon { color: #58a6ff; }
+    .badge-tile-label { font-size: 0.72rem; color: #8b949e; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .badge-tile.selected .badge-tile-label { color: #e6edf3; font-weight: bold; }
+    .badge-tile-check { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; background: #58a6ff; color: #0d1117; display: flex; align-items: center; justify-content: center; border: 2px solid #161b22; }
+    .badge-tile-lock { position: absolute; bottom: 6px; right: 6px; width: 16px; height: 16px; color: #8b949e; }
     .banner-item { border-radius: 8px; cursor: pointer; border: 2px solid #30363d; overflow: hidden; transition: border-color 0.2s; margin-bottom: 8px; }
     .banner-item:hover { border-color: #58a6ff; }
     .banner-item.selected { border-color: #58a6ff; }
@@ -380,6 +400,23 @@
     'オールラウンダー': '特定の突出した特徴はないが状況に応じて柔軟に対応できるプレイヤー。どんな場面でも安定して戦える。',
   };
 
+  // バッジダッシュボード用アイコン（インラインSVG）
+  const ICON_CHECK = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+  const ICON_LOCK = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>`;
+  const ICON_BADGE_PLACEHOLDER = `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.39 4.84 5.34.78-3.87 3.77.91 5.32L12 14.14l-4.77 2.57.91-5.32-3.87-3.77 5.34-.78L12 2z"></path></svg>`;
+  const ICON_EMPTY_SLOT = `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-dasharray="4 3" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle></svg>`;
+
+  function badgeImgFallback(img) {
+    img.style.display = 'none';
+    const holder = img.parentElement;
+    if (holder && !holder.querySelector('.badge-tile-fallback-icon')) {
+      const span = document.createElement('span');
+      span.className = 'badge-tile-fallback-icon';
+      span.innerHTML = ICON_BADGE_PLACEHOLDER;
+      holder.appendChild(span);
+    }
+  }
+
   let allRanking = [];
   let rankingLoaded = false;
   let peakLoaded = false;
@@ -540,21 +577,44 @@
       const vsOptions = vsStatsData.map(v => `<option value="${v.user_id}">${v.display_name}（${v.total}戦）</option>`).join('');
       const rateCount = (d.rate_history || []).length;
 
-      // Webバッジ設定UI
+      // Webバッジ設定UI（ダッシュボード風：所持バッジは選択可、未所持はロック表示）
       const ownedWebBadges = d.owned_web_badges || [];
       const selectedWebBadge = d.selected_web_badge || null;
-      const myWebBadges = webBadges.filter(b => ownedWebBadges.includes(b.id));
+      const ownedBadgeCount = webBadges.filter(b => ownedWebBadges.includes(b.id)).length;
+      const badgeProgressPct = webBadges.length > 0 ? Math.round((ownedBadgeCount / webBadges.length) * 100) : 0;
 
-      const badgeSettingHtml = myWebBadges.length > 0 ? `
-        <div style="margin-bottom:12px;">
-          <div class="section-title">バッジ設定</div>
-          <div class="badge-grid">
-            <div class="badge-item ${!selectedWebBadge ? 'selected' : ''}" onclick="setWebBadge('')">なし</div>
-            ${myWebBadges.map(b => `
-              <div class="badge-item ${selectedWebBadge === b.id ? 'selected' : ''}" onclick="setWebBadge('${b.id}')">
-                ${b.image_url ? `<img class="badge-img" src="${b.image_url}" onerror="this.style.display='none'">` : ''}
-                ${b.label}
-              </div>`).join('')}
+      const badgeSettingHtml = webBadges.length > 0 ? `
+        <div class="badge-dash">
+          <div class="badge-dash-header">
+            <div class="section-title" style="margin-bottom:0;">バッジコレクション</div>
+            <div class="badge-dash-count">${ownedBadgeCount} / ${webBadges.length}</div>
+          </div>
+          <div class="badge-dash-progress"><div class="badge-dash-progress-fill" style="width:${badgeProgressPct}%;"></div></div>
+          <div class="badge-dash-grid">
+            <div class="badge-tile ${!selectedWebBadge ? 'selected' : ''}" tabindex="0" role="button" aria-pressed="${!selectedWebBadge}" onclick="setWebBadge('')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setWebBadge('');}">
+              <div class="badge-tile-icon">${ICON_EMPTY_SLOT}</div>
+              <div class="badge-tile-label">未設定</div>
+              ${!selectedWebBadge ? `<div class="badge-tile-check">${ICON_CHECK}</div>` : ''}
+            </div>
+            ${webBadges.map(b => {
+              const owned = ownedWebBadges.includes(b.id);
+              const selected = selectedWebBadge === b.id;
+              const icon = b.image_url ? `<img src="${b.image_url}" onerror="badgeImgFallback(this)">` : ICON_BADGE_PLACEHOLDER;
+              if (!owned) {
+                return `
+                  <div class="badge-tile locked" title="未所持のバッジです">
+                    <div class="badge-tile-icon">${icon}</div>
+                    <div class="badge-tile-label">${b.label}</div>
+                    <div class="badge-tile-lock">${ICON_LOCK}</div>
+                  </div>`;
+              }
+              return `
+                <div class="badge-tile ${selected ? 'selected' : ''}" tabindex="0" role="button" aria-pressed="${selected}" onclick="setWebBadge('${b.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setWebBadge('${b.id}');}">
+                  <div class="badge-tile-icon">${icon}</div>
+                  <div class="badge-tile-label">${b.label}</div>
+                  ${selected ? `<div class="badge-tile-check">${ICON_CHECK}</div>` : ''}
+                </div>`;
+            }).join('')}
           </div>
         </div>` : '';
 
