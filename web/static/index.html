@@ -149,6 +149,7 @@
   <a href="#" onclick="showPage('ranking'); closeDrawer();" id="nav-ranking">レートランキング</a>
   <a href="#" onclick="showPage('peak'); closeDrawer();" id="nav-peak">最高レートランキング</a>
   <a href="#" onclick="showMyPage(); closeDrawer();" id="nav-mypage" style="display:none;">マイページ</a>
+  <a href="#" onclick="showStatsInputPage(); closeDrawer();" id="nav-stats-input" style="display:none;">戦績入力</a>
   <a href="#" onclick="showPage('join'); closeDrawer();">加入申請</a>
 </div>
 
@@ -226,6 +227,14 @@
 <!-- マイページ -->
 <div class="page" id="page-mypage">
   <div id="mypage-content"><p class="loading">読み込み中...</p></div>
+</div>
+
+<!-- 戦績入力（全件） -->
+<div class="page" id="page-stats-input">
+  <a href="#" onclick="showMyPage()" style="color:#58a6ff; font-size:0.85rem; text-decoration:none; display:inline-block; margin-bottom:12px;">← マイページに戻る</a>
+  <div class="page-title">戦績入力</div>
+  <div class="subtitle">過去の試合の戦績を入力・編集できます</div>
+  <div id="stats-input-all-list"><p class="loading">読み込み中...</p></div>
 </div>
 
 <!-- 運営ページ -->
@@ -398,6 +407,7 @@
     document.getElementById('login-btn').style.display = 'none';
     document.getElementById('my-page-card').style.display = 'block';
     document.getElementById('nav-mypage').style.display = 'block';
+    document.getElementById('nav-stats-input').style.display = 'block';
     document.getElementById('user-info').style.display = 'flex';
     if (currentAvatarUrl) document.getElementById('user-avatar').src = currentAvatarUrl;
     fetch(`/api/player_stats/${currentUserId}`)
@@ -568,10 +578,11 @@
             </div>`).join('')}
         </div>` : '';
 
-      const adminLinkHtml = currentUserId === '1225788050894753865' ? `
-        <div style="border-top:1px solid #30363d; padding-top:12px; margin-top:4px;">
-          <div onclick="showAdminPage()" style="display:inline-block; padding:6px 16px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:#21262d; border:1px solid #30363d; color:#8b949e;">運営ページ</div>
-        </div>` : '';
+      const adminLinkHtml = `
+        <div style="border-top:1px solid #30363d; padding-top:12px; margin-top:4px; display:flex; gap:8px; flex-wrap:wrap;">
+          <div onclick="showStatsInputPage()" style="display:inline-block; padding:6px 16px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:#21262d; border:1px solid #30363d; color:#8b949e;">過去の戦績を入力</div>
+          ${currentUserId === '1225788050894753865' ? `<div onclick="showAdminPage()" style="display:inline-block; padding:6px 16px; border-radius:8px; cursor:pointer; font-size:0.85rem; background:#21262d; border:1px solid #30363d; color:#8b949e;">運営ページ</div>` : ''}
+        </div>`;
 
       document.getElementById('mypage-content').innerHTML = `
         <!-- プロフィールカード -->
@@ -619,19 +630,13 @@
 
         <!-- タブエリア -->
         <div class="tab-bar">
-          <button class="tab-btn active" onclick="switchTab('stats-input', this)">戦績入力</button>
-          <button class="tab-btn" onclick="switchTab('vs', this)">対プレイヤー</button>
+          <button class="tab-btn active" onclick="switchTab('vs', this)">対プレイヤー</button>
           <button class="tab-btn" onclick="switchTab('gacha', this)">ガチャ</button>
           <button class="tab-btn" onclick="switchTab('ticket', this)">チケット</button>
         </div>
 
-        <!-- 戦績入力タブ -->
-        <div class="tab-content active" id="tab-stats-input">
-          <div id="stats-match-list"><p style="color:#8b949e; font-size:0.85rem;">読み込み中...</p></div>
-        </div>
-
         <!-- 対プレイヤータブ -->
-        <div class="tab-content" id="tab-vs">
+        <div class="tab-content active" id="tab-vs">
           ${vsStatsData.length === 0
             ? '<p style="color:#8b949e; font-size:0.85rem; padding:12px 0;">対戦記録がありません</p>'
             : `<select class="vs-select" id="vs-select" onchange="updateVsResult()">
@@ -690,9 +695,6 @@
         document.getElementById('rateChart').style.display = 'none';
       }
 
-      // 戦績入力を読み込む
-      loadStatsMatches();
-
     } catch (e) {
       document.getElementById('mypage-content').innerHTML = '<p class="error">データの取得に失敗しました</p>';
     }
@@ -703,42 +705,6 @@
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('tab-' + tabId).classList.add('active');
-  }
-
-  async function loadStatsMatches() {
-    if (!currentUserId) return;
-    try {
-      const res = await fetch(`/api/my_matches/${currentUserId}`);
-      const data = await res.json();
-      const el = document.getElementById('stats-match-list');
-      if (!el) return;
-      if (data.matches.length === 0) { el.innerHTML = '<p style="color:#8b949e; font-size:0.85rem;">参加した試合がありません</p>'; return; }
-      el.innerHTML = data.matches.map(m => `
-        <div style="background:#161b22; border:1px solid #30363d; border-radius:8px; padding:12px; margin-bottom:8px;">
-          <div style="font-size:0.85rem; margin-bottom:8px; color:#8b949e;">${m.stage} ${m.already_input ? '✅入力済み' : ''}</div>
-          ${!m.already_input ? `
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
-            <input id="paint-${m.timestamp}" type="number" placeholder="塗りポイント" style="padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:0.85rem;">
-            <input id="kill-${m.timestamp}" type="number" placeholder="キル" style="padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:0.85rem;">
-            <input id="death-${m.timestamp}" type="number" placeholder="デス" style="padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:0.85rem;">
-            <input id="special-${m.timestamp}" type="number" placeholder="スペシャル" style="padding:8px; background:#0d1117; border:1px solid #30363d; border-radius:6px; color:#e6edf3; font-size:0.85rem;">
-          </div>
-          <button onclick="submitStats('${m.timestamp}')" style="width:100%; padding:8px; background:#5865f2; color:#fff; border:none; border-radius:6px; font-size:0.85rem; cursor:pointer;">入力する</button>` : ''}
-        </div>`).join('');
-    } catch (e) {}
-  }
-
-  async function submitStats(matchId) {
-    if (!currentUserId) return;
-    const paint = document.getElementById(`paint-${matchId}`).value;
-    const kill = document.getElementById(`kill-${matchId}`).value;
-    const death = document.getElementById(`death-${matchId}`).value;
-    const special = document.getElementById(`special-${matchId}`).value;
-    try {
-      const res = await fetch('/api/stats/input', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, match_id: matchId, paint, kill, death, special }) });
-      const data = await res.json();
-      if (data.success) loadStatsMatches();
-    } catch (e) {}
   }
 
   async function setWebBadge(badgeId) {
@@ -847,6 +813,117 @@
       err.textContent = '送信に失敗しました。時間をおいて再度お試しください。';
       err.style.display = 'block';
     }
+  }
+
+  // ===== 戦績入力（全件） =====
+  function showStatsInputPage() {
+    if (!currentUserId) { window.location.href = '/auth/login'; return; }
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-stats-input').classList.add('active');
+    currentPage = 'stats-input';
+    loadAllStatsMatches();
+  }
+
+  function formatMatchDate(ts) {
+    try {
+      const d = new Date(ts.endsWith('Z') ? ts : ts + 'Z');
+      return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    } catch (e) { return ts; }
+  }
+
+  function renderStatsMatchCard(m) {
+    const dateStr = formatMatchDate(m.timestamp);
+    const isWin = m.my_team === m.winner;
+    const resultText = isWin ? '勝利' : '敗北';
+    const resultColor = isWin ? '#238636' : '#da3633';
+    const header = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <div style="font-size:0.85rem; color:#8b949e;">${dateStr}　${m.stage}</div>
+        <div style="font-size:0.8rem; font-weight:bold; color:${resultColor};">${resultText}</div>
+      </div>`;
+
+    if (m.already_input) {
+      const s = m.stats;
+      return `
+        <div class="admin-item-card" id="stats-card-${m.timestamp}">
+          ${header}
+          <div id="stats-view-${m.timestamp}">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:0.85rem; margin-bottom:10px;">
+              <div>塗り: ${s.paint}</div>
+              <div>キル: ${s.kill}</div>
+              <div>デス: ${s.death}</div>
+              <div>スペシャル: ${s.special}</div>
+            </div>
+            <button class="admin-btn admin-btn-secondary" onclick="startEditStats('${m.timestamp}')">編集</button>
+          </div>
+          <div id="stats-edit-${m.timestamp}" style="display:none;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+              <input id="paint-${m.timestamp}" type="number" value="${s.paint}" placeholder="塗りポイント" class="admin-input" style="margin-bottom:0;">
+              <input id="kill-${m.timestamp}" type="number" value="${s.kill}" placeholder="キル" class="admin-input" style="margin-bottom:0;">
+              <input id="death-${m.timestamp}" type="number" value="${s.death}" placeholder="デス" class="admin-input" style="margin-bottom:0;">
+              <input id="special-${m.timestamp}" type="number" value="${s.special}" placeholder="スペシャル" class="admin-input" style="margin-bottom:0;">
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button class="admin-btn admin-btn-primary" onclick="submitAllStats('${m.timestamp}')">保存</button>
+              <button class="admin-btn admin-btn-secondary" onclick="cancelEditStats('${m.timestamp}')">キャンセル</button>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    return `
+      <div class="admin-item-card" id="stats-card-${m.timestamp}">
+        ${header}
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+          <input id="paint-${m.timestamp}" type="number" placeholder="塗りポイント" class="admin-input" style="margin-bottom:0;">
+          <input id="kill-${m.timestamp}" type="number" placeholder="キル" class="admin-input" style="margin-bottom:0;">
+          <input id="death-${m.timestamp}" type="number" placeholder="デス" class="admin-input" style="margin-bottom:0;">
+          <input id="special-${m.timestamp}" type="number" placeholder="スペシャル" class="admin-input" style="margin-bottom:0;">
+        </div>
+        <button class="admin-btn admin-btn-primary" onclick="submitAllStats('${m.timestamp}')">入力する</button>
+      </div>`;
+  }
+
+  function startEditStats(id) {
+    document.getElementById(`stats-view-${id}`).style.display = 'none';
+    document.getElementById(`stats-edit-${id}`).style.display = 'block';
+  }
+
+  function cancelEditStats(id) {
+    document.getElementById(`stats-view-${id}`).style.display = 'block';
+    document.getElementById(`stats-edit-${id}`).style.display = 'none';
+  }
+
+  async function loadAllStatsMatches() {
+    const el = document.getElementById('stats-input-all-list');
+    el.innerHTML = '<p class="loading">読み込み中...</p>';
+    try {
+      const res = await fetch(`/api/my_matches_all/${currentUserId}`);
+      const data = await res.json();
+      if (!data.matches || data.matches.length === 0) {
+        el.innerHTML = '<p style="color:#8b949e; font-size:0.85rem;">参加した試合がありません</p>';
+        return;
+      }
+      el.innerHTML = data.matches.map(renderStatsMatchCard).join('');
+    } catch (e) {
+      el.innerHTML = '<p class="error">データの取得に失敗しました</p>';
+    }
+  }
+
+  async function submitAllStats(matchId) {
+    const paint = document.getElementById(`paint-${matchId}`).value;
+    const kill = document.getElementById(`kill-${matchId}`).value;
+    const death = document.getElementById(`death-${matchId}`).value;
+    const special = document.getElementById(`special-${matchId}`).value;
+    try {
+      const res = await fetch('/api/stats/input', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: currentUserId, match_id: matchId, paint, kill, death, special })
+      });
+      const data = await res.json();
+      if (data.success) loadAllStatsMatches();
+    } catch (e) {}
   }
 
   // ===== 運営ページ =====
