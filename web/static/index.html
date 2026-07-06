@@ -6,7 +6,7 @@
   <title>Kogane</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Poppins:wght@500;600;700&family=Russo+One&family=Chakra+Petch:wght@400;500;600;700&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Poppins:wght@500;600;700&family=Russo+One&family=Chakra+Petch:wght@400;500;600;700&family=Orbitron:wght@500;700&family=Cormorant:wght@500;600;700&family=Montserrat:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -84,6 +84,85 @@
       --glass-shadow-card: 0 4px 20px rgba(0, 0, 0, 0.45);
     }
 
+    /* ===== モノクロ+ゴールド差し色テーマ ===== */
+    :root[data-theme="mono-gold"] {
+      --glass-page-bg: #ffffff;
+      --glass-bg: #f7f7f7;
+      --glass-bg-elevated: #eeeeee;
+      --glass-card: #f7f7f7;
+      --glass-border: #e0e0e0;
+      --glass-blur: 0px;
+      --glass-text: #111111;
+      --glass-text-muted: #6b6b6b;
+
+      --glass-cyan: #8a6b1f;
+      --glass-cyan-rgb: 138, 107, 31;
+      --glass-green: #0f7a34;
+      --glass-green-solid: #0f7a34;
+      --glass-danger: #b3261e;
+      --glass-danger-solid: #b3261e;
+      --glass-violet-solid: #111111;
+      --glass-violet-rgb: 17, 17, 17;
+      --glass-violet-hover: #2c2c2c;
+      --glass-gold: #8a6b1f;
+      --glass-silver: #707070;
+      --glass-bronze: #595959;
+
+      --glass-radius-sm: 6px;
+      --glass-radius-md: 10px;
+
+      --glass-font-heading: 'Cormorant', 'Hiragino Mincho ProN', serif;
+      --glass-font-body: 'Montserrat', 'Hiragino Sans', sans-serif;
+      --glass-font-stat: 'Cormorant', 'Hiragino Mincho ProN', serif;
+
+      --glass-glow-cyan-sm: 0 0 0 1px rgba(var(--glass-cyan-rgb), 0.5);
+      --glass-glow-green-sm: 0 0 0 1px rgba(15, 122, 52, 0.5);
+      --glass-glow-danger-sm: 0 0 0 1px rgba(179, 38, 30, 0.5);
+      --glass-shadow-card: 0 2px 10px rgba(0, 0, 0, 0.08);
+    }
+
+    /* ===== ブルータリズムテーマ ===== */
+    :root[data-theme="brutalism"] {
+      --glass-page-bg: #fdf6e9;
+      --glass-bg: #ffffff;
+      --glass-bg-elevated: #f3ecd9;
+      --glass-card: #ffffff;
+      --glass-border: #111111;
+      --glass-blur: 0px;
+      --glass-text: #111111;
+      --glass-text-muted: #55524a;
+
+      --glass-cyan: #154fb0;
+      --glass-cyan-rgb: 21, 79, 176;
+      --glass-green: #0f7a34;
+      --glass-green-solid: #0f7a34;
+      --glass-danger: #c62828;
+      --glass-danger-solid: #c62828;
+      --glass-violet-solid: #2557bd;
+      --glass-violet-rgb: 37, 87, 189;
+      --glass-violet-hover: #1d4fb0;
+      --glass-gold: #8a6b1f;
+      --glass-silver: #707070;
+      --glass-bronze: #a15c2e;
+
+      --glass-radius-sm: 0px;
+      --glass-radius-md: 0px;
+
+      --glass-font-heading: 'Space Grotesk', 'Hiragino Sans', sans-serif;
+      --glass-font-body: 'Space Grotesk', 'Hiragino Sans', sans-serif;
+      --glass-font-stat: 'Space Grotesk', 'Hiragino Sans', sans-serif;
+
+      --glass-glow-cyan-sm: 0 0 0 2px #111111;
+      --glass-glow-green-sm: 0 0 0 2px #111111;
+      --glass-glow-danger-sm: 0 0 0 2px #111111;
+      --glass-shadow-card: 4px 4px 0 #111111;
+    }
+
+    :root[data-theme="mono-gold"] .home-logo,
+    :root[data-theme="brutalism"] .home-logo {
+      text-shadow: none;
+    }
+
     body { background: var(--glass-page-bg); background-attachment: fixed; color: var(--glass-text); font-family: var(--glass-font-body), 'Hiragino Sans', sans-serif; min-height: 100vh; }
     nav { background: var(--glass-card); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); border-bottom: 1px solid var(--glass-border); padding: 0 16px; display: flex; align-items: center; height: 52px; position: sticky; top: 0; z-index: 100; }
     .nav-brand { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--glass-text); text-decoration: none; }
@@ -91,7 +170,7 @@
     .nav-brand-text { font-size: 1rem; font-weight: bold; font-family: var(--glass-font-heading); letter-spacing: 0.03em; }
     .nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
     .login-btn { background: var(--glass-violet-solid); color: #fff; border: none; border-radius: var(--glass-radius-pill); padding: 6px 14px; font-size: 0.85rem; cursor: pointer; text-decoration: none; white-space: nowrap; transition: background var(--glass-duration-base) var(--glass-ease), box-shadow var(--glass-duration-base) var(--glass-ease); }
-    .login-btn:hover { background: var(--glass-violet-hover); box-shadow: 0 0 10px rgba(91, 60, 224, 0.6); }
+    .login-btn:hover { background: var(--glass-violet-hover); box-shadow: 0 0 10px rgba(var(--glass-violet-rgb), 0.6); }
     .user-info { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 8px; border-radius: 8px; transition: background 0.2s; }
     .user-info:hover { background: var(--glass-bg-elevated); }
     .user-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
@@ -152,7 +231,7 @@
       z-index: 2;
       text-align: center;
       width: 100%;
-      max-width: 560px;
+      max-width: 640px;
       padding: 0 24px;
     }
     .home-logo {
@@ -172,26 +251,25 @@
     }
     .home-nav-buttons {
       display: flex;
-      flex-direction: column;
-      gap: 14px;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
       margin-top: clamp(22px, 5vh, 44px);
-    }
-    @media (min-width: 640px) {
-      .home-nav-buttons { flex-direction: row; }
     }
     @media (max-height: 480px) {
       .home-logo { font-size: clamp(1.6rem, 6vw, 2.2rem); }
       .home-subcopy { margin-top: 6px; }
-      .home-nav-buttons { margin-top: 14px; gap: 10px; }
+      .home-nav-buttons { margin-top: 14px; gap: 8px; }
     }
     .home-nav-btn {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 10px;
-      flex: 1;
+      flex: 1 1 130px;
+      max-width: 220px;
       min-height: 44px;
-      padding: clamp(13px, 2.4vh, 18px) 22px;
+      padding: clamp(13px, 2.4vh, 18px) 20px;
       border-radius: var(--glass-radius-pill);
       border: 1px solid var(--glass-border);
       background: var(--glass-card);
@@ -388,6 +466,8 @@
     <div class="home-nav-buttons">
       <button class="home-nav-btn" onclick="showMyPage()">マイページ</button>
       <button class="home-nav-btn" onclick="showPage('ranking')">ランキング</button>
+      <button class="home-nav-btn" onclick="showPage('peak')">最高レート</button>
+      <button class="home-nav-btn" onclick="showStatsInputPage()">戦績入力</button>
       <button class="home-nav-btn" onclick="showPage('join')">加入申請</button>
     </div>
   </div>
@@ -560,6 +640,14 @@
       <svg class="theme-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
       <span>ネオン</span>
     </button>
+    <button class="theme-menu-item" data-theme-choice="mono-gold" onclick="setTheme('mono-gold')">
+      <svg class="theme-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      <span>モノクロ+ゴールド</span>
+    </button>
+    <button class="theme-menu-item" data-theme-choice="brutalism" onclick="setTheme('brutalism')">
+      <svg class="theme-check" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      <span>ブルータリズム</span>
+    </button>
   </div>
   <button class="theme-fab" id="theme-fab" onclick="toggleThemeMenu()" aria-label="デザインを切り替える" aria-haspopup="true" aria-expanded="false">
     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -647,8 +735,8 @@
   const THEME_STORAGE_KEY = 'kogane_theme';
 
   function applyTheme(name) {
-    if (name === 'neon') {
-      document.documentElement.setAttribute('data-theme', 'neon');
+    if (name && name !== 'glass') {
+      document.documentElement.setAttribute('data-theme', name);
     } else {
       document.documentElement.removeAttribute('data-theme');
     }
@@ -725,18 +813,23 @@
     const badge = p.selected_badge_emoji || '';
     const rankColor = rank === 1 ? 'var(--glass-gold)' : rank === 2 ? 'var(--glass-silver)' : rank === 3 ? 'var(--glass-bronze)' : 'var(--glass-text-muted)';
     const borderColor = rank === 1 ? 'var(--glass-gold)' : rank === 2 ? 'var(--glass-silver)' : rank === 3 ? 'var(--glass-bronze)' : 'var(--glass-border)';
+    const tier = rank === 1
+      ? { minHeight: 96, padY: 16, padX: 18, avatar: 52, name: '1.15rem', rankNum: '1.7rem', rateNum: '1rem', gap: 14, badge: '1.5rem' }
+      : rank <= 5
+      ? { minHeight: 80, padY: 12, padX: 16, avatar: 42, name: '1.02rem', rankNum: '1.4rem', rateNum: '0.9rem', gap: 13, badge: '1.3rem' }
+      : { minHeight: 72, padY: 8, padX: 14, avatar: 36, name: '0.95rem', rankNum: '1.2rem', rateNum: '0.85rem', gap: 12, badge: '1.2rem' };
     return `
-      <div style="display:flex; align-items:stretch; border:1px solid ${borderColor}; border-radius:var(--glass-radius-md); overflow:hidden; margin-bottom:8px; min-height:72px;">
-        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8px 14px; background:var(--glass-card); min-width:64px; flex-shrink:0;">
-          <div style="font-size:1.2rem; font-weight:bold; color:${rankColor}; line-height:1; font-family:var(--glass-font-stat);">${rank}</div>
-          <div style="font-size:0.85rem; font-weight:bold; color:var(--glass-cyan); margin-top:6px; line-height:1; font-family:var(--glass-font-stat);">${rating}</div>
+      <div style="display:flex; align-items:stretch; border:1px solid ${borderColor}; border-radius:var(--glass-radius-md); overflow:hidden; margin-bottom:8px; min-height:${tier.minHeight}px;">
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:${tier.padY}px ${tier.padX}px; background:var(--glass-card); min-width:64px; flex-shrink:0;">
+          <div style="font-size:${tier.rankNum}; font-weight:bold; color:${rankColor}; line-height:1; font-family:var(--glass-font-stat);">${rank}</div>
+          <div style="font-size:${tier.rateNum}; font-weight:bold; color:var(--glass-cyan); margin-top:6px; line-height:1; font-family:var(--glass-font-stat);">${rating}</div>
         </div>
-        <div style="flex:1; display:flex; align-items:center; padding:12px 14px; gap:12px; position:relative; background:${banner ? `url('${banner}') center/cover no-repeat` : 'var(--glass-bg)'}; overflow:hidden;">
+        <div style="flex:1; display:flex; align-items:center; padding:${tier.padY}px ${tier.padX}px; gap:${tier.gap}px; position:relative; background:${banner ? `url('${banner}') center/cover no-repeat` : 'var(--glass-bg)'}; overflow:hidden;">
           ${banner ? `<div style="position:absolute; inset:0; background:rgba(0,0,0,0.45);"></div>` : ''}
-          <img style="width:36px; height:36px; border-radius:50%; object-fit:cover; flex-shrink:0; position:relative; z-index:1;" src="${avatar}" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'" alt="">
-          <div style="font-size:0.95rem; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; position:relative; z-index:1;">${name}</div>
+          <img style="width:${tier.avatar}px; height:${tier.avatar}px; border-radius:50%; object-fit:cover; flex-shrink:0; position:relative; z-index:1;" src="${avatar}" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'" alt="">
+          <div style="font-size:${tier.name}; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; position:relative; z-index:1;">${name}</div>
         </div>
-        ${badge ? `<div style="display:flex; align-items:center; justify-content:center; padding:0 12px; background:var(--glass-card); flex-shrink:0; font-size:1.2rem;">${badge}</div>` : ''}
+        ${badge ? `<div style="display:flex; align-items:center; justify-content:center; padding:0 12px; background:var(--glass-card); flex-shrink:0; font-size:${tier.badge};">${badge}</div>` : ''}
       </div>`;
   }
 
