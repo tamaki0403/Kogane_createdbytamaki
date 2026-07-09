@@ -5459,12 +5459,49 @@ async def bot_icon(ctx):
 # 起動
 # =========================
 import threading
+import uuid
 import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, File, UploadFile, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 
 api = FastAPI()
+
+# =========================
+# 画像アップロード（バッジ・バナー用）
+# =========================
+UPLOAD_DIR = os.path.join(DATA_DIR, "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+# "/" の catch-all マウント（このファイル末尾）より前に登録する必要がある
+api.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
+ALLOWED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
+ALLOWED_IMAGE_CONTENT_TYPES = {"image/png", "image/jpeg", "image/gif", "image/webp"}
+MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024  # 5MB
+
+@api.post("/api/upload_image")
+async def upload_image(user_id: str = Form(...), file: UploadFile = File(...)):
+    """バッジ・バナー用の画像をアップロードする（OWNER_IDのみ）"""
+    if user_id != str(OWNER_ID):
+        return JSONResponse(content={"error": "権限がありません"}, status_code=403)
+
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in ALLOWED_IMAGE_EXTENSIONS or file.content_type not in ALLOWED_IMAGE_CONTENT_TYPES:
+        return JSONResponse(content={"error": "対応していない画像形式です（png/jpg/jpeg/gif/webpのみ）"}, status_code=400)
+
+    data = await file.read()
+    if len(data) > MAX_UPLOAD_SIZE_BYTES:
+        return JSONResponse(content={"error": "ファイルサイズが大きすぎます（5MBまで）"}, status_code=400)
+    if not data:
+        return JSONResponse(content={"error": "ファイルが空です"}, status_code=400)
+
+    filename = f"{uuid.uuid4().hex}{ext}"
+    filepath = os.path.join(UPLOAD_DIR, filename)
+    with open(filepath, "wb") as f:
+        f.write(data)
+
+    return JSONResponse(content={"success": True, "url": f"/uploads/{filename}"})
+
 
 # =========================
 # Web用バッジ・バナー定義（/data/に保存）
@@ -5731,10 +5768,22 @@ async def set_web_banner(request: Request):
 def health():
     return JSONResponse(content={"status": "ok"}, media_type="application/json; charset=utf-8")
 
+def resolve_web_badge_banner(profile: dict, web_badges: dict, web_banners: dict) -> tuple:
+    """プロフィールのselected_web_badge/selected_web_bannerを画像URLに解決する"""
+    badge_def = web_badges.get(profile.get("selected_web_badge"))
+    banner_def = web_banners.get(profile.get("selected_web_banner"))
+
+    badge_url = badge_def["image_url"] if badge_def else None
+    banner_url = banner_def["image_url"] if banner_def else None
+    return badge_url, banner_url
+
+
 @api.get("/api/ranking")
 def get_ranking():
     ratings_data = load_ratings()
     profiles = load_player_profiles()
+    web_badges = {b["id"]: b for b in load_web_badges()}
+    web_banners = {b["id"]: b for b in load_web_banners()}
 
     players = []
     for uid, data in ratings_data.items():
@@ -5744,12 +5793,15 @@ def get_ranking():
             rating = int(round(float(data)))
 
         profile = profiles.get(uid, {})
+        badge_url, banner_url = resolve_web_badge_banner(profile, web_badges, web_banners)
         players.append({
             "user_id": uid,
             "rating": rating,
             "display_name": profile.get("display_name"),
             "peak_rating": profile.get("peak_rating"),
             "avatar_url": profile.get("avatar_url") or "https://cdn.discordapp.com/embed/avatars/0.png",
+            "selected_badge_url": badge_url,
+            "selected_banner_url": banner_url,
         })
 
     players.sort(key=lambda x: -x["rating"])
@@ -5761,17 +5813,22 @@ def get_ranking():
 @api.get("/api/peak_ranking")
 def get_peak_ranking():
     profiles = load_player_profiles()
+    web_badges = {b["id"]: b for b in load_web_badges()}
+    web_banners = {b["id"]: b for b in load_web_banners()}
 
     players = []
     for uid, profile in profiles.items():
         peak = profile.get("peak_rating")
         if peak is None:
             continue
+        badge_url, banner_url = resolve_web_badge_banner(profile, web_badges, web_banners)
         players.append({
             "user_id": uid,
             "display_name": profile.get("display_name") or uid,
             "peak_rating": peak,
             "avatar_url": profile.get("avatar_url") or "https://cdn.discordapp.com/embed/avatars/0.png",
+            "selected_badge_url": badge_url,
+            "selected_banner_url": banner_url,
         })
 
     players.sort(key=lambda x: -x["peak_rating"])

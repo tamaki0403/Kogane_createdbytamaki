@@ -397,6 +397,12 @@
     .admin-item-card { background: var(--glass-card); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--glass-border); border-radius: var(--glass-radius-sm); padding: 14px; margin-bottom: 10px; }
     .admin-item-preview { width: 100%; height: 80px; object-fit: cover; border-radius: 6px; margin-bottom: 8px; background: var(--glass-card); display: block; }
     .admin-badge-preview { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; margin-bottom: 8px; background: var(--glass-card); display: block; }
+    .grant-panel { margin-top: 10px; padding: 10px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 8px; }
+    .grant-result-list { max-height: 220px; overflow-y: auto; margin-top: 8px; }
+    .grant-result-item { display: flex; align-items: center; gap: 8px; padding: 6px 4px; font-size: 0.85rem; border-bottom: 1px solid var(--glass-border); }
+    .grant-result-item:last-child { border-bottom: none; }
+    .grant-result-item input[type="checkbox"] { width: 16px; height: 16px; flex-shrink: 0; }
+    .grant-selected-count { font-size: 0.8rem; color: var(--glass-text-muted); margin: 6px 0; }
 
     /* accordion */
     .accordion-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 14px 0; border-bottom: 1px solid var(--glass-border); color: var(--glass-text-muted); font-size: 0.95rem; font-weight: bold; user-select: none; }
@@ -594,11 +600,10 @@
     <div style="padding-top:8px;">
       <div style="font-size:0.85rem; color:var(--glass-text-muted); margin-bottom:8px;">新規バッジ作成</div>
       <input class="admin-input" id="new-badge-label" placeholder="バッジ名（例：石狩）">
-      <input class="admin-input" id="new-badge-url" placeholder="画像URL">
+      <input class="admin-input" id="new-badge-file" type="file" accept="image/png,image/jpeg,image/gif,image/webp" onchange="previewBadgeImage(this)">
       <div id="new-badge-preview-wrap" style="margin-bottom:8px; display:none;">
         <img id="new-badge-preview" src="" style="width:48px; height:48px; object-fit:cover; border-radius:6px; border:1px solid var(--glass-border);">
       </div>
-      <button class="admin-btn admin-btn-primary" onclick="previewBadgeImage()" style="margin-bottom:8px; margin-right:8px;">プレビュー</button>
       <button class="admin-btn admin-btn-primary" onclick="createBadge()">作成</button>
       <div id="badge-create-msg" style="font-size:0.85rem; margin-top:8px;"></div>
 
@@ -615,11 +620,10 @@
     <div style="padding-top:8px;">
       <div style="font-size:0.85rem; color:var(--glass-text-muted); margin-bottom:8px;">新規バナー作成</div>
       <input class="admin-input" id="new-banner-label" placeholder="バナー名（例：夏バナー）">
-      <input class="admin-input" id="new-banner-url" placeholder="画像URL">
+      <input class="admin-input" id="new-banner-file" type="file" accept="image/png,image/jpeg,image/gif,image/webp" onchange="previewBannerImage(this)">
       <div id="new-banner-preview-wrap" style="margin-bottom:8px; display:none;">
         <img id="new-banner-preview" src="" style="width:100%; height:80px; object-fit:cover; border-radius:6px; border:1px solid var(--glass-border);">
       </div>
-      <button class="admin-btn admin-btn-primary" onclick="previewBannerImage()" style="margin-bottom:8px; margin-right:8px;">プレビュー</button>
       <button class="admin-btn admin-btn-primary" onclick="createBanner()">作成</button>
       <div id="banner-create-msg" style="font-size:0.85rem; margin-top:8px;"></div>
 
@@ -810,26 +814,24 @@
     const rating = p[ratingKey];
     const rank = p.rank;
     const banner = p.selected_banner_url || null;
-    const badge = p.selected_badge_emoji || '';
+    const badgeUrl = p.selected_badge_url || null;
     const rankColor = rank === 1 ? 'var(--glass-gold)' : rank === 2 ? 'var(--glass-silver)' : rank === 3 ? 'var(--glass-bronze)' : 'var(--glass-text-muted)';
     const borderColor = rank === 1 ? 'var(--glass-gold)' : rank === 2 ? 'var(--glass-silver)' : rank === 3 ? 'var(--glass-bronze)' : 'var(--glass-border)';
     const tier = rank === 1
-      ? { minHeight: 96, padY: 16, padX: 18, avatar: 52, name: '1.15rem', rankNum: '1.7rem', rateNum: '1rem', gap: 14, badge: '1.5rem' }
+      ? { minHeight: 96, padY: 16, padX: 18, avatar: 52, name: '1.15rem', rankNum: '1.7rem', rateNum: '1rem', gap: 14, badge: 32 }
       : rank <= 5
-      ? { minHeight: 80, padY: 12, padX: 16, avatar: 42, name: '1.02rem', rankNum: '1.4rem', rateNum: '0.9rem', gap: 13, badge: '1.3rem' }
-      : { minHeight: 72, padY: 8, padX: 14, avatar: 36, name: '0.95rem', rankNum: '1.2rem', rateNum: '0.85rem', gap: 12, badge: '1.2rem' };
+      ? { minHeight: 80, padY: 12, padX: 16, avatar: 42, name: '1.02rem', rankNum: '1.4rem', rateNum: '0.9rem', gap: 13, badge: 28 }
+      : { minHeight: 72, padY: 8, padX: 14, avatar: 36, name: '0.95rem', rankNum: '1.2rem', rateNum: '0.85rem', gap: 12, badge: 24 };
     return `
-      <div style="display:flex; align-items:stretch; border:1px solid ${borderColor}; border-radius:var(--glass-radius-md); overflow:hidden; margin-bottom:8px; min-height:${tier.minHeight}px;">
-        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:${tier.padY}px ${tier.padX}px; background:var(--glass-card); min-width:64px; flex-shrink:0;">
-          <div style="font-size:${tier.rankNum}; font-weight:bold; color:${rankColor}; line-height:1; font-family:var(--glass-font-stat);">${rank}</div>
-          <div style="font-size:${tier.rateNum}; font-weight:bold; color:var(--glass-cyan); margin-top:6px; line-height:1; font-family:var(--glass-font-stat);">${rating}</div>
+      <div style="display:flex; align-items:center; border:1px solid ${borderColor}; border-radius:var(--glass-radius-md); overflow:hidden; margin-bottom:8px; min-height:${tier.minHeight}px; padding:${tier.padY}px ${tier.padX}px; gap:${tier.gap}px; position:relative; background:${banner ? `url('${banner}') center/cover no-repeat` : 'var(--glass-card)'};">
+        ${banner ? `<div style="position:absolute; inset:0; background:rgba(0,0,0,0.5);"></div>` : ''}
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:44px; flex-shrink:0; position:relative; z-index:1;">
+          <div style="font-size:${tier.rankNum}; font-weight:bold; color:${rankColor}; line-height:1; font-family:var(--glass-font-stat); text-shadow:0 1px 4px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.5);">${rank}</div>
+          <div style="font-size:${tier.rateNum}; font-weight:bold; color:var(--glass-cyan); margin-top:6px; line-height:1; font-family:var(--glass-font-stat); text-shadow:0 1px 4px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.5);">${rating}</div>
         </div>
-        <div style="flex:1; display:flex; align-items:center; padding:${tier.padY}px ${tier.padX}px; gap:${tier.gap}px; position:relative; background:${banner ? `url('${banner}') center/cover no-repeat` : 'var(--glass-bg)'}; overflow:hidden;">
-          ${banner ? `<div style="position:absolute; inset:0; background:rgba(0,0,0,0.45);"></div>` : ''}
-          <img style="width:${tier.avatar}px; height:${tier.avatar}px; border-radius:50%; object-fit:cover; flex-shrink:0; position:relative; z-index:1;" src="${avatar}" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'" alt="">
-          <div style="font-size:${tier.name}; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; position:relative; z-index:1;">${name}</div>
-        </div>
-        ${badge ? `<div style="display:flex; align-items:center; justify-content:center; padding:0 12px; background:var(--glass-card); flex-shrink:0; font-size:${tier.badge};">${badge}</div>` : ''}
+        <img style="width:${tier.avatar}px; height:${tier.avatar}px; border-radius:50%; object-fit:cover; flex-shrink:0; position:relative; z-index:1; box-shadow:0 0 0 2px rgba(0,0,0,0.3);" src="${avatar}" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'" alt="">
+        <div style="flex:1; min-width:0; font-size:${tier.name}; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; position:relative; z-index:1; text-shadow:0 1px 4px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.5);">${name}</div>
+        ${badgeUrl ? `<img src="${badgeUrl}" style="width:${tier.badge}px; height:${tier.badge}px; object-fit:cover; border-radius:6px; flex-shrink:0; position:relative; z-index:1;" onerror="this.style.display='none'">` : ''}
       </div>`;
   }
 
@@ -1420,30 +1422,52 @@
     }
   }
 
+  // ===== 画像アップロード共通 =====
+  async function uploadImageFile(file) {
+    const formData = new FormData();
+    formData.append('user_id', currentUserId);
+    formData.append('file', file);
+    const res = await fetch('/api/upload_image', { method: 'POST', body: formData });
+    return res.json();
+  }
+
   // ===== バッジ管理 =====
-  function previewBadgeImage() {
-    const url = document.getElementById('new-badge-url').value.trim();
-    if (!url) return;
+  function previewBadgeImage(input) {
+    const file = input && input.files && input.files[0];
     const wrap = document.getElementById('new-badge-preview-wrap');
     const img = document.getElementById('new-badge-preview');
-    img.src = url;
-    wrap.style.display = 'block';
+    if (!file) { wrap.style.display = 'none'; return; }
+    const reader = new FileReader();
+    reader.onload = (e) => { img.src = e.target.result; wrap.style.display = 'block'; };
+    reader.readAsDataURL(file);
   }
 
   async function createBadge() {
     if (currentUserId !== '1225788050894753865') return;
     const label = document.getElementById('new-badge-label').value.trim();
-    const image_url = document.getElementById('new-badge-url').value.trim();
+    const fileInput = document.getElementById('new-badge-file');
+    const file = fileInput.files && fileInput.files[0];
     const msg = document.getElementById('badge-create-msg');
     if (!label) { msg.style.color = 'var(--glass-danger)'; msg.textContent = 'バッジ名を入力してください'; return; }
+    if (!file) { msg.style.color = 'var(--glass-danger)'; msg.textContent = '画像を選択してください'; return; }
+
+    msg.style.color = 'var(--glass-text-muted)';
+    msg.textContent = 'アップロード中...';
     try {
-      const res = await fetch('/api/web_badges', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, label, image_url }) });
+      const uploadData = await uploadImageFile(file);
+      if (!uploadData.success) {
+        msg.style.color = 'var(--glass-danger)';
+        msg.textContent = uploadData.error || '画像のアップロードに失敗しました';
+        return;
+      }
+
+      const res = await fetch('/api/web_badges', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, label, image_url: uploadData.url }) });
       const data = await res.json();
       if (data.success) {
         msg.style.color = 'var(--glass-green)';
         msg.textContent = 'バッジを作成しました！';
         document.getElementById('new-badge-label').value = '';
-        document.getElementById('new-badge-url').value = '';
+        fileInput.value = '';
         document.getElementById('new-badge-preview-wrap').style.display = 'none';
         loadAdminBadges();
       } else {
@@ -1467,9 +1491,10 @@
           <div id="badge-view-${b.id}">
             <div style="font-size:0.9rem; font-weight:bold; margin-bottom:4px;">${b.label}</div>
             <div style="font-size:0.75rem; color:var(--glass-text-muted); margin-bottom:8px; word-break:break-all;">${b.image_url || 'URLなし'}</div>
-            <div style="display:flex; gap:8px;">
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
               <button class="admin-btn admin-btn-secondary" onclick="startEditBadge('${b.id}', '${b.label.replace(/'/g,"\\'")}', '${b.image_url.replace(/'/g,"\\'")}')">編集</button>
               <button class="admin-btn admin-btn-danger" onclick="deleteBadge('${b.id}')">削除</button>
+              <button class="admin-btn admin-btn-secondary" onclick="toggleGrantPanel('badge', '${b.id}')">配布</button>
             </div>
           </div>
           <div id="badge-edit-${b.id}" style="display:none;">
@@ -1480,6 +1505,7 @@
               <button class="admin-btn admin-btn-secondary" onclick="cancelEditBadge('${b.id}')">キャンセル</button>
             </div>
           </div>
+          ${grantPanelHtml('badge', b.id)}
         </div>`).join('');
     } catch (e) {}
   }
@@ -1514,29 +1540,42 @@
   }
 
   // ===== バナー管理 =====
-  function previewBannerImage() {
-    const url = document.getElementById('new-banner-url').value.trim();
-    if (!url) return;
+  function previewBannerImage(input) {
+    const file = input && input.files && input.files[0];
     const wrap = document.getElementById('new-banner-preview-wrap');
     const img = document.getElementById('new-banner-preview');
-    img.src = url;
-    wrap.style.display = 'block';
+    if (!file) { wrap.style.display = 'none'; return; }
+    const reader = new FileReader();
+    reader.onload = (e) => { img.src = e.target.result; wrap.style.display = 'block'; };
+    reader.readAsDataURL(file);
   }
 
   async function createBanner() {
     if (currentUserId !== '1225788050894753865') return;
     const label = document.getElementById('new-banner-label').value.trim();
-    const image_url = document.getElementById('new-banner-url').value.trim();
+    const fileInput = document.getElementById('new-banner-file');
+    const file = fileInput.files && fileInput.files[0];
     const msg = document.getElementById('banner-create-msg');
     if (!label) { msg.style.color = 'var(--glass-danger)'; msg.textContent = 'バナー名を入力してください'; return; }
+    if (!file) { msg.style.color = 'var(--glass-danger)'; msg.textContent = '画像を選択してください'; return; }
+
+    msg.style.color = 'var(--glass-text-muted)';
+    msg.textContent = 'アップロード中...';
     try {
-      const res = await fetch('/api/web_banners', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, label, image_url }) });
+      const uploadData = await uploadImageFile(file);
+      if (!uploadData.success) {
+        msg.style.color = 'var(--glass-danger)';
+        msg.textContent = uploadData.error || '画像のアップロードに失敗しました';
+        return;
+      }
+
+      const res = await fetch('/api/web_banners', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: currentUserId, label, image_url: uploadData.url }) });
       const data = await res.json();
       if (data.success) {
         msg.style.color = 'var(--glass-green)';
         msg.textContent = 'バナーを作成しました！';
         document.getElementById('new-banner-label').value = '';
-        document.getElementById('new-banner-url').value = '';
+        fileInput.value = '';
         document.getElementById('new-banner-preview-wrap').style.display = 'none';
         loadAdminBanners();
       } else {
@@ -1560,9 +1599,10 @@
           <div id="banner-view-${b.id}">
             <div style="font-size:0.9rem; font-weight:bold; margin-bottom:4px;">${b.label}</div>
             <div style="font-size:0.75rem; color:var(--glass-text-muted); margin-bottom:8px; word-break:break-all;">${b.image_url || 'URLなし'}</div>
-            <div style="display:flex; gap:8px;">
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
               <button class="admin-btn admin-btn-secondary" onclick="startEditBanner('${b.id}')">編集</button>
               <button class="admin-btn admin-btn-danger" onclick="deleteBanner('${b.id}')">削除</button>
+              <button class="admin-btn admin-btn-secondary" onclick="toggleGrantPanel('banner', '${b.id}')">配布</button>
             </div>
           </div>
           <div id="banner-edit-${b.id}" style="display:none;">
@@ -1573,6 +1613,7 @@
               <button class="admin-btn admin-btn-secondary" onclick="cancelEditBanner('${b.id}')">キャンセル</button>
             </div>
           </div>
+          ${grantPanelHtml('banner', b.id)}
         </div>`).join('');
     } catch (e) {}
   }
@@ -1604,6 +1645,127 @@
       const data = await res.json();
       if (data.success) loadAdminBanners();
     } catch (e) {}
+  }
+
+  // ===== プレイヤーへの配布（バッジ・バナー共通） =====
+  function grantPanelHtml(type, id) {
+    return `
+      <div class="grant-panel" id="grant-panel-${type}-${id}" style="display:none;">
+        <input class="admin-input" id="grant-search-${type}-${id}" placeholder="プレイヤー名で検索" oninput="searchGrantPlayers('${type}', '${id}')">
+        <div class="grant-selected-count" id="grant-selected-count-${type}-${id}">0人選択中</div>
+        <div class="grant-result-list" id="grant-result-list-${type}-${id}"></div>
+        <button class="admin-btn admin-btn-primary" onclick="submitGrant('${type}', '${id}')" style="margin-top:8px;">配布する</button>
+        <div id="grant-msg-${type}-${id}" style="font-size:0.85rem; margin-top:8px;"></div>
+      </div>`;
+  }
+
+  let grantPlayersCache = null;
+  let grantSelections = {}; // key: `${type}-${id}` -> Set of user_id
+
+  async function getGrantPlayers() {
+    if (grantPlayersCache) return grantPlayersCache;
+    try {
+      const res = await fetch('/api/ranking');
+      const data = await res.json();
+      grantPlayersCache = data.players || [];
+    } catch (e) {
+      grantPlayersCache = [];
+    }
+    return grantPlayersCache;
+  }
+
+  function toggleGrantPanel(type, id) {
+    const panel = document.getElementById(`grant-panel-${type}-${id}`);
+    if (!panel) return;
+    const opening = panel.style.display === 'none' || !panel.style.display;
+    panel.style.display = opening ? 'block' : 'none';
+    if (opening) {
+      const key = `${type}-${id}`;
+      if (!grantSelections[key]) grantSelections[key] = new Set();
+      renderGrantResults(type, id, '');
+    }
+  }
+
+  async function searchGrantPlayers(type, id) {
+    const input = document.getElementById(`grant-search-${type}-${id}`);
+    const query = (input && input.value || '').trim();
+    renderGrantResults(type, id, query);
+  }
+
+  async function renderGrantResults(type, id, query) {
+    const listEl = document.getElementById(`grant-result-list-${type}-${id}`);
+    if (!listEl) return;
+    const players = await getGrantPlayers();
+    const key = `${type}-${id}`;
+    const selected = grantSelections[key] || (grantSelections[key] = new Set());
+
+    let filtered = players;
+    if (query) {
+      const q = query.toLowerCase();
+      filtered = players.filter(p => (p.display_name || p.user_id).toLowerCase().includes(q));
+    }
+    filtered = filtered.slice(0, 30);
+
+    if (filtered.length === 0) {
+      listEl.innerHTML = '<p style="color:var(--glass-text-muted); font-size:0.85rem;">該当プレイヤーがいません</p>';
+      return;
+    }
+
+    listEl.innerHTML = filtered.map(p => `
+      <label class="grant-result-item">
+        <input type="checkbox" ${selected.has(p.user_id) ? 'checked' : ''} onchange="toggleGrantSelection('${type}', '${id}', '${p.user_id}', this.checked)">
+        <span>${p.display_name || p.user_id}</span>
+        <span style="color:var(--glass-text-muted); margin-left:auto;">${p.rating}</span>
+      </label>`).join('');
+  }
+
+  function toggleGrantSelection(type, id, userId, checked) {
+    const key = `${type}-${id}`;
+    const selected = grantSelections[key] || (grantSelections[key] = new Set());
+    if (checked) selected.add(userId); else selected.delete(userId);
+    updateGrantSelectedCount(type, id);
+  }
+
+  function updateGrantSelectedCount(type, id) {
+    const key = `${type}-${id}`;
+    const count = (grantSelections[key] || new Set()).size;
+    const el = document.getElementById(`grant-selected-count-${type}-${id}`);
+    if (el) el.textContent = `${count}人選択中`;
+  }
+
+  async function submitGrant(type, id) {
+    if (currentUserId !== '1225788050894753865') return;
+    const key = `${type}-${id}`;
+    const selected = Array.from(grantSelections[key] || []);
+    const msgEl = document.getElementById(`grant-msg-${type}-${id}`);
+    if (selected.length === 0) {
+      if (msgEl) { msgEl.style.color = 'var(--glass-danger)'; msgEl.textContent = 'プレイヤーを選択してください'; }
+      return;
+    }
+    if (msgEl) { msgEl.style.color = 'var(--glass-text-muted)'; msgEl.textContent = '配布中...'; }
+
+    const endpoint = type === 'badge' ? '/api/web_badge/grant' : '/api/web_banner/grant';
+    const idField = type === 'badge' ? 'badge_id' : 'banner_id';
+
+    let successCount = 0;
+    for (const targetId of selected) {
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: currentUserId, target_id: targetId, [idField]: id })
+        });
+        const data = await res.json();
+        if (data.success) successCount++;
+      } catch (e) {}
+    }
+
+    if (msgEl) {
+      msgEl.style.color = successCount === selected.length ? 'var(--glass-green)' : 'var(--glass-danger)';
+      msgEl.textContent = `${successCount}人に配布しました（対象${selected.length}人）`;
+    }
+    grantSelections[key] = new Set();
+    renderGrantResults(type, id, document.getElementById(`grant-search-${type}-${id}`)?.value.trim() || '');
   }
 </script>
 </body>
