@@ -4,6 +4,7 @@ import random
 import math
 import copy
 import time
+import asyncio
 import discord
 from discord.ext import commands, tasks
 from itertools import combinations
@@ -74,6 +75,13 @@ ADMIN_CHANNEL_ID = 1492883720082952302
 ADMIN_BUTTON_CHANNEL_ID = 1519220264347373568
 PEAK_RATING_CHANNEL_ID = 1500892639338434580
 
+# OTP杯
+OTP_CATEGORY_ID = 1549775177921863710
+OTP_ADMIN_CHANNEL_ID = 1549775297321242624
+OTP_TEAM_SUMMARY_CHANNEL_ID = 1549775429991137420
+OTP_STAFF_MENTION = "<@1225788050894753865>"
+OTP_FORM_WEBHOOK_SECRET = os.getenv("OTP_FORM_WEBHOOK_SECRET", "")
+
 # ロビーVC（既存・削除しない）
 ROOM_LOBBY_VC = {
     "A": 1492082738679910515,
@@ -97,6 +105,14 @@ def get_dynamic_channels():
 
 def save_dynamic_channels(data):
     bot_state["dynamic_channels"] = data
+    save_bot_state(bot_state)
+
+
+def get_otp_teams():
+    return bot_state.setdefault("otp_teams", {})
+
+
+def save_otp_teams():
     save_bot_state(bot_state)
 
 
@@ -2630,6 +2646,160 @@ class CoinMenuView(discord.ui.View):
         view.add_item(select)
         await interaction.response.send_message("使用するチケットを選んでください", view=view, ephemeral=True)
 
+OTP_SLOT_LABELS = ["チームリーダー", "メンバー1", "メンバー2", "メンバー3"]
+
+
+def otp_player_block(label: str, player: dict) -> str:
+    if not player:
+        return f"【{label}】\nXP：未入力\nブキ：未入力\n補正％：未入力\n補正XP：未計算"
+    weapons = "、".join(player.get("weapons", [])) or "未入力"
+    return (
+        f"【{label}】\n"
+        f"XP：{player.get('xp', '未入力')}\n"
+        f"ブキ：{weapons}\n"
+        f"補正％：{player.get('top_weapon_rate', '未入力')}\n"
+        f"補正XP：{player.get('corrected_xp', '未計算')}"
+    )
+
+
+def otp_team_summary(team: dict) -> str:
+    players = team.get("players", {})
+    corrected = [p.get("corrected_xp") for p in players.values() if p.get("corrected_xp") is not None]
+    average = "計算待ち" if len(corrected) != 4 else f"{sum(corrected) / 4:.2f}"
+    lines = [
+        f"【チーム{team['number']}】",
+        f"チーム名：{team.get('team_name') or '未入力'}",
+        f"ステータス：{team.get('status', '未承認 ☑️')}",
+        f"補正XP平均：{average}",
+        "",
+        "【チームの一言】",
+        team.get("enthusiasm") or "未入力",
+        "",
+    ]
+    for index, label in enumerate(OTP_SLOT_LABELS):
+        lines.extend([otp_player_block(label, players.get(str(index))), ""])
+    return "\n".join(lines).strip()
+
+
+async def refresh_otp_team_messages(guild: discord.Guild, team: dict):
+    content = otp_team_summary(team)
+    for key in ("channel_message_id", "summary_message_id"):
+        channel_id = team.get("channel_id") if key == "channel_message_id" else OTP_TEAM_SUMMARY_CHANNEL_ID
+        message_id = team.get(key)
+        channel = guild.get_channel(channel_id)
+        if not channel or not message_id:
+            continue
+        try:
+            message = await channel.fetch_message(message_id)
+            await message.edit(content=content)
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            pass
+
+
+class OTPPlayerModal(discord.ui.Modal):
+    def __init__(self, team_key: str, slot: int):
+        super().__init__(title=f"{OTP_SLOT_LABELS[slot]}の情報")
+        self.team_key = team_key
+        self.slot = slot
+        self.xp = discord.ui.TextInput(label="最高XP", placeholder="数字だけ", required=True, max_length=10)
+        self.weapon1 = discord.ui.TextInput(label="使用率1位ブキ", required=True, max_length=100)
+        self.weapon2 = discord.ui.TextInput(label="使用率2位ブキ", required=True, max_length=100)
+        self.weapon3 = discord.ui.TextInput(label="使用率3位ブキ", required=True, max_length=100)
+        self.rate = discord.ui.TextInput(label="使用率1位ブキの使用率（%）", placeholder="数字だけ", required=True, max_length=10)
+        for field in (self.xp, self.weapon1, self.weapon2, self.weapon3, self.rate):
+            self.add_item(field)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            xp = float(str(self.xp.value).strip())
+            rate = float(str(self.rate.value).strip().replace("%", ""))
+            if xp < 0 or not 0 <= rate <= 100:
+                raise ValueError
+        except ValueError:
+            await interaction.response.send_message("最高XPは0以上、使用率は0〜100の数字で入力してください。", ephemeral=True)
+            return
+        team = get_otp_teams().get(self.team_key)
+        if not team:
+            await interaction.response.send_message("このチーム情報は見つかりません。", ephemeral=True)
+            return
+        corrected = xp - rate
+        team.setdefault("players", {})[str(self.slot)] = {
+            "xp": int(xp) if xp.is_integer() else xp,
+            "weapons": [str(self.weapon1.value).strip(), str(self.weapon2.value).strip(), str(self.weapon3.value).strip()],
+            "top_weapon_rate": int(rate) if rate.is_integer() else rate,
+            "corrected_xp": int(corrected) if corrected.is_integer() else corrected,
+        }
+        save_otp_teams()
+        await refresh_otp_team_messages(interaction.guild, team)
+        await interaction.response.send_message(f"{OTP_SLOT_LABELS[self.slot]}の情報を更新しました。", ephemeral=True)
+
+
+class OTPTeamInputView(discord.ui.View):
+    def __init__(self, team_key: str):
+        super().__init__(timeout=None)
+        self.team_key = team_key
+        for index, label in enumerate(OTP_SLOT_LABELS):
+            button = discord.ui.Button(label=label, style=discord.ButtonStyle.primary, custom_id=f"otp_player:{team_key}:{index}")
+            button.callback = self.make_callback(index)
+            self.add_item(button)
+
+    def make_callback(self, slot: int):
+        async def callback(interaction: discord.Interaction):
+            await interaction.response.send_modal(OTPPlayerModal(self.team_key, slot))
+        return callback
+
+
+async def create_otp_team_from_form(payload: dict):
+    category = bot.get_channel(OTP_CATEGORY_ID)
+    admin_channel = bot.get_channel(OTP_ADMIN_CHANNEL_ID)
+    summary_channel = bot.get_channel(OTP_TEAM_SUMMARY_CHANNEL_ID)
+    if not isinstance(category, discord.CategoryChannel) or not admin_channel or not summary_channel:
+        raise RuntimeError("OTP杯のカテゴリーまたは運営チャンネルが見つかりません。")
+    guild = category.guild
+    teams = get_otp_teams()
+    number = max((int(t.get("number", 0)) for t in teams.values()), default=0) + 1
+    team_key = str(number)
+    team_channel = await guild.create_text_channel(f"☑️チーム{number}", category=category, reason="OTP杯フォーム申請")
+    leader = payload.get("leader_name", "チームリーダー")
+    members = payload.get("member_names", ["メンバー1", "メンバー2", "メンバー3"])
+    team = {
+        "number": number, "channel_id": team_channel.id, "team_name": "", "status": "未承認 ☑️",
+        "leader_name": leader, "x_id": payload.get("x_id", ""), "member_names": members,
+        "enthusiasm": payload.get("enthusiasm", ""), "players": {},
+    }
+    teams[team_key] = team
+    intro = (
+        f"*{leader}*さん、申請ありがとうございます！\n\n"
+        "大会サポートについては、こちらをご確認ください。\n"
+        "https://c.nintendo.com/splatoon3-tournament/welcome?lang=ja-JP&redirect=%2Fsplatoon3-tournament%2F\n\n"
+        "① メンバー招待\nチームメンバー全員を、このDiscordサーバーへ招待してください。\n\n"
+        "② タイカイサポートにチーム登録\nスプラトゥーン3のタイカイサポートでチームを作成し、チームメンバー全員を登録してください。\n\n"
+        "③ プレイヤー情報入力\nチームメンバー4人それぞれが、自分に対応するボタンを押して情報を入力してください。\n"
+        f"・チームリーダー：{leader}\n・メンバー1：{members[0]}\n・メンバー2：{members[1]}\n・メンバー3：{members[2]}\n\n"
+        "入力する情報\n・最高XP\n・2026 Sizzle Seasonのブキ使用率上位3つ\n・使用率1位ブキの使用率（%）\n\n"
+        "補正XPは「最高XP − 使用率1位ブキの使用率」で自動計算します。\n\n"
+        f"④ 確認\n4人全員の入力が完了したら、運営（{OTP_STAFF_MENTION}）が内容を確認します。\n"
+        "確認が終わるまで、このチャンネルでお待ちください。\n\n大会までよろしくお願いします！"
+    )
+    await team_channel.send(intro, view=OTPTeamInputView(team_key))
+    channel_summary = await team_channel.send(otp_team_summary(team))
+    central_summary = await summary_channel.send(otp_team_summary(team))
+    team["channel_message_id"] = channel_summary.id
+    team["summary_message_id"] = central_summary.id
+    invite = await team_channel.create_invite(max_age=24 * 60 * 60, max_uses=0, unique=True, reason="OTP杯申請チームへの案内")
+    dm_copy = (
+        "大会参加申請ありがとうございます！\n"
+        "Discordサーバーへご案内しますので、以下の招待リンクから参加をお願いします。\n\n"
+        "この招待リンクは24時間で無効になります。お早めにご参加ください。\n\n"
+        f"サーバー参加後は「☑️チーム{number}」チャンネルに、申請から大会参加までの流れを記載しています。\n\n"
+        "大会までよろしくお願いします！\n\n"
+        f"招待リンク：\n{invite.url}"
+    )
+    await admin_channel.send(f"【大会申請】\n@{payload.get('x_id', '未入力')} から申請が届きました。\n\n以下をコピーして、XのDMで送ってください。\n\n{dm_copy}")
+    save_otp_teams()
+    return team
+
+
 class HomeView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -4525,6 +4695,8 @@ async def on_ready():
     bot.add_view(AdminButtonView_Badge())
     bot.add_view(AdminButtonView_Rate())
     bot.add_view(AdminButtonView_Bulk())
+    for team_key in get_otp_teams():
+        bot.add_view(OTPTeamInputView(team_key))
     daily_coin_distribution.start()
     for guild in bot.guilds:
         await post_admin_buttons(guild)  
@@ -5229,6 +5401,28 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 
 api = FastAPI()
+
+
+@api.post("/api/otp/form-submission")
+async def otp_form_submission(request: Request):
+    """Google Apps Script からのフォーム回答受信口。認証キー必須。"""
+    if not OTP_FORM_WEBHOOK_SECRET:
+        return JSONResponse(content={"error": "webhook is not configured"}, status_code=503)
+    payload = await request.json()
+    if payload.get("secret") != OTP_FORM_WEBHOOK_SECRET:
+        return JSONResponse(content={"error": "unauthorized"}, status_code=401)
+    if not bot.is_ready():
+        return JSONResponse(content={"error": "bot is not ready"}, status_code=503)
+    required = ("leader_name", "x_id", "member_names", "enthusiasm")
+    if not all(key in payload for key in required) or len(payload.get("member_names", [])) != 3:
+        return JSONResponse(content={"error": "invalid payload"}, status_code=400)
+    future = asyncio.run_coroutine_threadsafe(create_otp_team_from_form(payload), bot.loop)
+    try:
+        team = await asyncio.wrap_future(future)
+    except Exception as exc:
+        print(f"OTP杯フォーム処理エラー: {exc}")
+        return JSONResponse(content={"error": "failed to create team"}, status_code=500)
+    return JSONResponse(content={"success": True, "team_number": team["number"]})
 
 # =========================
 # 画像アップロード（バッジ・バナー用）
