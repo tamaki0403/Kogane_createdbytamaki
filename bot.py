@@ -54,6 +54,8 @@ bot_state = load_bot_state()
 # =========================
 OWNER_ID = 1225788050894753865
 BASE_CHANGE_GAIN = 1.20
+RECRUIT_NOTIFICATION_ROLE_ID = 1549685991969923183
+RECRUIT_COOLDOWN_SECONDS = 10 * 60
 
 # =========================
 # チャンネル設定
@@ -96,6 +98,30 @@ def get_dynamic_channels():
 def save_dynamic_channels(data):
     bot_state["dynamic_channels"] = data
     save_bot_state(bot_state)
+
+
+def get_recruit_notification_role(guild: discord.Guild):
+    """募集通知を受け取るためのオプトイン・ロールを返す。"""
+    return guild.get_role(RECRUIT_NOTIFICATION_ROLE_ID)
+
+
+def get_recruit_cooldowns():
+    return bot_state.setdefault("recruit_cooldowns", {})
+
+
+def get_recruit_cooldown_remaining(guild_id: int, user_id: int) -> int:
+    last_created_at = get_recruit_cooldowns().get(f"{guild_id}:{user_id}", 0)
+    return max(0, math.ceil(RECRUIT_COOLDOWN_SECONDS - (time.time() - last_created_at)))
+
+
+def record_recruit_creation(guild_id: int, user_id: int):
+    get_recruit_cooldowns()[f"{guild_id}:{user_id}"] = time.time()
+    save_bot_state(bot_state)
+
+
+def role_can_be_managed(guild: discord.Guild, role: discord.Role | None) -> bool:
+    me = guild.me
+    return bool(role and me and not role.managed and role < me.top_role)
 
 # =========================
 # 動的チャンネル作成・削除ヘルパー
@@ -987,7 +1013,7 @@ intents.members = True
 bot = commands.Bot(
 command_prefix="!",
 intents=intents,
-allowed_mentions=discord.AllowedMentions(everyone=True)
+allowed_mentions=discord.AllowedMentions(everyone=False, roles=False, users=True)
 )
 
 
@@ -1676,10 +1702,28 @@ async def finalize_recruit_creation(interaction: discord.Interaction, plave_cont
         await interaction.response.send_message("募集チャンネルが見つかりません", ephemeral=True)
         return
 
+    cooldown_remaining = get_recruit_cooldown_remaining(interaction.guild.id, interaction.user.id)
+    if cooldown_remaining:
+        minutes, seconds = divmod(cooldown_remaining, 60)
+        wait_text = f"{minutes}分{seconds}秒" if minutes else f"{seconds}秒"
+        await interaction.response.send_message(
+            f"募集は10分に1回までです。あと{wait_text}待ってから作成してください。",
+            ephemeral=True,
+        )
+        return
+
+    notification_role = get_recruit_notification_role(interaction.guild)
+    if notification_role is None:
+        await interaction.response.send_message("募集通知ロールが見つかりません。運営に連絡してください。", ephemeral=True)
+        return
+
     stage_text = "一部除外" if excluded_stages else "除外なし"
     lost_text = "ロスト制あり" if lost_enabled else ""
 
-    await recruit_channel.send("@everyone")
+    await recruit_channel.send(
+        notification_role.mention,
+        allowed_mentions=discord.AllowedMentions(roles=[notification_role]),
+    )
 
     lines = [
         f"【募集】参加する場合は下のボタンをおしてください！",
@@ -1701,6 +1745,7 @@ async def finalize_recruit_creation(interaction: discord.Interaction, plave_cont
     view = RecruitView()
 
     msg = await recruit_channel.send(content, view=view)
+    record_recruit_creation(interaction.guild.id, interaction.user.id)
 
     active_recruits[msg.id] = {
         "joined_players": [],
@@ -2639,6 +2684,33 @@ class HomeView(discord.ui.View):
             ephemeral=True
         )
 
+    @discord.ui.button(label="募集通知ON/OFF", style=discord.ButtonStyle.primary,
+                       custom_id="home_recruit_notifications", row=1)
+    async def recruit_notifications_button(self, interaction: discord.Interaction, button):
+        role = get_recruit_notification_role(interaction.guild)
+        if role is None:
+            await interaction.response.send_message("募集通知ロールが見つかりません。運営に連絡してください。", ephemeral=True)
+            return
+        if not role_can_be_managed(interaction.guild, role):
+            await interaction.response.send_message(
+                "募集通知ロールを操作できません。Botに「ロールの管理」権限を与え、Botのロールを対象ロールより上に置いてください。",
+                ephemeral=True,
+            )
+            return
+
+        try:
+            if role in interaction.user.roles:
+                await interaction.user.remove_roles(role, reason="募集通知を本人がOFFにしたため")
+                message = "募集通知をOFFにしました。"
+            else:
+                await interaction.user.add_roles(role, reason="募集通知を本人がONにしたため")
+                message = "募集通知をONにしました。新しい募集が投稿されると通知されます。"
+        except discord.Forbidden:
+            message = "ロールを操作できません。Botの権限とロールの上下関係を確認してください。"
+        except discord.HTTPException:
+            message = "ロールの更新に失敗しました。少し待ってからもう一度試してください。"
+        await interaction.response.send_message(message, ephemeral=True)
+
 class AdminConfirmView(discord.ui.View):
     """管理者ボタン用の確認ダイアログ"""
     def __init__(self, action_label: str, callback):
@@ -3003,6 +3075,50 @@ class AdminButtonView_Bulk(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
+    @discord.ui.button(label="募集通知ロールを全員に付与", style=discord.ButtonStyle.danger,
+                       custom_id="admin_recruit_notification_role_grant")
+    async def grant_recruit_notification_role_button(self, interaction: discord.Interaction, button):
+        if interaction.user.id != OWNER_ID:
+            await interaction.response.send_message("管理者専用です", ephemeral=True)
+            return
+
+        role = get_recruit_notification_role(interaction.guild)
+        if role is None:
+            await interaction.response.send_message("募集通知ロールが見つかりません。", ephemeral=True)
+            return
+        if not role_can_be_managed(interaction.guild, role):
+            await interaction.response.send_message(
+                "Botに「ロールの管理」権限を与え、Botのロールを募集通知ロールより上に置いてください。",
+                ephemeral=True,
+            )
+            return
+
+        async def do_action(i):
+            members = await get_human_members(i.guild)
+            added = 0
+            already_assigned = 0
+            failed = 0
+            for member in members:
+                if role in member.roles:
+                    already_assigned += 1
+                    continue
+                try:
+                    await member.add_roles(role, reason="運営による募集通知ロールの初回一括付与")
+                    added += 1
+                except (discord.Forbidden, discord.HTTPException):
+                    failed += 1
+
+            result = f"募集通知ロールを {added}人に付与しました（すでに所持: {already_assigned}人）"
+            if failed:
+                result += f"。{failed}人は付与できませんでした"
+            await i.followup.send(result, ephemeral=True)
+
+        await interaction.response.send_message(
+            "現在いるBot以外の全メンバーへ募集通知ロールを付与します。各自はホームから後で通知をOFFにできます。実行しますか？",
+            view=AdminConfirmView("募集通知ロールを全員に付与", do_action),
+            ephemeral=True,
+        )
+
     @discord.ui.button(label="運営一括", style=discord.ButtonStyle.secondary, custom_id="admin_bulk")
     async def bulk_button(self, interaction: discord.Interaction, button):
         if interaction.user.id != OWNER_ID:
@@ -3356,7 +3472,8 @@ async def post_home_message(guild):
         "・プレイヤー登録：武器・最高XPを登録します\n"
         "・バッジ設定：表示バッジを変更します\n"
         "・コイン：コインの確認・ガチャ・チケット操作ができます\n"
-        "・雑学投稿：ガチャに表示される雑学を投稿できます"
+        "・雑学投稿：ガチャに表示される雑学を投稿できます\n"
+        "・募集通知ON/OFF：新しい募集の通知を受け取るか設定できます"
     )
 
     guild_key = str(guild.id)
