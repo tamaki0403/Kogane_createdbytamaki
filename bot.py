@@ -2749,6 +2749,90 @@ class OTPTeamInputView(discord.ui.View):
         return callback
 
 
+class OTPStatusSelect(discord.ui.Select):
+    def __init__(self, team_key: str, team_name: str):
+        options = [
+            discord.SelectOption(label="未承認 ☑️", value="未承認 ☑️"),
+            discord.SelectOption(label="承認 ✅", value="承認 ✅"),
+            discord.SelectOption(label="棄権 ❌", value="棄権 ❌"),
+        ]
+        super().__init__(placeholder="ステータスを選択", options=options, min_values=1, max_values=1)
+        self.team_key = team_key
+        self.team_name = team_name
+
+    async def callback(self, interaction: discord.Interaction):
+        if interaction.user.id != OWNER_ID:
+            await interaction.response.send_message("この操作は運営のみ実行できます。", ephemeral=True)
+            return
+        team = get_otp_teams().get(self.team_key)
+        if not team:
+            await interaction.response.send_message("チームが見つかりません。", ephemeral=True)
+            return
+        team["team_name"] = self.team_name
+        team["status"] = self.values[0]
+        save_otp_teams()
+        await refresh_otp_team_messages(interaction.guild, team)
+        await interaction.response.edit_message(
+            content=f"チーム{team['number']}を「{self.team_name}」として、ステータスを「{team['status']}」に更新しました。",
+            view=None,
+        )
+
+
+class OTPStatusSelectView(discord.ui.View):
+    def __init__(self, team_key: str, team_name: str):
+        super().__init__(timeout=120)
+        self.add_item(OTPStatusSelect(team_key, team_name))
+
+
+class OTPTeamManagementModal(discord.ui.Modal, title="チーム情報を更新"):
+    team_number = discord.ui.TextInput(label="チーム番号", placeholder="例：1", required=True, max_length=6)
+    team_name = discord.ui.TextInput(label="チーム名", placeholder="例：Kogane", required=True, max_length=100)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        if interaction.user.id != OWNER_ID:
+            await interaction.response.send_message("この操作は運営のみ実行できます。", ephemeral=True)
+            return
+        team_key = str(self.team_number.value).strip()
+        team = get_otp_teams().get(team_key)
+        if not team:
+            await interaction.response.send_message(f"チーム{team_key}は見つかりません。", ephemeral=True)
+            return
+        await interaction.response.send_message(
+            f"チーム{team['number']}「{self.team_name.value.strip()}」のステータスを選んでください。",
+            view=OTPStatusSelectView(team_key, self.team_name.value.strip()),
+            ephemeral=True,
+        )
+
+
+class OTPAdminControlView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="チーム情報を更新", style=discord.ButtonStyle.success, custom_id="otp_admin_team_update")
+    async def update_team(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != OWNER_ID:
+            await interaction.response.send_message("この操作は運営のみ実行できます。", ephemeral=True)
+            return
+        await interaction.response.send_modal(OTPTeamManagementModal())
+
+
+async def ensure_otp_admin_control(guild: discord.Guild):
+    """大会運営チャンネルに管理ボタンを1つだけ維持する。"""
+    channel = guild.get_channel(OTP_ADMIN_CHANNEL_ID)
+    if not channel:
+        return
+    message_id = bot_state.get("otp_admin_control_message_id")
+    if message_id:
+        try:
+            await channel.fetch_message(message_id)
+            return
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            pass
+    message = await channel.send("【OTP杯・運営操作】\nチーム名とステータスを更新します。", view=OTPAdminControlView())
+    bot_state["otp_admin_control_message_id"] = message.id
+    save_bot_state(bot_state)
+
+
 async def create_otp_team_from_form(payload: dict):
     category = bot.get_channel(OTP_CATEGORY_ID)
     admin_channel = bot.get_channel(OTP_ADMIN_CHANNEL_ID)
@@ -4695,11 +4779,13 @@ async def on_ready():
     bot.add_view(AdminButtonView_Badge())
     bot.add_view(AdminButtonView_Rate())
     bot.add_view(AdminButtonView_Bulk())
+    bot.add_view(OTPAdminControlView())
     for team_key in get_otp_teams():
         bot.add_view(OTPTeamInputView(team_key))
     daily_coin_distribution.start()
     for guild in bot.guilds:
-        await post_admin_buttons(guild)  
+        await post_admin_buttons(guild)
+        await ensure_otp_admin_control(guild)
 
 @tasks.loop(time=discord.utils.utcnow().replace(hour=10, minute=0, second=0, microsecond=0).timetz())
 async def daily_coin_distribution():
