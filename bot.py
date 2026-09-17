@@ -2836,7 +2836,7 @@ class OTPStatusSelect(discord.ui.Select):
         if team_channel:
             emoji = OTP_STATUS_CHANNEL_EMOJIS.get(team["status"], "☑️")
             try:
-                await team_channel.edit(name=f"{emoji}チーム{team['number']}", reason="OTP杯チームのステータス更新")
+                await team_channel.edit(name=f"{emoji}{self.team_name}", reason="OTP杯チームのステータス更新")
             except (discord.Forbidden, discord.HTTPException):
                 pass
         await refresh_otp_team_messages(interaction.guild, team)
