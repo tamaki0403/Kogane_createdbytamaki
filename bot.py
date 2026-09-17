@@ -2713,6 +2713,44 @@ async def remove_otp_team_channel_summaries(guild: discord.Guild):
         save_otp_teams()
 
 
+def otp_team_intro(team: dict) -> str:
+    leader = team.get("leader_name", "チームリーダー")
+    members = team.get("member_names", ["メンバー1", "メンバー2", "メンバー3"])
+    return (
+        f"*{leader}*さん、申請ありがとうございます！\n\n"
+        "① メンバー招待\nチームメンバー全員を、このDiscordサーバーへ招待してください。\n\n"
+        "② サマリー提出\nサマリーは動画で提出してください。\n\n"
+        "③ プレイヤー情報入力\nチームメンバー4人それぞれが、自分に対応するボタンを押して情報を入力してください。\n"
+        f"・チームリーダー：{leader}\n・メンバー1：{members[0]}\n・メンバー2：{members[1]}\n・メンバー3：{members[2]}\n\n"
+        "入力する情報\n・最高XP\n・2026 Sizzle Seasonのブキ使用率上位3つ\n・使用率1位ブキの使用率（%）\n\n"
+        "補正XPは「最高XP − 使用率1位ブキの使用率」で自動計算します。\n\n"
+        f"④ 確認\n4人全員の入力が完了したら、運営（{OTP_STAFF_MENTION}）が内容を確認します。\n"
+        "確認が終わるまで、このチャンネルでお待ちください。\n\n大会までよろしくお願いします！"
+    )
+
+
+async def update_otp_team_intros(guild: discord.Guild):
+    """既存チームの案内文も最新の内容へ統一する。"""
+    for team in get_otp_teams().values():
+        channel = guild.get_channel(team.get("channel_id"))
+        if not channel:
+            continue
+        message_id = team.get("intro_message_id")
+        try:
+            if message_id:
+                message = await channel.fetch_message(message_id)
+                await message.edit(content=otp_team_intro(team))
+                continue
+            async for message in channel.history(limit=50):
+                if message.author.id == bot.user.id and "申請ありがとうございます！" in (message.content or ""):
+                    await message.edit(content=otp_team_intro(team))
+                    team["intro_message_id"] = message.id
+                    save_otp_teams()
+                    break
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            pass
+
+
 class OTPPlayerModal(discord.ui.Modal):
     def __init__(self, team_key: str, slot: int):
         super().__init__(title=f"{OTP_SLOT_LABELS[slot]}の情報")
@@ -2869,20 +2907,8 @@ async def create_otp_team_from_form(payload: dict):
         "enthusiasm": payload.get("enthusiasm", ""), "players": {},
     }
     teams[team_key] = team
-    intro = (
-        f"*{leader}*さん、申請ありがとうございます！\n\n"
-        "大会サポートについては、こちらをご確認ください。\n"
-        "https://c.nintendo.com/splatoon3-tournament/welcome?lang=ja-JP&redirect=%2Fsplatoon3-tournament%2F\n\n"
-        "① メンバー招待\nチームメンバー全員を、このDiscordサーバーへ招待してください。\n\n"
-        "② タイカイサポートにチーム登録\nスプラトゥーン3のタイカイサポートでチームを作成し、チームメンバー全員を登録してください。\n\n"
-        "③ プレイヤー情報入力\nチームメンバー4人それぞれが、自分に対応するボタンを押して情報を入力してください。\n"
-        f"・チームリーダー：{leader}\n・メンバー1：{members[0]}\n・メンバー2：{members[1]}\n・メンバー3：{members[2]}\n\n"
-        "入力する情報\n・最高XP\n・2026 Sizzle Seasonのブキ使用率上位3つ\n・使用率1位ブキの使用率（%）\n\n"
-        "補正XPは「最高XP − 使用率1位ブキの使用率」で自動計算します。\n\n"
-        f"④ 確認\n4人全員の入力が完了したら、運営（{OTP_STAFF_MENTION}）が内容を確認します。\n"
-        "確認が終わるまで、このチャンネルでお待ちください。\n\n大会までよろしくお願いします！"
-    )
-    await team_channel.send(intro, view=OTPTeamInputView(team_key))
+    intro_message = await team_channel.send(otp_team_intro(team), view=OTPTeamInputView(team_key))
+    team["intro_message_id"] = intro_message.id
     central_summary = await summary_channel.send(otp_team_summary(team))
     team["summary_message_id"] = central_summary.id
     invite = await team_channel.create_invite(max_age=24 * 60 * 60, max_uses=0, unique=True, reason="OTP杯申請チームへの案内")
@@ -4804,6 +4830,7 @@ async def on_ready():
     daily_coin_distribution.start()
     for guild in bot.guilds:
         await remove_otp_team_channel_summaries(guild)
+        await update_otp_team_intros(guild)
         await post_admin_buttons(guild)
         await ensure_otp_admin_control(guild)
 
