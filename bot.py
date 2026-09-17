@@ -79,6 +79,7 @@ PEAK_RATING_CHANNEL_ID = 1500892639338434580
 OTP_CATEGORY_ID = 1549775177921863710
 OTP_ADMIN_CHANNEL_ID = 1549775297321242624
 OTP_TEAM_SUMMARY_CHANNEL_ID = 1549775429991137420
+OTP_TEAM_APPROVAL_CHANNEL_ID = 1550008154904072234
 OTP_STAFF_MENTION = "<@1225788050894753865>"
 OTP_FORM_WEBHOOK_SECRET = os.getenv("OTP_FORM_WEBHOOK_SECRET", "")
 
@@ -2872,19 +2873,29 @@ class OTPAdminControlView(discord.ui.View):
 
 
 async def ensure_otp_admin_control(guild: discord.Guild):
-    """大会運営チャンネルに管理ボタンを1つだけ維持する。"""
-    channel = guild.get_channel(OTP_ADMIN_CHANNEL_ID)
+    """チーム承認用チャンネルに管理ボタンを1つだけ維持する。"""
+    channel = guild.get_channel(OTP_TEAM_APPROVAL_CHANNEL_ID)
     if not channel:
         return
     message_id = bot_state.get("otp_admin_control_message_id")
-    if message_id:
+    message_channel_id = bot_state.get("otp_admin_control_channel_id", OTP_ADMIN_CHANNEL_ID)
+    if message_id and message_channel_id == OTP_TEAM_APPROVAL_CHANNEL_ID:
         try:
             await channel.fetch_message(message_id)
             return
         except (discord.NotFound, discord.Forbidden, discord.HTTPException):
             pass
+    if message_id and message_channel_id != OTP_TEAM_APPROVAL_CHANNEL_ID:
+        old_channel = guild.get_channel(message_channel_id)
+        if old_channel:
+            try:
+                old_message = await old_channel.fetch_message(message_id)
+                await old_message.delete()
+            except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+                pass
     message = await channel.send("【OTP杯・運営操作】\nチーム名とステータスを更新します。", view=OTPAdminControlView())
     bot_state["otp_admin_control_message_id"] = message.id
+    bot_state["otp_admin_control_channel_id"] = channel.id
     save_bot_state(bot_state)
 
 
