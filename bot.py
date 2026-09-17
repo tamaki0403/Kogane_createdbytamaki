@@ -2658,14 +2658,11 @@ OTP_STATUS_CHANNEL_EMOJIS = {
 def otp_player_block(label: str, player: dict, name: str, circle: str) -> str:
     player = player or {}
     weapons = "、".join(player.get("weapons", [])) or "未入力"
+    rate = player.get("top_weapon_rate")
+    rate_text = f"{rate}%" if rate is not None else "未入力"
     return (
-        f"【{label}】\n"
-        f"名前：{name or '未入力'}\n"
-        f"所属サークル：{circle or '未入力'}\n"
-        f"XP：{player.get('xp', '未入力')}\n"
-        f"ブキ：{weapons}\n"
-        f"補正％：{player.get('top_weapon_rate', '未入力')}\n"
-        f"補正XP：{player.get('corrected_xp', '未計算')}"
+        f"{label}｜{name or '未入力'}（{circle or '未入力'}）\n"
+        f"XP {player.get('xp', '未入力')}｜{weapons}｜補正 {rate_text}｜補正XP {player.get('corrected_xp', '未計算')}"
     )
 
 
@@ -2678,16 +2675,13 @@ def otp_team_summary(team: dict) -> str:
     corrected = [p.get("corrected_xp") for p in players.values() if p.get("corrected_xp") is not None]
     average = "計算待ち" if len(corrected) != 4 else f"{sum(corrected) / 4:.2f}"
     lines = [
-        f"【チーム{team['number']}】",
-        f"チーム名：{team.get('team_name') or '未入力'}",
-        f"ステータス：{team.get('status', '未承認 ☑️')}",
-        f"補正XP平均：{average}",
-        "",
-        "【チームの一言】",
-        team.get("enthusiasm") or "未入力",
+        f"【チーム{team['number']}｜{team.get('team_name') or '未入力'}】",
+        f"{team.get('status', '未承認 ☑️')}｜補正XP平均：{average}",
+        f"一言：{team.get('enthusiasm') or '未入力'}",
         "",
     ]
-    for index, label in enumerate(OTP_SLOT_LABELS):
+    summary_labels = ["リーダー", "メンバー1", "メンバー2", "メンバー3"]
+    for index, label in enumerate(summary_labels):
         lines.extend([otp_player_block(label, players.get(str(index)), player_names[index], player_circles[index]), ""])
     return "\n".join(lines).strip()
 
