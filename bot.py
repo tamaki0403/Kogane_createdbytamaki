@@ -2655,12 +2655,13 @@ OTP_STATUS_CHANNEL_EMOJIS = {
 }
 
 
-def otp_player_block(label: str, player: dict) -> str:
-    if not player:
-        return f"【{label}】\nXP：未入力\nブキ：未入力\n補正％：未入力\n補正XP：未計算"
+def otp_player_block(label: str, player: dict, name: str, circle: str) -> str:
+    player = player or {}
     weapons = "、".join(player.get("weapons", [])) or "未入力"
     return (
         f"【{label}】\n"
+        f"名前：{name or '未入力'}\n"
+        f"所属サークル：{circle or '未入力'}\n"
         f"XP：{player.get('xp', '未入力')}\n"
         f"ブキ：{weapons}\n"
         f"補正％：{player.get('top_weapon_rate', '未入力')}\n"
@@ -2670,6 +2671,10 @@ def otp_player_block(label: str, player: dict) -> str:
 
 def otp_team_summary(team: dict) -> str:
     players = team.get("players", {})
+    member_names = (team.get("member_names", []) + ["未入力"] * 3)[:3]
+    member_circles = (team.get("member_circles", []) + ["未入力"] * 3)[:3]
+    player_names = [team.get("leader_name", "未入力"), *member_names]
+    player_circles = [team.get("leader_circle", "未入力"), *member_circles]
     corrected = [p.get("corrected_xp") for p in players.values() if p.get("corrected_xp") is not None]
     average = "計算待ち" if len(corrected) != 4 else f"{sum(corrected) / 4:.2f}"
     lines = [
@@ -2683,7 +2688,7 @@ def otp_team_summary(team: dict) -> str:
         "",
     ]
     for index, label in enumerate(OTP_SLOT_LABELS):
-        lines.extend([otp_player_block(label, players.get(str(index))), ""])
+        lines.extend([otp_player_block(label, players.get(str(index)), player_names[index], player_circles[index]), ""])
     return "\n".join(lines).strip()
 
 
@@ -2924,9 +2929,11 @@ async def create_otp_team_from_form(payload: dict):
     team_channel = await guild.create_text_channel(f"☑️チーム{number}", category=category, reason="OTP杯フォーム申請")
     leader = payload.get("leader_name", "チームリーダー")
     members = payload.get("member_names", ["メンバー1", "メンバー2", "メンバー3"])
+    member_circles = payload.get("member_circles", ["", "", ""])
     team = {
         "number": number, "channel_id": team_channel.id, "team_name": "", "status": "未承認 ☑️",
-        "leader_name": leader, "x_id": payload.get("x_id", ""), "member_names": members,
+        "leader_name": leader, "leader_circle": payload.get("leader_circle", ""), "x_id": payload.get("x_id", ""),
+        "member_names": members, "member_circles": member_circles,
         "enthusiasm": payload.get("enthusiasm", ""), "players": {},
     }
     teams[team_key] = team
