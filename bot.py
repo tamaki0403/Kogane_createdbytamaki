@@ -2648,6 +2648,11 @@ class CoinMenuView(discord.ui.View):
         await interaction.response.send_message("使用するチケットを選んでください", view=view, ephemeral=True)
 
 OTP_SLOT_LABELS = ["チームリーダー", "メンバー1", "メンバー2", "メンバー3"]
+OTP_STATUS_CHANNEL_EMOJIS = {
+    "未承認 ☑️": "☑️",
+    "承認 ✅": "✅",
+    "棄権 ❌": "❌",
+}
 
 
 def otp_player_block(label: str, player: dict) -> str:
@@ -2827,6 +2832,13 @@ class OTPStatusSelect(discord.ui.Select):
         team["team_name"] = self.team_name
         team["status"] = self.values[0]
         save_otp_teams()
+        team_channel = interaction.guild.get_channel(team.get("channel_id"))
+        if team_channel:
+            emoji = OTP_STATUS_CHANNEL_EMOJIS.get(team["status"], "☑️")
+            try:
+                await team_channel.edit(name=f"{emoji}チーム{team['number']}", reason="OTP杯チームのステータス更新")
+            except (discord.Forbidden, discord.HTTPException):
+                pass
         await refresh_otp_team_messages(interaction.guild, team)
         await interaction.response.edit_message(
             content=f"チーム{team['number']}を「{self.team_name}」として、ステータスを「{team['status']}」に更新しました。",
