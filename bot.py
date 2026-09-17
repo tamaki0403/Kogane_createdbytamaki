@@ -2683,17 +2683,34 @@ def otp_team_summary(team: dict) -> str:
 
 async def refresh_otp_team_messages(guild: discord.Guild, team: dict):
     content = otp_team_summary(team)
-    for key in ("channel_message_id", "summary_message_id"):
-        channel_id = team.get("channel_id") if key == "channel_message_id" else OTP_TEAM_SUMMARY_CHANNEL_ID
-        message_id = team.get(key)
-        channel = guild.get_channel(channel_id)
-        if not channel or not message_id:
-            continue
-        try:
-            message = await channel.fetch_message(message_id)
-            await message.edit(content=content)
-        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
-            pass
+    message_id = team.get("summary_message_id")
+    channel = guild.get_channel(OTP_TEAM_SUMMARY_CHANNEL_ID)
+    if not channel or not message_id:
+        return
+    try:
+        message = await channel.fetch_message(message_id)
+        await message.edit(content=content)
+    except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+        pass
+
+
+async def remove_otp_team_channel_summaries(guild: discord.Guild):
+    """旧仕様で作成したチーム個別チャンネル内の情報サマリーだけを削除する。"""
+    changed = False
+    for team in get_otp_teams().values():
+        message_id = team.get("channel_message_id")
+        channel = guild.get_channel(team.get("channel_id"))
+        if message_id and channel:
+            try:
+                message = await channel.fetch_message(message_id)
+                await message.delete()
+            except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+                pass
+        if "channel_message_id" in team:
+            team.pop("channel_message_id", None)
+            changed = True
+    if changed:
+        save_otp_teams()
 
 
 class OTPPlayerModal(discord.ui.Modal):
@@ -2866,9 +2883,7 @@ async def create_otp_team_from_form(payload: dict):
         "確認が終わるまで、このチャンネルでお待ちください。\n\n大会までよろしくお願いします！"
     )
     await team_channel.send(intro, view=OTPTeamInputView(team_key))
-    channel_summary = await team_channel.send(otp_team_summary(team))
     central_summary = await summary_channel.send(otp_team_summary(team))
-    team["channel_message_id"] = channel_summary.id
     team["summary_message_id"] = central_summary.id
     invite = await team_channel.create_invite(max_age=24 * 60 * 60, max_uses=0, unique=True, reason="OTP杯申請チームへの案内")
     dm_copy = (
@@ -2879,7 +2894,11 @@ async def create_otp_team_from_form(payload: dict):
         "大会までよろしくお願いします！\n\n"
         f"招待リンク：\n{invite.url}"
     )
-    await admin_channel.send(f"【大会申請】\n@{payload.get('x_id', '未入力')} から申請が届きました。\n\n以下をコピーして、XのDMで送ってください。\n\n{dm_copy}")
+    await admin_channel.send(
+        f"【大会申請】\n@{payload.get('x_id', '未入力')} から申請が届きました。\n\n"
+        "次のメッセージだけをコピーして、XのDMで送ってください。"
+    )
+    await admin_channel.send(dm_copy)
     save_otp_teams()
     return team
 
@@ -4784,6 +4803,7 @@ async def on_ready():
         bot.add_view(OTPTeamInputView(team_key))
     daily_coin_distribution.start()
     for guild in bot.guilds:
+        await remove_otp_team_channel_summaries(guild)
         await post_admin_buttons(guild)
         await ensure_otp_admin_control(guild)
 
