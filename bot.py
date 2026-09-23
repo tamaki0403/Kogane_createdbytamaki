@@ -172,11 +172,6 @@ async def create_room_channels(guild, room_key: str, participant_ids: list = Non
         topic=f"{room_key}部屋の試合進行チャンネル",
         overwrites=overwrites
     )
-    rate_log_ch = await guild.create_text_channel(
-        name=f"レート更新-部屋{room_key}",
-        category=category,
-        overwrites=overwrites
-    )
     alpha_vc = await guild.create_voice_channel(
         name=f"アルファ-部屋{room_key}",
         category=category,
@@ -190,12 +185,11 @@ async def create_room_channels(guild, room_key: str, participant_ids: list = Non
 
     dc[f"room_{room_key}"] = {
         "progress": progress_ch.id,
-        "rate_log": rate_log_ch.id,
         "alpha_vc": alpha_vc.id,
         "bravo_vc": bravo_vc.id,
     }
     save_dynamic_channels(dc)
-    return progress_ch, rate_log_ch, alpha_vc, bravo_vc
+    return progress_ch, None, alpha_vc, bravo_vc
 
 
 async def delete_room_channels(guild, room_key: str):
@@ -512,6 +506,74 @@ def get_user_rank(user_id: int):
             return rank
         prev_rate = rate
     return None
+
+
+def build_private_rating_text(user_id: int, recent_limit: int = 5):
+    """本人だけに返す現在レートと直近試合の表示を組み立てる。"""
+    uid = str(user_id)
+    current = get_user_rating(uid)
+    peak = get_peak_rating(user_id)
+    rank = get_user_rank(user_id)
+    total = len(ratings)
+
+    rank_text = f"{rank}位 / {total}人" if rank is not None else "記録なし"
+    lines = [
+        "# あなたのレート情報",
+        "",
+        f"現在レート：{current:,}",
+        f"最高レート：{int(round(peak)):,}",
+        f"現在順位：{rank_text}",
+        "",
+        f"## 直近{recent_limit}試合のレート推移",
+    ]
+
+    recent_matches = []
+    for match in reversed(load_match_history()):
+        alpha = match.get("alpha", [])
+        bravo = match.get("bravo", [])
+        if uid not in alpha and uid not in bravo:
+            continue
+
+        after = match.get("ratings_after", {}).get(uid)
+        if after is None:
+            continue
+
+        my_team = "alpha" if uid in alpha else "bravo"
+        result = "勝利" if match.get("winner") == my_team else "敗北"
+        before = match.get("ratings_before", {}).get(uid)
+        change = match.get("rating_changes", {}).get(uid)
+        detail = match.get("rating_details", {}).get(uid, {})
+        recent_matches.append({
+            "result": result,
+            "stage": match.get("stage") or "ステージ不明",
+            "before": before,
+            "after": after,
+            "change": change,
+            "ticket_label": detail.get("ticket_label"),
+        })
+        if len(recent_matches) >= recent_limit:
+            break
+
+    if not recent_matches:
+        lines.extend(["", "試合記録がありません。"])
+    else:
+        for item in recent_matches:
+            lines.extend(["", f"{item['result']}｜{item['stage']}"])
+            before = item["before"]
+            after = int(round(item["after"]))
+            change = item["change"]
+            if before is None or change is None:
+                lines.append(f"試合後レート：{after:,}（過去データのため増減記録なし）")
+            else:
+                before = int(round(before))
+                change = int(round(change))
+                sign = "+" if change >= 0 else ""
+                lines.append(f"{before:,} → {after:,}（{sign}{change}）")
+            if item["ticket_label"]:
+                lines.append(f"適用効果：{item['ticket_label']}")
+
+    lines.extend(["", "この内容は、あなたにだけ表示されています。"])
+    return "\n".join(lines)
 
 
 # =========================
@@ -995,7 +1057,7 @@ async def apply_gacha_result(guild, user_id: int, item):
             [f"・{m.display_name}（レート +10）" for m in selected]
         )
 
-        text = (
+        admin_text = (
             f"# 【領域展開「坐殺博徒」】\n\n"
             f"{drawer.display_name} ……！正に……豪運……！！\n\n"
             f"# <:Tobuze:1494883064806113430>「漲る呪力（ボーナス）でトぶぜ」\n\n"
@@ -1004,10 +1066,23 @@ async def apply_gacha_result(guild, user_id: int, item):
             f"▼対象\n" + "\n".join(target_lines)
         )
 
+        public_text = (
+            f"# 【領域展開「坐殺博徒」】\n\n"
+            f"{drawer.display_name} ……！正に……豪運……！！\n\n"
+            "特別報酬が発生しました。報酬内容は本人のみ確認できます。"
+        )
+
+        admin_channel = get_admin_channel(guild)
+        if admin_channel:
+            try:
+                await admin_channel.send(admin_text)
+            except Exception:
+                pass
+
         home_channel = guild.get_channel(HOME_CHANNEL_ID)
         if home_channel:
             try:
-                await home_channel.send(text, delete_after=20)
+                await home_channel.send(public_text, delete_after=20)
             except Exception:
                 pass
 
@@ -1015,7 +1090,7 @@ async def apply_gacha_result(guild, user_id: int, item):
             channel = get_progress_channel(guild, room_key)
             if channel:
                 try:
-                    await channel.send(text)
+                    await channel.send(public_text)
                 except Exception:
                     pass
 
@@ -1064,6 +1139,7 @@ def create_room_state():
         "last_rating_changes": None,
         "last_rating_detail": None,
         "last_profile_snapshots": None,
+        "last_match_timestamp": None,
         "control_message": None,
         "disconnect_vote_message": None,
         "session_start_ratings": {},
@@ -1103,6 +1179,7 @@ def reset_room_state(room_state):
     room_state["last_rating_changes"] = None
     room_state["last_rating_detail"] = None
     room_state["last_profile_snapshots"] = None
+    room_state["last_match_timestamp"] = None
     room_state["control_message"] = None
     room_state["disconnect_vote_message"] = None
     room_state["recruit_roles"] = {}
@@ -1162,43 +1239,8 @@ def get_top5_peak_ratings(guild):
     return result[:5]
 
 async def post_peak_ranking(guild):
-    channel = get_peak_rating_channel(guild)
-    if channel is None:
-        return
-
-    top5 = get_top5_peak_ratings(guild)
-    if not top5:
-        return
-
-    lines = ["# 【歴代最高レート TOP5】", ""]
-    for i, (peak, member) in enumerate(top5):
-        badge_text = get_current_badge_text(member)
-        name = member.display_name
-        if badge_text:
-            display = f"{name} {badge_text}"
-        else:
-            display = name
-        lines.append(f"## #{i + 1} {display} - {peak}")
-
-    content = "\n".join(lines)
-
-    guild_key = str(guild.id)
-    saved_ids = bot_state.get("peak_rating_message_ids", {})
-    saved_message_id = saved_ids.get(guild_key)
-
-    if saved_message_id:
-        try:
-            msg = await channel.fetch_message(saved_message_id)
-            await msg.edit(content=content)
-            return
-        except Exception:
-            pass
-
-    msg = await channel.send(content)
-    if "peak_rating_message_ids" not in bot_state:
-        bot_state["peak_rating_message_ids"] = {}
-    bot_state["peak_rating_message_ids"][guild_key] = msg.id
-    save_bot_state(bot_state)
+    # 最高レートの公開表示はWebに集約する。
+    return
 
 async def check_and_update_peak_ranking(guild, user_ids: list):
     changed = False
@@ -1491,20 +1533,15 @@ def create_ready_text(room_state):
     team_alpha, team_bravo = room_state["prepared_match"]
     mention_list = " ".join(u.mention for u in room_state["joined_players"])
 
-    def team_line(team):
-        average = calc_team_avg(team)
-        names = " ".join(build_player_display(u) for u in team)
-        return average, names
-
-    alpha_avg, alpha_names = team_line(team_alpha)
-    bravo_avg, bravo_names = team_line(team_bravo)
+    alpha_names = " ".join(build_player_display(u) for u in team_alpha)
+    bravo_names = " ".join(build_player_display(u) for u in team_bravo)
 
     lines = [
         "【チーム分け完了】",
         mention_list,
         "",
-        f"アルファ（平均 {alpha_avg}）: {alpha_names}",
-        f"ブラボー（平均 {bravo_avg}）: {bravo_names}",
+        f"アルファ: {alpha_names}",
+        f"ブラボー: {bravo_names}",
         "",
         "開始時刻になったら試合を始めるボタンを押してください",
     ]
@@ -1545,7 +1582,7 @@ def create_playing_text(team_alpha, team_bravo, room_key=None):
 
     def fmt(team):
         return "\n".join(
-            build_player_display(u, include_badge=True, include_rating=True)
+            build_player_display(u, include_badge=True)
             for u in team
         )
 
@@ -1584,13 +1621,11 @@ def create_finished_text(room_state, room_key=None):
             lines.append(f"【次のステージ】{next_stage}")
             lines.append("")
 
-        alpha_avg = calc_team_avg(next_team_alpha)
-        bravo_avg = calc_team_avg(next_team_bravo)
         alpha_names = " ".join(build_player_display(u) for u in next_team_alpha)
         bravo_names = " ".join(build_player_display(u) for u in next_team_bravo)
         lines.append("【次回チーム分け】")
-        lines.append(f"アルファ（平均 {alpha_avg}）: {alpha_names}")
-        lines.append(f"ブラボー（平均 {bravo_avg}）: {bravo_names}")
+        lines.append(f"アルファ: {alpha_names}")
+        lines.append(f"ブラボー: {bravo_names}")
 
     return "\n".join(lines)
 
@@ -1839,10 +1874,8 @@ HELP_TEXTS = {
         "⚠️ 回線落ち\n"
         "・回線落ち投票で有罪になると -50されます\n"
         "・その試合の他の参加者は +8されます\n\n"
-        "🏆 ランキング\n"
-        "・レートランキングは専用チャンネルで確認できます\n"
-        "・歴代最高レートチャンネルでTOP5が確認できます\n"
-        "・ランキングは試合終了時に自動更新されます"
+        "ランキングと最高レートはWebサイトで確認できます。\n"
+        "Discordでは専用チャンネルのボタンから、自分の情報だけ確認できます。"
     ),
 }
 
@@ -2419,6 +2452,23 @@ class DisconnectVoteView(BaseControlView):
     @discord.ui.button(label="無罪", style=discord.ButtonStyle.success)
     async def innocent_button(self, interaction, button):
         await self.record_jury_vote(interaction, "innocent")
+
+
+# =========================
+# 本人用レート確認View
+# =========================
+class RateCheckView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(
+        label="自分のレートを見る",
+        style=discord.ButtonStyle.primary,
+        custom_id="rate_check_self",
+    )
+    async def rate_check_button(self, interaction: discord.Interaction, button):
+        text = build_private_rating_text(interaction.user.id)
+        await interaction.response.send_message(text, ephemeral=True)
 
 
 # =========================
@@ -3865,20 +3915,8 @@ async def delete_old_ranking_messages(guild):
 
 
 async def post_ranking(guild):
-    ranking_channel = get_ranking_channel(guild)
-    if ranking_channel is None:
-        return
-    await delete_old_ranking_messages(guild)
-    lines = await build_ranking_lines(guild)
-    message = ""
-    for line in lines:
-        if len(message) + len(line) + 1 > 1900:
-            await ranking_channel.send(message)
-            message = line
-        else:
-            message += ("\n" if message else "") + line
-    if message:
-        await ranking_channel.send(message)
+    # 公開ランキングはWebに集約する。
+    return
 
 
 async def post_secret_ranking(guild):
@@ -4059,11 +4097,18 @@ async def process_result(guild, room_key, winner_num: int):
         "alpha": [str(u.id) for u in team_alpha],
         "bravo": [str(u.id) for u in team_bravo],
         "winner": "alpha" if winner_num == 1 else "bravo",
+        "ratings_before": dict(room_state["last_rating_changes"]),
         "ratings_after": {str(u.id): get_user_rating(u.id) for u in team_alpha + team_bravo},
+        "rating_changes": {
+            str(u.id): get_user_rating(u.id) - room_state["last_rating_changes"][str(u.id)]
+            for u in team_alpha + team_bravo
+        },
+        "rating_details": copy.deepcopy(room_state["last_rating_detail"]),
     }
     history = load_match_history()
     history.append(match_record)
     save_match_history(history)
+    room_state["last_match_timestamp"] = match_record["timestamp"]
 
     await check_and_update_peak_ranking(
         guild, [str(u.id) for u in team_alpha + team_bravo]
@@ -4078,66 +4123,22 @@ async def process_result(guild, room_key, winner_num: int):
     await update_control_message(guild, room_key, create_finished_text(room_state, room_key), view=view)
 
 async def send_rate_log(guild, room_state, team_alpha, team_bravo, room_key):
-    rate_log_channel = get_room_rate_log_channel(guild, room_key)
-    if rate_log_channel is None:
-        return
-
-    last_rating_changes = room_state.get("last_rating_changes") or {}
-    detail_map = room_state.get("last_rating_detail") or {}
-
-    lines = ["# 【レート更新】", ""]
-
-    for user in team_alpha + team_bravo:
-        uid = str(user.id)
-        old = last_rating_changes.get(uid, get_user_rating(uid))
-        new = get_user_rating(uid)
-        detail = detail_map.get(uid)
-
-        name = build_player_display(user, include_badge=True)
-
-        if detail:
-            final = detail["final"]
-            final_str = f"+{final}" if final >= 0 else f"{final}"
-            ticket_label = detail.get("ticket_label")
-            change_text = f"({final_str} : {ticket_label})" if ticket_label else f"({final_str})"
-        else:
-            diff = new - old
-            diff_str = f"+{diff}" if diff >= 0 else f"{diff}"
-            change_text = f"({diff_str})"
-
-        lines.append(f"{name}: {old} → {new} {change_text}")
-
-    text = "\n".join(lines)
-    if len(text) <= 1900:
-        await rate_log_channel.send(text)
-    else:
-        chunk = ""
-        for line in lines:
-            if len(chunk) + len(line) + 1 > 1900:
-                await rate_log_channel.send(chunk)
-                chunk = line
-            else:
-                chunk += ("\n" if chunk else "") + line
-        if chunk:
-            await rate_log_channel.send(chunk)
+    # 試合結果の数値は共有チャンネルへ投稿しない。
+    return
 
 
 async def end_room(guild, room_key):
     room_state = room_states[room_key]
-    summary_text = create_room_summary_text(room_state)
 
     grant_room_coin_lottery(room_state)
     await move_members_to_lobby(guild, room_key, room_state)
-    await post_ranking(guild)
-
-    if summary_text:
-        rate_log_channel = get_rate_log_channel(guild)
-        if rate_log_channel:
-            await rate_log_channel.send(summary_text)
 
     channel = get_progress_channel(guild, room_key)
     if channel:
-        await channel.send("部屋を終了しました。次の募集は「ホーム」の「募集作成」ボタンから作成してください。")
+        await channel.send(
+            "部屋を終了しました。レートは専用チャンネルのボタンから確認できます。\n"
+            "次の募集は「ホーム」の「募集作成」ボタンから作成してください。"
+        )
 
     reset_room_state(room_state)
     reset_room_tracking(room_state)
@@ -4176,9 +4177,19 @@ async def undo_result(guild, room_key):
     save_ratings(ratings)
     save_player_profiles(player_profiles)
 
+    last_match_timestamp = room_state.get("last_match_timestamp")
+    if last_match_timestamp:
+        history = load_match_history()
+        for index in range(len(history) - 1, -1, -1):
+            if history[index].get("timestamp") == last_match_timestamp:
+                history.pop(index)
+                save_match_history(history)
+                break
+
     room_state["last_rating_changes"] = None
     room_state["last_rating_detail"] = None
     room_state["last_profile_snapshots"] = None
+    room_state["last_match_timestamp"] = None
     room_state["prepared_match"] = None
     room_state["disconnect_vote"] = None
     room_state["disconnect_vote_message"] = None
@@ -4266,26 +4277,6 @@ async def apply_disconnect_rating_change(guild, room_key, member):
     await check_and_update_peak_ranking(guild, all_player_ids)
 
     room_state["prepared_match"] = make_teams_from_roles(room_state)
-
-    rate_log_channel = get_room_rate_log_channel(guild, room_key)
-    if rate_log_channel:
-        lines = [
-            "# 【レート更新（回線落ち）】",
-            f"回線落ち: -{DISCONNECT_PENALTY} / その他: +{DISCONNECT_REWARD}",
-            ""
-        ]
-        for user in all_players:
-            uid = str(user.id)
-            old = room_state["last_rating_changes"].get(uid, get_user_rating(uid))
-            new = get_user_rating(uid)
-            diff = new - old
-            diff_str = f"+{diff}" if diff >= 0 else f"{diff}"
-            name = build_player_display(user, include_badge=True)
-            lines.append(f"{name}: {old} → {new} ({diff_str})")
-
-        text = "\n".join(lines)
-        if len(text) <= 1900:
-            await rate_log_channel.send(text)
 
     room_state["game_state"] = "finished"
     view = FinishedView(room_key, room_state)
@@ -4841,6 +4832,7 @@ async def process_bulk_admin_message(message: discord.Message):
 async def on_ready():
     print(f"ログインしたよ: {bot.user}")
     bot.add_view(HomeView())
+    bot.add_view(RateCheckView())
     bot.add_view(RecruitView())
     bot.add_view(RecruitConfirmView())
     bot.add_view(AdminButtonView_Ranking())
@@ -4942,6 +4934,21 @@ async def ランキング(ctx):
     await post_ranking(ctx.guild)
     await post_peak_ranking(ctx.guild)
     await ctx.send("ランキングを更新しました。")
+
+
+@bot.command(name="レート確認設置")
+async def setup_rate_check(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+
+    content = (
+        "# 自分のレートを確認\n\n"
+        "下のボタンを押すと、現在のレート・順位・最高レート・"
+        "直近の試合結果を確認できます。\n\n"
+        "表示内容は、ボタンを押した本人にだけ表示されます。"
+    )
+    await ctx.send(content, view=RateCheckView())
 
 
 @bot.command(name="秘匿ランキング")
