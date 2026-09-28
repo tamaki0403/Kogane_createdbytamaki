@@ -5,6 +5,10 @@ import math
 import copy
 import time
 import asyncio
+import csv
+import io
+import re
+import zipfile
 import discord
 from discord.ext import commands, tasks
 from itertools import combinations
@@ -5516,14 +5520,131 @@ async def update_avatars(ctx):
         if member.bot:
             continue
         profile = get_player_profile(member.id)
-        if member.avatar:
-            profile["avatar_url"] = str(member.avatar.url)
-        else:
-            profile["avatar_url"] = f"https://cdn.discordapp.com/embed/avatars/0.png"
+        profile["avatar_url"] = str(member.display_avatar.url)
         count += 1
 
     save_player_profiles(player_profiles)
     await ctx.send(f"{count}人のアバターを更新しました！")
+
+
+def make_avatar_archive(entries):
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_STORED) as zip_file:
+        manifest = io.StringIO(newline="")
+        writer = csv.writer(manifest)
+        writer.writerow(["display_name", "discord_user_id", "filename"])
+
+        for entry in entries:
+            zip_file.writestr(entry["filename"], entry["data"])
+            writer.writerow([entry["display_name"], entry["user_id"], entry["filename"]])
+
+        zip_file.writestr("members.csv", "\ufeff" + manifest.getvalue())
+
+    archive.seek(0)
+    return archive
+
+
+@bot.command(name="アイコン書き出し")
+async def export_member_avatars(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if ctx.channel.id != ADMIN_CHANNEL_ID:
+        await ctx.send("このコマンドは運営チャンネルで使ってください")
+        return
+
+    status_message = await ctx.send("在籍メンバーを取得しています。完了まで少し待ってください。")
+
+    try:
+        members = [member async for member in ctx.guild.fetch_members(limit=None)]
+    except Exception as exc:
+        await status_message.edit(
+            content=(
+                "メンバー一覧を取得できませんでした。"
+                "Discord Developer PortalのServer Members IntentとBotの権限を確認してください。\n"
+                f"エラー: {type(exc).__name__}"
+            )
+        )
+        return
+
+    human_members = sorted(
+        [member for member in members if not member.bot],
+        key=lambda member: (member.display_name.casefold(), member.id),
+    )
+    if not human_members:
+        await status_message.edit(content="書き出し対象のメンバーが見つかりませんでした。")
+        return
+
+    # PNGはすでに圧縮済みなので、ZIPの容量を予測しやすいよう無圧縮で格納する。
+    upload_limit = int(getattr(ctx.guild, "filesize_limit", 10 * 1024 * 1024))
+    archive_target_size = max(1024 * 1024, upload_limit - 512 * 1024)
+    chunks = []
+    current_chunk = []
+    current_size = 0
+    failed_members = []
+
+    for index, member in enumerate(human_members, start=1):
+        try:
+            avatar = member.display_avatar.replace(size=512, format="png")
+            avatar_data = await avatar.read()
+        except Exception:
+            failed_members.append(f"{member.display_name} ({member.id})")
+            continue
+
+        safe_name = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "_", member.display_name).strip(" .")
+        if not safe_name:
+            safe_name = "user"
+        filename = f"{safe_name}_{member.id}.png"
+        entry = {
+            "display_name": member.display_name,
+            "user_id": str(member.id),
+            "filename": filename,
+            "data": avatar_data,
+        }
+
+        estimated_size = len(avatar_data) + len(filename.encode("utf-8")) + 2048
+        if current_chunk and current_size + estimated_size > archive_target_size:
+            chunks.append(current_chunk)
+            current_chunk = []
+            current_size = 0
+        current_chunk.append(entry)
+        current_size += estimated_size
+
+        if index % 25 == 0:
+            await status_message.edit(
+                content=f"アイコンを取得しています。{index}/{len(human_members)}人"
+            )
+
+    if current_chunk:
+        chunks.append(current_chunk)
+
+    if not chunks:
+        await status_message.edit(content="アイコンを1件も取得できませんでした。")
+        return
+
+    archives = [make_avatar_archive(chunk) for chunk in chunks]
+    total_exported = sum(len(chunk) for chunk in chunks)
+    await status_message.edit(
+        content=(
+            f"{total_exported}人分のアイコンを取得しました。"
+            f"ZIPファイルを{len(archives)}個送信します。"
+        )
+    )
+
+    for index, archive in enumerate(archives, start=1):
+        filename = f"kogane_member_icons_{index:02d}.zip"
+        await ctx.send(
+            f"アイコン書き出し {index}/{len(archives)}",
+            file=discord.File(archive, filename=filename),
+        )
+
+    result = f"完了しました。成功: {total_exported}人 / 失敗: {len(failed_members)}人"
+    if failed_members:
+        shown = failed_members[:20]
+        result += "\n取得失敗:\n" + "\n".join(shown)
+        if len(failed_members) > len(shown):
+            result += f"\nほか{len(failed_members) - len(shown)}人"
+    await ctx.send(result)
     
 @bot.command(name="最高レート初期化")
 async def init_peak_rating(ctx):
