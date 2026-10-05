@@ -49,8 +49,12 @@ def load_bot_state():
         return {}
 
 def save_bot_state(data):
-    with open(BOT_STATE_FILE, "w", encoding="utf-8") as f:
+    tmp_file = f"{BOT_STATE_FILE}.tmp"
+    with open(tmp_file, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp_file, BOT_STATE_FILE)
 
 bot_state = load_bot_state()
 
@@ -1120,6 +1124,7 @@ badge_bulk_waiting = {}
 bulk_rate_change_waiting = {}
 bulk_profile_edit_waiting = {}
 bulk_admin_waiting = {}
+otp_demo_bulk_waiting = {}
 
 ROOM_KEYS = ("A", "B")
 
@@ -3007,6 +3012,539 @@ async def create_otp_team_from_form(payload: dict):
     return team
 
 
+OTP_DEMO_STAGES = [
+    "マサバ海峡大橋", "スメーシーワールド", "クサヤ温泉", "コンブトラック",
+    "タカアシ経済特区", "ネギトロ炭鉱", "デカライン高架下",
+]
+
+OTP_DEMO_TEAM_STATUSES = {
+    "pending": "未承認 ☑️",
+    "approved": "承認 ✅",
+    "withdrawn": "棄権 ❌",
+    "needs_review": "再確認 ☑️",
+}
+
+
+def get_otp_tournaments():
+    return bot_state.setdefault("otp_tournaments", {})
+
+
+def save_otp_tournaments():
+    save_bot_state(bot_state)
+
+
+def normalize_otp_application_id(value: str) -> tuple[str, int | None]:
+    text = str(value or "").strip().upper()
+    match = re.search(r"(\d+)", text)
+    if not match:
+        return text, None
+    number = int(match.group(1))
+    return f"OTP-{number:03d}", number
+
+
+def otp_demo_team_key(tournament_id: str, application_id: str) -> str:
+    normalized, _ = normalize_otp_application_id(application_id)
+    return f"{tournament_id}:{normalized}"
+
+
+def parse_optional_float(raw):
+    text = str(raw or "").strip().replace("%", "")
+    if not text:
+        return None
+    try:
+        value = float(text)
+    except ValueError:
+        return None
+    if not math.isfinite(value):
+        return None
+    return int(value) if value.is_integer() else value
+
+
+def parse_otp_demo_bulk_text(text: str) -> tuple[dict | None, list[str]]:
+    lines = [line.rstrip() for line in text.splitlines() if line.strip()]
+    errors = []
+    application_id = None
+    team_name = None
+    table_start = None
+    for index, line in enumerate(lines):
+        if line.startswith("申請番号"):
+            application_id = line.split("：", 1)[-1].split(":", 1)[-1].strip()
+        elif line.startswith("チーム名"):
+            team_name = line.split("：", 1)[-1].split(":", 1)[-1].strip()
+        elif "\t" in line:
+            table_start = index
+            break
+    if not application_id:
+        errors.append("申請番号が見つかりません。")
+    if not team_name:
+        errors.append("チーム名が見つかりません。")
+    if table_start is None:
+        errors.append("タブ区切りのメンバー表が見つかりません。")
+    if errors:
+        return None, errors
+
+    rows = []
+    for line_no, line in enumerate(lines[table_start:], start=table_start + 1):
+        cols = [col.strip() for col in line.split("\t")]
+        if cols and cols[0] in ("役割", "ロール"):
+            continue
+        if len(cols) != 9:
+            errors.append(f"{line_no}行目: 列数が9ではありません。")
+            continue
+        role, player_name, circle, discord_id, xp, weapon1, weapon2, weapon3, top_rate = cols
+        rows.append({
+            "role": role,
+            "player_name": player_name,
+            "circle": circle,
+            "discord_id": discord_id,
+            "xp": parse_optional_float(xp),
+            "weapons": [weapon1, weapon2, weapon3],
+            "top_weapon_rate": parse_optional_float(top_rate),
+            "line_no": line_no,
+        })
+    normalized, number = normalize_otp_application_id(application_id)
+    return {"application_id": normalized, "application_number": number, "team_name": team_name, "members": rows}, errors
+
+
+async def validate_otp_demo_team(guild: discord.Guild, tournament: dict, team_data: dict, existing_key: str | None = None) -> list[str]:
+    errors = []
+    members = team_data.get("members", [])
+    leader_count = sum(m["role"] == "リーダー" for m in members)
+    if len(members) < 1:
+        errors.append("メンバーが0人です。")
+    if len(members) > int(tournament.get("max_members", 4)):
+        errors.append("メンバーが5人以上です。")
+    if leader_count != 1:
+        errors.append("リーダー行は必ず1行だけ必要です。")
+    seen_ids = set()
+    all_team_ids = {}
+    for key, team in tournament.get("teams", {}).items():
+        if key == existing_key:
+            continue
+        for member in team.get("members", []):
+            did = str(member.get("discord_id") or "")
+            if did:
+                all_team_ids[did] = team.get("team_name", key)
+    for member in members:
+        prefix = f"{member.get('line_no', '?')}行目"
+        did = str(member.get("discord_id") or "").strip()
+        if not re.fullmatch(r"\d{15,25}", did):
+            errors.append(f"{prefix}: Discord IDの形式が不正です。")
+            continue
+        if did in seen_ids:
+            errors.append(f"{prefix}: 同じチーム内でDiscord IDが重複しています。")
+        seen_ids.add(did)
+        if did in all_team_ids:
+            errors.append(f"{prefix}: {all_team_ids[did]} と二重所属です。")
+        member_obj = guild.get_member(int(did))
+        if member_obj is None:
+            try:
+                member_obj = await guild.fetch_member(int(did))
+            except Exception:
+                member_obj = None
+        if member_obj is None:
+            errors.append(f"{prefix}: 対象サーバーにいないユーザーです。")
+        elif member_obj.bot:
+            errors.append(f"{prefix}: Botアカウントは登録できません。")
+        xp = member.get("xp")
+        rate = member.get("top_weapon_rate")
+        if xp is not None and xp < 0:
+            errors.append(f"{prefix}: XPは0以上の数値にしてください。")
+        if rate is not None and not 0 <= rate <= 100:
+            errors.append(f"{prefix}: 使用率は0〜100の数値にしてください。")
+    if tournament.get("kind") == "main" and len(members) != 4:
+        errors.append("本大会設定では4人登録が必要です。")
+    return errors
+
+
+def otp_demo_corrected_xp(member: dict):
+    xp = member.get("xp")
+    rate = member.get("top_weapon_rate")
+    if xp is None or rate is None:
+        return None
+    return xp - rate
+
+
+def otp_demo_team_average(team: dict):
+    corrected = [otp_demo_corrected_xp(m) for m in team.get("members", [])]
+    if not corrected or any(v is None for v in corrected):
+        return None
+    return math.floor(sum(corrected) / len(corrected))
+
+
+def otp_demo_team_ready(tournament: dict, team: dict) -> tuple[bool, str]:
+    if team.get("status") != "approved":
+        return False, OTP_DEMO_TEAM_STATUSES.get(team.get("status"), "未承認")
+    members = team.get("members", [])
+    if not (int(tournament.get("min_members", 1)) <= len(members) <= int(tournament.get("max_members", 4))):
+        return False, "人数条件を満たしていません"
+    average = otp_demo_team_average(team)
+    if average is None:
+        return False, "XPまたは使用率が未入力です"
+    if average > int(tournament.get("xp_limit", 2700)):
+        return False, f"補正XP平均が{tournament.get('xp_limit', 2700)}を超えています"
+    return True, "参加可能"
+
+
+def otp_demo_public_team_text(team: dict, tournament: dict) -> str:
+    average = otp_demo_team_average(team)
+    avg_text = "計算待ち" if average is None else f"{average}（デモ・登録{len(team.get('members', []))}人の平均）"
+    lines = [
+        f"【{team.get('application_id')}｜{team.get('team_name')}】",
+        f"{OTP_DEMO_TEAM_STATUSES.get(team.get('status'), team.get('status'))}｜人数 {len(team.get('members', []))}｜補正XP平均 {avg_text}",
+        "",
+    ]
+    for member in team.get("members", []):
+        corrected = otp_demo_corrected_xp(member)
+        corrected_text = "計算待ち" if corrected is None else corrected
+        weapons = "、".join(w or "未入力" for w in member.get("weapons", []))
+        lines.append(
+            f"{member.get('role')}｜{member.get('player_name') or '未入力'}（{member.get('circle') or '所属未入力'}）\n"
+            f"XP {member.get('xp') if member.get('xp') is not None else '未入力'}｜{weapons}｜"
+            f"1位使用率 {member.get('top_weapon_rate') if member.get('top_weapon_rate') is not None else '未入力'}%｜補正XP {corrected_text}"
+        )
+    ready, reason = otp_demo_team_ready(tournament, team)
+    lines.extend(["", f"参加判定：{'OK' if ready else reason}"])
+    return "\n".join(lines)
+
+
+def calculate_otp_demo_blocks(team_keys: list[str]) -> list[list[str]] | None:
+    n = len(team_keys)
+    best = None
+    for four_count in range(n // 4, -1, -1):
+        rest = n - four_count * 4
+        if rest % 3 == 0:
+            three_count = rest // 3
+            best = [4] * four_count + [3] * three_count
+            break
+    if not best:
+        return None
+    shuffled = team_keys[:]
+    random.shuffle(shuffled)
+    blocks = []
+    offset = 0
+    for size in best:
+        blocks.append(shuffled[offset:offset + size])
+        offset += size
+    return blocks
+
+
+def make_round_robin_matches(blocks: list[list[str]]) -> dict:
+    matches = {}
+    order = []
+    match_no = 1
+    for block_index, teams in enumerate(blocks, start=1):
+        for a, b in combinations(teams, 2):
+            match_id = f"Q{match_no:03d}"
+            matches[match_id] = {
+                "id": match_id, "phase": "qualifier", "block": block_index,
+                "teams": [a, b], "best_of": 3, "target_wins": 2,
+                "status": "waiting", "battle_index": 1, "wins": {a: 0, b: 0},
+                "battles": [], "stage_pool": OTP_DEMO_STAGES[:],
+                "current_stage": None, "reports": {}, "report_generation": 1,
+                "channel_id": None,
+            }
+            order.append(match_id)
+            match_no += 1
+    return {"matches": matches, "order": order}
+
+
+def otp_demo_available_matches(tournament: dict) -> list[dict]:
+    active_teams = set()
+    for match in tournament.get("matches", {}).values():
+        if match.get("status") in ("active", "disputed", "hold", "stage_select"):
+            active_teams.update(match.get("teams", []))
+    result = []
+    for match_id in tournament.get("match_order", []):
+        match = tournament["matches"][match_id]
+        if match.get("status") != "waiting":
+            continue
+        if any(team in active_teams for team in match.get("teams", [])):
+            continue
+        result.append(match)
+    return result
+
+
+def otp_demo_pick_stage(match: dict) -> str:
+    pool = match.setdefault("stage_pool", OTP_DEMO_STAGES[:])
+    if not pool:
+        pool = OTP_DEMO_STAGES[:]
+        match["stage_pool"] = pool
+    stage = random.choice(pool)
+    pool.remove(stage)
+    match["current_stage"] = stage
+    return stage
+
+
+async def otp_demo_start_waiting_matches(guild: discord.Guild, tournament: dict):
+    if tournament.get("paused") or tournament.get("status") != "running":
+        return
+    for match in otp_demo_available_matches(tournament):
+        match["status"] = "active"
+        if not match.get("current_stage"):
+            otp_demo_pick_stage(match)
+        await otp_demo_announce_match(guild, tournament, match)
+    save_otp_tournaments()
+
+
+def otp_demo_match_text(tournament: dict, match: dict) -> str:
+    teams = tournament.get("teams", {})
+    a, b = match["teams"]
+    score = f"{match['wins'].get(a, 0)}-{match['wins'].get(b, 0)}"
+    return (
+        f"【OTP杯デモ対戦 {match['id']}】\n"
+        f"{teams[a]['team_name']} vs {teams[b]['team_name']}\n"
+        f"{'BO5' if match.get('best_of') == 5 else 'BO3'}｜現在 {score}｜{match.get('battle_index', 1)}本目\n"
+        f"ステージ：{match.get('current_stage') or '抽選待ち'}\n\n"
+        "各チームの登録リーダーが `!OTP勝ち 対戦ID 勝ったチームの申請番号` で報告してください。\n"
+        "不一致が2回続いた場合は運営裁定待ちになります。"
+    )
+
+
+async def otp_demo_announce_match(guild: discord.Guild, tournament: dict, match: dict):
+    channel = guild.get_channel(tournament.get("progress_channel_id")) or guild.get_channel(tournament.get("admin_channel_id"))
+    if not channel:
+        return
+    await channel.send(otp_demo_match_text(tournament, match))
+
+
+def otp_demo_find_team_by_application(tournament: dict, application_id: str) -> str | None:
+    normalized, _ = normalize_otp_application_id(application_id)
+    for key, team in tournament.get("teams", {}).items():
+        if team.get("application_id") == normalized:
+            return key
+    return None
+
+
+def otp_demo_get_leader_id(team: dict) -> str | None:
+    for member in team.get("members", []):
+        if member.get("role") == "リーダー":
+            return str(member.get("discord_id"))
+    return None
+
+
+def rank_otp_demo_block(tournament: dict, block_index: int) -> list[str]:
+    block_teams = tournament.get("blocks", [])[block_index - 1]
+    stats = {team: {"match_wins": 0, "battle_wins": 0, "battle_losses": 0, "order": tournament["teams"][team].get("application_number") or 999999} for team in block_teams}
+    direct = {}
+    for match in tournament.get("matches", {}).values():
+        if match.get("block") != block_index or match.get("status") != "done":
+            continue
+        a, b = match["teams"]
+        aw = match["wins"].get(a, 0)
+        bw = match["wins"].get(b, 0)
+        stats[a]["battle_wins"] += aw
+        stats[a]["battle_losses"] += bw
+        stats[b]["battle_wins"] += bw
+        stats[b]["battle_losses"] += aw
+        winner = a if aw > bw else b
+        stats[winner]["match_wins"] += 1
+        direct[frozenset((a, b))] = winner
+
+    def base(team):
+        s = stats[team]
+        return (-s["match_wins"], -s["battle_wins"], s["battle_losses"], s["order"])
+
+    ranked = sorted(block_teams, key=base)
+    changed = True
+    while changed:
+        changed = False
+        for i in range(len(ranked) - 1):
+            a, b = ranked[i], ranked[i + 1]
+            sa, sb = stats[a], stats[b]
+            if (sa["match_wins"], sa["battle_wins"], sa["battle_losses"]) == (sb["match_wins"], sb["battle_wins"], sb["battle_losses"]):
+                tied = [t for t in block_teams if (stats[t]["match_wins"], stats[t]["battle_wins"], stats[t]["battle_losses"]) == (sa["match_wins"], sa["battle_wins"], sa["battle_losses"])]
+                if len(tied) == 2 and direct.get(frozenset((a, b))) == b:
+                    ranked[i], ranked[i + 1] = b, a
+                    changed = True
+    return ranked
+
+
+def build_single_elim_bracket(tournament: dict, team_keys: list[str], bracket_name: str) -> tuple[dict, list[str]]:
+    if len(team_keys) <= 1:
+        return {}, []
+    size = 1
+    while size < len(team_keys):
+        size *= 2
+    byes = set(random.sample(team_keys, size - len(team_keys))) if size > len(team_keys) else set()
+    slots = [None] * size
+    bye_positions = list(range(size))
+    random.shuffle(bye_positions)
+    remaining = [t for t in team_keys if t not in byes]
+    for team, pos in zip(byes, bye_positions):
+        slots[pos] = team
+    for team in remaining:
+        for i, value in enumerate(slots):
+            if value is None:
+                slots[i] = team
+                break
+    matches = {}
+    order = []
+    pair_no = 1
+    auto_advancers = []
+    for i in range(0, size, 2):
+        a, b = slots[i], slots[i + 1]
+        if a and b:
+            match_id = f"{bracket_name[0].upper()}{pair_no:03d}"
+            matches[match_id] = {
+                "id": match_id, "phase": bracket_name, "round": 1, "teams": [a, b],
+                "best_of": 5 if size == 2 else 3, "target_wins": 3 if size == 2 else 2,
+                "status": "waiting", "battle_index": 1, "wins": {a: 0, b: 0},
+                "battles": [], "stage_pool": OTP_DEMO_STAGES[:], "current_stage": None,
+                "reports": {}, "report_generation": 1, "channel_id": None,
+            }
+            order.append(match_id)
+            pair_no += 1
+        elif a or b:
+            auto_advancers.append(a or b)
+    tournament.setdefault("brackets", {})[bracket_name] = {
+        "slots": slots, "byes": list(byes), "auto_advancers": auto_advancers, "round": 1,
+        "active_team_count": len(team_keys),
+    }
+    return matches, order
+
+
+def maybe_finish_qualifiers_and_build_brackets(tournament: dict):
+    if tournament.get("phase") != "qualifier":
+        return
+    qualifier_matches = [m for m in tournament.get("matches", {}).values() if m.get("phase") == "qualifier"]
+    if not qualifier_matches or any(m.get("status") != "done" for m in qualifier_matches):
+        return
+    upper = []
+    lower = []
+    tournament["block_rankings"] = {}
+    for idx in range(1, len(tournament.get("blocks", [])) + 1):
+        ranked = rank_otp_demo_block(tournament, idx)
+        tournament["block_rankings"][str(idx)] = ranked
+        upper.extend(ranked[:2])
+        lower.extend(ranked[2:])
+    new_matches = {}
+    new_order = []
+    upper_matches, upper_order = build_single_elim_bracket(tournament, upper, "upper")
+    lower_matches, lower_order = build_single_elim_bracket(tournament, lower, "lower")
+    new_matches.update(upper_matches)
+    new_matches.update(lower_matches)
+    new_order.extend(upper_order)
+    new_order.extend(lower_order)
+    tournament["matches"].update(new_matches)
+    tournament["match_order"].extend(new_order)
+    tournament["phase"] = "bracket" if new_matches else "done"
+    tournament["status"] = "running" if new_matches else "done"
+
+
+def otp_demo_record_battle_result(tournament: dict, match: dict, winner_key: str, decided_by: str, operator_id: int):
+    a, b = match["teams"]
+    loser_key = b if winner_key == a else a
+    match["battles"].append({
+        "battle": match.get("battle_index", 1),
+        "stage": match.get("current_stage"),
+        "winner": winner_key,
+        "loser": loser_key,
+        "decided_by": decided_by,
+        "operator_id": str(operator_id),
+        "reports": copy.deepcopy(match.get("reports", {})),
+        "generation": match.get("report_generation", 1),
+        "decided_at": time.time(),
+    })
+    match["wins"][winner_key] = match["wins"].get(winner_key, 0) + 1
+    match["reports"] = {}
+    match["report_generation"] = match.get("report_generation", 1) + 1
+    match["current_stage"] = None
+    if match["wins"][winner_key] >= match.get("target_wins", 2):
+        match["status"] = "done"
+        match["winner"] = winner_key
+        match["finished_at"] = time.time()
+    else:
+        match["battle_index"] = match.get("battle_index", 1) + 1
+        otp_demo_pick_stage(match)
+        match["status"] = "active"
+
+
+def otp_demo_summary_text(tournament: dict) -> str:
+    teams = tournament.get("teams", {})
+    counts = {"approved": 0, "pending": 0, "needs_review": 0, "withdrawn": 0}
+    ready_count = 0
+    for team in teams.values():
+        counts[team.get("status", "pending")] = counts.get(team.get("status", "pending"), 0) + 1
+        ready, _ = otp_demo_team_ready(tournament, team)
+        if ready:
+            ready_count += 1
+    lines = [
+        f"【OTP杯デモ状況｜{tournament.get('id')}】",
+        f"状態：{tournament.get('status')}｜フェーズ：{tournament.get('phase', 'setup')}｜一時停止：{'はい' if tournament.get('paused') else 'いいえ'}",
+        f"登録チーム：{len(teams)}｜登録人数：{sum(len(t.get('members', [])) for t in teams.values())}｜参加可能：{ready_count}",
+        f"承認 {counts.get('approved', 0)}｜入力/確認待ち {counts.get('pending', 0) + counts.get('needs_review', 0)}｜棄権 {counts.get('withdrawn', 0)}",
+        "",
+    ]
+    for key, team in sorted(teams.items(), key=lambda item: item[1].get("application_number") or 999999):
+        ready, reason = otp_demo_team_ready(tournament, team)
+        avg = otp_demo_team_average(team)
+        lines.append(f"{team.get('application_id')} {team.get('team_name')}｜{OTP_DEMO_TEAM_STATUSES.get(team.get('status'), team.get('status'))}｜{len(team.get('members', []))}人｜平均 {avg if avg is not None else '計算待ち'}｜{'OK' if ready else reason}")
+    active = [m for m in tournament.get("matches", {}).values() if m.get("status") in ("active", "disputed", "hold")]
+    if active:
+        lines.extend(["", "進行中/対応待ち"])
+        for match in active:
+            a, b = match["teams"]
+            lines.append(f"{match['id']} {teams[a]['team_name']} vs {teams[b]['team_name']}｜{match['status']}｜{match['wins'].get(a, 0)}-{match['wins'].get(b, 0)}")
+    return "\n".join(lines)
+
+
+def otp_demo_is_operator(member: discord.Member, tournament: dict) -> bool:
+    if member.id == OWNER_ID:
+        return True
+    role_id = tournament.get("operator_role_id")
+    return bool(role_id and any(role.id == int(role_id) for role in getattr(member, "roles", [])))
+
+
+async def process_otp_demo_bulk_message(message):
+    waiting = otp_demo_bulk_waiting.get(message.guild.id if message.guild else None)
+    if not waiting or waiting.get("user_id") != message.author.id:
+        return False
+    if message.content.strip() == "キャンセル":
+        otp_demo_bulk_waiting.pop(message.guild.id, None)
+        await message.channel.send("OTPデモ一括登録をキャンセルしました。")
+        return True
+    tournaments = get_otp_tournaments()
+    tournament = tournaments.get(waiting["tournament_id"])
+    if not tournament:
+        otp_demo_bulk_waiting.pop(message.guild.id, None)
+        await message.channel.send("大会設定が見つからないため終了しました。")
+        return True
+    parsed, parse_errors = parse_otp_demo_bulk_text(message.content)
+    if parse_errors:
+        await message.channel.send("入力エラー:\n" + "\n".join(parse_errors))
+        return True
+    key = otp_demo_team_key(tournament["id"], parsed["application_id"])
+    errors = await validate_otp_demo_team(message.guild, tournament, parsed, existing_key=key)
+    if errors:
+        await message.channel.send("登録できません:\n" + "\n".join(errors))
+        return True
+    existing = tournament.setdefault("teams", {}).get(key)
+    status = "pending"
+    if existing and existing.get("status") == "approved":
+        status = "needs_review"
+    team = copy.deepcopy(existing) if existing else {}
+    team.update(parsed)
+    team.update({
+        "key": key,
+        "tournament_id": tournament["id"],
+        "status": status if not existing else status,
+        "updated_at": time.time(),
+        "updated_by": str(message.author.id),
+    })
+    if existing:
+        team.setdefault("created_at", existing.get("created_at", time.time()))
+    else:
+        team["created_at"] = time.time()
+    tournament["teams"][key] = team
+    save_otp_tournaments()
+    await message.channel.send(
+        ("更新しました。承認済みチームは再確認が必要です。\n" if existing else "新規登録しました。\n")
+        + otp_demo_public_team_text(team, tournament)
+    )
+    return True
+
+
 class HomeView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -4875,6 +5413,7 @@ async def on_message(message):
         process_bulk_rate_change_message,
         process_bulk_profile_edit_message,
         process_bulk_admin_message,
+        process_otp_demo_bulk_message,
     ]:
         if await handler(message):
             return
@@ -5295,6 +5834,335 @@ async def user_id_list(ctx):
                 chunk += ("\n" if chunk else "") + line
         if chunk:
             await ctx.send(chunk)
+
+
+@bot.command(name="OTPデモ設定")
+async def otp_demo_setup(ctx, tournament_id: str, category_id: int, admin_channel_id: int, summary_channel_id: int, progress_channel_id: int, operator_role_id: int = 0):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if not isinstance(ctx.guild.get_channel(category_id), discord.CategoryChannel):
+        await ctx.send("試験用カテゴリーIDが見つかりません。")
+        return
+    for ch_id, label in ((admin_channel_id, "運営チャンネル"), (summary_channel_id, "まとめチャンネル"), (progress_channel_id, "公開進行チャンネル")):
+        if ctx.guild.get_channel(ch_id) is None:
+            await ctx.send(f"{label}が見つかりません。")
+            return
+    if operator_role_id and ctx.guild.get_role(operator_role_id) is None:
+        await ctx.send("運営ロールが見つかりません。")
+        return
+    tournaments = get_otp_tournaments()
+    tournaments[tournament_id] = {
+        "id": tournament_id,
+        "kind": "demo",
+        "guild_id": ctx.guild.id,
+        "category_id": category_id,
+        "admin_channel_id": admin_channel_id,
+        "summary_channel_id": summary_channel_id,
+        "progress_channel_id": progress_channel_id,
+        "operator_role_id": operator_role_id or None,
+        "status": "setup",
+        "phase": "setup",
+        "paused": False,
+        "min_members": 1,
+        "max_members": 4,
+        "xp_limit": 2700,
+        "teams": tournaments.get(tournament_id, {}).get("teams", {}),
+        "matches": tournaments.get(tournament_id, {}).get("matches", {}),
+        "match_order": tournaments.get(tournament_id, {}).get("match_order", []),
+        "blocks": tournaments.get(tournament_id, {}).get("blocks", []),
+        "created_at": tournaments.get(tournament_id, {}).get("created_at", time.time()),
+        "updated_at": time.time(),
+    }
+    save_otp_tournaments()
+    await ctx.send(
+        f"OTPデモ `{tournament_id}` を設定しました。\n"
+        "未指定値を本番定数から補完していません。次は `!OTPデモ登録 {tournament_id}` で登録できます。"
+    )
+
+
+@bot.command(name="OTPデモ登録")
+async def otp_demo_bulk_register(ctx, tournament_id: str):
+    tournaments = get_otp_tournaments()
+    tournament = tournaments.get(tournament_id)
+    if not tournament:
+        await ctx.send("大会IDが見つかりません。先に `!OTPデモ設定` を実行してください。")
+        return
+    if not otp_demo_is_operator(ctx.author, tournament):
+        await ctx.send("この大会の運営のみ実行できます。")
+        return
+    if tournament.get("status") not in ("setup", "paused"):
+        await ctx.send("開始後の一括登録更新は初版の対象外です。")
+        return
+    otp_demo_bulk_waiting[ctx.guild.id] = {"user_id": ctx.author.id, "tournament_id": tournament_id}
+    await ctx.send(
+        "OTPデモ一括登録モードに入りました。次の形式で貼り付けてください。キャンセルで終了します。\n\n"
+        "申請番号：OTP-001\n"
+        "チーム名：テストA\n"
+        "役割\tプレイヤー名\t所属\tDiscord ID\t最高XP\t1位ブキ\t2位ブキ\t3位ブキ\t1位ブキ使用率\n"
+        "リーダー\tたまき\tKogane\t1225788050894753865\t2680\tスシ\t52ガロン\tわかば\t12.5"
+    )
+
+
+@bot.command(name="OTPデモ承認")
+async def otp_demo_approve(ctx, tournament_id: str, application_id: str):
+    tournament = get_otp_tournaments().get(tournament_id)
+    if not tournament or not otp_demo_is_operator(ctx.author, tournament):
+        await ctx.send("大会が見つからないか、権限がありません。")
+        return
+    key = otp_demo_find_team_by_application(tournament, application_id)
+    if not key:
+        await ctx.send("対象チームが見つかりません。")
+        return
+    team = tournament["teams"][key]
+    errors = await validate_otp_demo_team(ctx.guild, tournament, team, existing_key=key)
+    if errors:
+        await ctx.send("承認できません:\n" + "\n".join(errors))
+        return
+    ready, reason = otp_demo_team_ready({**tournament, "teams": {key: {**team, "status": "approved"}}}, {**team, "status": "approved"})
+    if not ready:
+        await ctx.send(f"承認できません: {reason}")
+        return
+    team["status"] = "approved"
+    team["approved_by"] = str(ctx.author.id)
+    team["approved_at"] = time.time()
+    save_otp_tournaments()
+    await ctx.send(f"{team['application_id']} {team['team_name']} を承認しました。")
+
+
+@bot.command(name="OTPデモ棄権")
+async def otp_demo_withdraw(ctx, tournament_id: str, application_id: str):
+    tournament = get_otp_tournaments().get(tournament_id)
+    if not tournament or not otp_demo_is_operator(ctx.author, tournament):
+        await ctx.send("大会が見つからないか、権限がありません。")
+        return
+    if tournament.get("status") == "running":
+        await ctx.send("開始後の棄権処理は初版の対象外です。手動保留で試用を中断してください。")
+        return
+    key = otp_demo_find_team_by_application(tournament, application_id)
+    if not key:
+        await ctx.send("対象チームが見つかりません。")
+        return
+    tournament["teams"][key]["status"] = "withdrawn"
+    save_otp_tournaments()
+    await ctx.send(f"{application_id} を棄権にしました。")
+
+
+@bot.command(name="OTPデモ状況")
+async def otp_demo_status(ctx, tournament_id: str):
+    tournament = get_otp_tournaments().get(tournament_id)
+    if not tournament:
+        await ctx.send("大会IDが見つかりません。")
+        return
+    text = otp_demo_summary_text(tournament)
+    for i in range(0, len(text), 1900):
+        await ctx.send(text[i:i + 1900])
+
+
+@bot.command(name="OTPデモ開始確認")
+async def otp_demo_start_check(ctx, tournament_id: str):
+    tournament = get_otp_tournaments().get(tournament_id)
+    if not tournament or not otp_demo_is_operator(ctx.author, tournament):
+        await ctx.send("大会が見つからないか、権限がありません。")
+        return
+    candidates = []
+    excluded = []
+    for key, team in tournament.get("teams", {}).items():
+        ready, reason = otp_demo_team_ready(tournament, team)
+        if ready:
+            candidates.append(key)
+        else:
+            excluded.append(f"{team.get('application_id')} {team.get('team_name')}｜{reason}")
+    blocks = calculate_otp_demo_blocks(candidates)
+    lines = [f"開始対象 {len(candidates)}チーム"]
+    lines.extend(f"・{tournament['teams'][key]['application_id']} {tournament['teams'][key]['team_name']}" for key in sorted(candidates, key=lambda k: tournament["teams"][k].get("application_number") or 999999))
+    lines.extend(["", "除外対象"])
+    lines.extend(excluded or ["なし"])
+    lines.extend(["", "予選ブロック構成", "開催不可" if blocks is None else " / ".join(str(len(b)) for b in blocks)])
+    lines.append("")
+    lines.append(f"開始する場合は `!OTPデモ開始 {tournament_id} 確定` を実行してください。")
+    await ctx.send("\n".join(lines))
+
+
+@bot.command(name="OTPデモ開始")
+async def otp_demo_start(ctx, tournament_id: str, confirm: str = ""):
+    tournament = get_otp_tournaments().get(tournament_id)
+    if not tournament or not otp_demo_is_operator(ctx.author, tournament):
+        await ctx.send("大会が見つからないか、権限がありません。")
+        return
+    if confirm != "確定":
+        await ctx.send(f"先に `!OTPデモ開始確認 {tournament_id}` を確認し、開始する場合は `!OTPデモ開始 {tournament_id} 確定` と送ってください。")
+        return
+    if tournament.get("status") not in ("setup", "paused"):
+        await ctx.send("この大会は開始可能な状態ではありません。")
+        return
+    candidates = [key for key, team in tournament.get("teams", {}).items() if otp_demo_team_ready(tournament, team)[0]]
+    blocks = calculate_otp_demo_blocks(candidates)
+    if blocks is None:
+        await ctx.send("このチーム数では大会を開催できません。登録は継続できます。")
+        return
+    rr = make_round_robin_matches(blocks)
+    tournament.update({
+        "status": "running",
+        "phase": "qualifier",
+        "paused": False,
+        "started_at": time.time(),
+        "started_by": str(ctx.author.id),
+        "eligible_team_keys": candidates,
+        "blocks": blocks,
+        "matches": rr["matches"],
+        "match_order": rr["order"],
+        "brackets": {},
+    })
+    save_otp_tournaments()
+    await ctx.send(f"OTPデモ `{tournament_id}` を開始しました。予選ブロック: " + " / ".join(str(len(b)) for b in blocks))
+    await otp_demo_start_waiting_matches(ctx.guild, tournament)
+
+
+@bot.command(name="OTP勝ち")
+async def otp_demo_report_win(ctx, tournament_id: str, match_id: str, winner_application_id: str):
+    tournament = get_otp_tournaments().get(tournament_id)
+    if not tournament:
+        await ctx.send("大会IDが見つかりません。")
+        return
+    match = tournament.get("matches", {}).get(match_id)
+    if not match or match.get("status") not in ("active", "disputed"):
+        await ctx.send("報告可能な対戦が見つかりません。")
+        return
+    winner_key = otp_demo_find_team_by_application(tournament, winner_application_id)
+    if winner_key not in match.get("teams", []):
+        await ctx.send("勝者はこの対戦のチームから指定してください。")
+        return
+    reporter_team = None
+    for team_key in match["teams"]:
+        if otp_demo_get_leader_id(tournament["teams"][team_key]) == str(ctx.author.id):
+            reporter_team = team_key
+            break
+    if reporter_team is None:
+        await ctx.send("この対戦の登録リーダーだけが報告できます。")
+        return
+    if match.get("status") == "hold":
+        await ctx.send("この対戦は保留中です。参加者入力では解除できません。")
+        return
+    reports = match.setdefault("reports", {})
+    reports[reporter_team] = {"winner": winner_key, "reporter_id": str(ctx.author.id), "generation": match.get("report_generation", 1), "reported_at": time.time()}
+    if len(reports) < 2:
+        save_otp_tournaments()
+        await ctx.send("片側の報告を受け付けました。もう一方のリーダー報告を待っています。")
+        return
+    winners = {r["winner"] for r in reports.values()}
+    if len(winners) == 1:
+        otp_demo_record_battle_result(tournament, match, winner_key, "leaders", ctx.author.id)
+        maybe_finish_qualifiers_and_build_brackets(tournament)
+        save_otp_tournaments()
+        await ctx.send(f"{match_id} {winner_application_id} 勝ちで確定しました。")
+        if match.get("status") == "active":
+            await otp_demo_announce_match(ctx.guild, tournament, match)
+        await otp_demo_start_waiting_matches(ctx.guild, tournament)
+        return
+    mismatch_count = match.get("mismatch_count", 0) + 1
+    match["mismatch_count"] = mismatch_count
+    match["reports"] = {}
+    match["report_generation"] = match.get("report_generation", 1) + 1
+    match["status"] = "disputed" if mismatch_count < 2 else "hold"
+    save_otp_tournaments()
+    if mismatch_count < 2:
+        await ctx.send(f"{match_id} の報告が不一致でした。双方の新しい回答だけで再入力してください。")
+    else:
+        await ctx.send(f"{match_id} は再不一致のため運営裁定待ちです。`!OTP裁定 {tournament_id} {match_id} 勝者申請番号` で確定してください。")
+
+
+@bot.command(name="OTP裁定")
+async def otp_demo_judge(ctx, tournament_id: str, match_id: str, winner_application_id: str):
+    tournament = get_otp_tournaments().get(tournament_id)
+    if not tournament or not otp_demo_is_operator(ctx.author, tournament):
+        await ctx.send("大会が見つからないか、権限がありません。")
+        return
+    match = tournament.get("matches", {}).get(match_id)
+    winner_key = otp_demo_find_team_by_application(tournament, winner_application_id)
+    if not match or winner_key not in match.get("teams", []):
+        await ctx.send("対象対戦または勝者指定が不正です。")
+        return
+    if match.get("status") == "done":
+        await ctx.send("確定済み対戦の巻き戻しは初版の対象外です。")
+        return
+    otp_demo_record_battle_result(tournament, match, winner_key, "operator", ctx.author.id)
+    maybe_finish_qualifiers_and_build_brackets(tournament)
+    save_otp_tournaments()
+    await ctx.send(f"{match_id} を運営裁定で確定しました。")
+    if match.get("status") == "active":
+        await otp_demo_announce_match(ctx.guild, tournament, match)
+    await otp_demo_start_waiting_matches(ctx.guild, tournament)
+
+
+@bot.command(name="OTP保留")
+async def otp_demo_hold(ctx, tournament_id: str, match_id: str, *, reason: str = ""):
+    tournament = get_otp_tournaments().get(tournament_id)
+    if not tournament or not otp_demo_is_operator(ctx.author, tournament):
+        await ctx.send("大会が見つからないか、権限がありません。")
+        return
+    match = tournament.get("matches", {}).get(match_id)
+    if not match or match.get("status") == "done":
+        await ctx.send("保留できる対戦が見つかりません。")
+        return
+    match["status"] = "hold"
+    match.setdefault("holds", []).append({"operator_id": str(ctx.author.id), "reason": reason or "理由未記入", "held_at": time.time()})
+    save_otp_tournaments()
+    await ctx.send(f"{match_id} を保留しました。参加者入力では解除されません。")
+
+
+@bot.command(name="OTP保留解除")
+async def otp_demo_unhold(ctx, tournament_id: str, match_id: str):
+    tournament = get_otp_tournaments().get(tournament_id)
+    if not tournament or not otp_demo_is_operator(ctx.author, tournament):
+        await ctx.send("大会が見つからないか、権限がありません。")
+        return
+    match = tournament.get("matches", {}).get(match_id)
+    if not match or match.get("status") != "hold":
+        await ctx.send("保留中の対戦が見つかりません。")
+        return
+    match["status"] = "active"
+    match.setdefault("holds", []).append({"operator_id": str(ctx.author.id), "reason": "保留解除", "resumed_at": time.time()})
+    save_otp_tournaments()
+    await ctx.send(f"{match_id} の保留を解除しました。")
+
+
+@bot.command(name="OTPデモ一時停止")
+async def otp_demo_pause(ctx, tournament_id: str):
+    tournament = get_otp_tournaments().get(tournament_id)
+    if not tournament or not otp_demo_is_operator(ctx.author, tournament):
+        await ctx.send("大会が見つからないか、権限がありません。")
+        return
+    tournament["paused"] = True
+    tournament["paused_at"] = time.time()
+    save_otp_tournaments()
+    await ctx.send("一時停止しました。新たな対戦開始は行いません。")
+
+
+@bot.command(name="OTPデモ再開")
+async def otp_demo_resume(ctx, tournament_id: str):
+    tournament = get_otp_tournaments().get(tournament_id)
+    if not tournament or not otp_demo_is_operator(ctx.author, tournament):
+        await ctx.send("大会が見つからないか、権限がありません。")
+        return
+    tournament["paused"] = False
+    tournament["resumed_at"] = time.time()
+    save_otp_tournaments()
+    await ctx.send("再開しました。")
+    await otp_demo_start_waiting_matches(ctx.guild, tournament)
+
+
+@bot.command(name="OTPデモ終了")
+async def otp_demo_finish(ctx, tournament_id: str):
+    tournament = get_otp_tournaments().get(tournament_id)
+    if not tournament or not otp_demo_is_operator(ctx.author, tournament):
+        await ctx.send("大会が見つからないか、権限がありません。")
+        return
+    tournament["status"] = "done"
+    tournament["finished_at"] = time.time()
+    tournament["finished_by"] = str(ctx.author.id)
+    save_otp_tournaments()
+    await ctx.send("OTPデモを終了扱いにしました。記録は bot_state.json に保持されています。")
 
 
 async def dump_admin_list(ctx, lines):
