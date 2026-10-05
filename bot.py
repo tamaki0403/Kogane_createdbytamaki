@@ -3677,7 +3677,9 @@ async def otp_demo_create_match_channel(guild: discord.Guild, tournament: dict, 
 
 
 async def otp_demo_delete_checkin_message(guild: discord.Guild, tournament: dict, match: dict):
-    channel = guild.get_channel(match.get("channel_id"))
+    channel = guild.get_channel(match.get("checkin_channel_id"))
+    if channel is None:
+        channel = guild.get_channel(match.get("channel_id"))
     if channel is None:
         channel = guild.get_channel(tournament.get("progress_channel_id")) or guild.get_channel(tournament.get("admin_channel_id"))
     message_id = match.get("checkin_message_id")
@@ -3688,6 +3690,7 @@ async def otp_demo_delete_checkin_message(guild: discord.Guild, tournament: dict
         except (discord.NotFound, discord.Forbidden, discord.HTTPException):
             pass
     match.pop("checkin_message_id", None)
+    match.pop("checkin_channel_id", None)
 
 
 async def otp_demo_delete_match_channel(guild: discord.Guild, match: dict):
@@ -3769,6 +3772,7 @@ async def otp_demo_send_checkin_message(channel: discord.abc.Messageable, tourna
     view = OTPMatchCheckinView(tournament["id"], match["id"], labels)
     message = await channel.send(otp_demo_checkin_text(tournament, match), view=view)
     match["checkin_message_id"] = message.id
+    match["checkin_channel_id"] = message.channel.id
     return message
 
 
@@ -3855,6 +3859,9 @@ async def otp_demo_announce_match(guild: discord.Guild, tournament: dict, match:
         if not match.get("checkin_message_id"):
             await otp_demo_send_checkin_message(channel, tournament, match)
         return
+
+    if match.get("checkin_message_id") and match.get("checkin_channel_id") != match_channel.id:
+        await otp_demo_delete_checkin_message(guild, tournament, match)
 
     if not match.get("checkin_message_id") and not match.get("report_message_id"):
         await otp_demo_send_checkin_message(match_channel, tournament, match)
