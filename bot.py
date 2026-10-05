@@ -3489,6 +3489,117 @@ def otp_demo_summary_text(tournament: dict) -> str:
     return "\n".join(lines)
 
 
+def otp_demo_preview_messages(tournament: dict) -> list[tuple[str, str]]:
+    sample_tournament = copy.deepcopy(tournament)
+    sample_tournament.setdefault("id", tournament.get("id", "demo-20261006"))
+    sample_tournament.setdefault("status", "setup")
+    sample_tournament.setdefault("phase", "setup")
+    sample_tournament.setdefault("paused", False)
+    sample_tournament.setdefault("min_members", 1)
+    sample_tournament.setdefault("max_members", 4)
+    sample_tournament.setdefault("xp_limit", 2700)
+    team_a_key = otp_demo_team_key(sample_tournament["id"], "OTP-001")
+    team_b_key = otp_demo_team_key(sample_tournament["id"], "OTP-002")
+    sample_tournament["teams"] = {
+        team_a_key: {
+            "key": team_a_key,
+            "application_id": "OTP-001",
+            "application_number": 1,
+            "team_name": "テストA",
+            "status": "approved",
+            "members": [
+                {
+                    "role": "リーダー",
+                    "player_name": "テストAリーダー",
+                    "circle": "Kogane",
+                    "discord_id": "111111111111111111",
+                    "xp": 2680,
+                    "weapons": ["スプラシューター", "52ガロン", "わかばシューター"],
+                    "top_weapon_rate": 12.5,
+                }
+            ],
+        },
+        team_b_key: {
+            "key": team_b_key,
+            "application_id": "OTP-002",
+            "application_number": 2,
+            "team_name": "テストB",
+            "status": "pending",
+            "members": [
+                {
+                    "role": "リーダー",
+                    "player_name": "テストBリーダー",
+                    "circle": "Kogane",
+                    "discord_id": "222222222222222222",
+                    "xp": 2650,
+                    "weapons": ["シャープマーカー", "ボトルガイザー", "ジムワイパー"],
+                    "top_weapon_rate": 10,
+                }
+            ],
+        },
+    }
+    sample_match = {
+        "id": "Q001",
+        "phase": "qualifier",
+        "block": 1,
+        "teams": [team_a_key, team_b_key],
+        "best_of": 3,
+        "target_wins": 2,
+        "status": "active",
+        "battle_index": 1,
+        "wins": {team_a_key: 0, team_b_key: 0},
+        "battles": [],
+        "stage_pool": OTP_DEMO_STAGES[1:],
+        "current_stage": OTP_DEMO_STAGES[0],
+        "reports": {},
+        "report_generation": 1,
+    }
+    sample_tournament["matches"] = {"Q001": sample_match}
+    sample_tournament["match_order"] = ["Q001"]
+
+    registration_prompt = (
+        "OTPデモ一括登録モードに入りました。次の形式で貼り付けてください。キャンセルで終了します。\n\n"
+        "申請番号：OTP-001\n"
+        "チーム名：テストA\n"
+        "役割\tプレイヤー名\t所属\tDiscord ID\t最高XP\t1位ブキ\t2位ブキ\t3位ブキ\t1位ブキ使用率\n"
+        "リーダー\tたまき\tKogane\t1225788050894753865\t2680\tスシ\t52ガロン\tわかば\t12.5"
+    )
+    start_check = (
+        "開始対象 1チーム\n"
+        "・OTP-001 テストA\n\n"
+        "除外対象\n"
+        "OTP-002 テストB｜未承認 ☑️\n\n"
+        "予選ブロック構成\n"
+        "開催不可\n\n"
+        f"開始する場合は `!OTPデモ開始 {sample_tournament['id']} 確定` を実行してください。"
+    )
+    return [
+        ("設定完了", f"OTPデモ `{sample_tournament['id']}` を設定しました。\n未指定値を本番定数から補完していません。次は `!OTPデモ登録 {{tournament_id}}` で登録できます。"),
+        ("登録モード開始", registration_prompt),
+        ("登録後のチーム表示", otp_demo_public_team_text(sample_tournament["teams"][team_a_key], sample_tournament)),
+        ("登録エラー例", "登録できません:\n4行目: Discord IDの形式が不正です。\n5行目: 同じチーム内でDiscord IDが重複しています。"),
+        ("承認完了", "OTP-001 テストA を承認しました。"),
+        ("承認不可例", "承認できません: XPまたは使用率が未入力です"),
+        ("棄権設定", "OTP-001 を棄権にしました。"),
+        ("状況表示", otp_demo_summary_text(sample_tournament)),
+        ("開始確認", start_check),
+        ("開始完了", f"OTPデモ `{sample_tournament['id']}` を開始しました。予選ブロック: 3"),
+        ("対戦案内", otp_demo_match_text(sample_tournament, sample_match)),
+        ("片側報告", "片側の報告を受け付けました。もう一方のリーダー報告を待っています。"),
+        ("1本確定", "Q001 OTP-001 勝ちで確定しました。"),
+        ("報告不一致", "Q001 の報告が不一致でした。双方の新しい回答だけで再入力してください。"),
+        ("運営裁定待ち", f"Q001 は再不一致のため運営裁定待ちです。`!OTP裁定 {sample_tournament['id']} Q001 勝者申請番号` で確定してください。"),
+        ("裁定完了", "Q001 を運営裁定で確定しました。"),
+        ("手動保留", "Q001 を保留しました。参加者入力では解除されません。"),
+        ("保留解除", "Q001 の保留を解除しました。"),
+        ("一時停止", "一時停止しました。新たな対戦開始は行いません。"),
+        ("再開", "再開しました。"),
+        ("終了", "OTPデモを終了扱いにしました。記録は bot_state.json に保持されています。"),
+        ("権限エラー", "この大会の運営のみ実行できます。"),
+        ("対象外操作", "開始後の一括登録更新は初版の対象外です。"),
+    ]
+
+
 def otp_demo_is_operator(member: discord.Member, tournament: dict) -> bool:
     if member.id == OWNER_ID:
         return True
@@ -5957,6 +6068,27 @@ async def otp_demo_status(ctx, tournament_id: str):
     text = otp_demo_summary_text(tournament)
     for i in range(0, len(text), 1900):
         await ctx.send(text[i:i + 1900])
+
+
+@bot.command(name="OTPデモ文面一覧")
+async def otp_demo_text_preview(ctx, tournament_id: str, channel_id: int = 0):
+    tournament = get_otp_tournaments().get(tournament_id)
+    if not tournament or not otp_demo_is_operator(ctx.author, tournament):
+        await ctx.send("大会が見つからないか、権限がありません。")
+        return
+    target_channel = ctx.guild.get_channel(channel_id) if channel_id else ctx.channel
+    if target_channel is None:
+        await ctx.send("投稿先チャンネルが見つかりません。")
+        return
+    await ctx.send(f"OTPデモ `{tournament_id}` の文面一覧を {target_channel.mention} に投稿します。")
+    await target_channel.send(
+        f"【OTPデモ文面一覧｜{tournament_id}】\n"
+        "文章確認用のプレビューです。実際の大会状態は変更しません。"
+    )
+    for title, body in otp_demo_preview_messages(tournament):
+        text = f"## {title}\n{body}"
+        for i in range(0, len(text), 1900):
+            await target_channel.send(text[i:i + 1900])
 
 
 @bot.command(name="OTPデモ開始確認")
