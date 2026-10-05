@@ -3382,8 +3382,34 @@ def otp_demo_match_report_embed(tournament: dict, match: dict) -> discord.Embed:
             "両チームの報告が一致したときだけ結果が確定します。"
         )
     embed.add_field(name="報告方法", value=note, inline=False)
+    embed.set_image(url="attachment://otp_stage.png")
     embed.set_footer(text="回線落ち・再試合など通常報告で扱えない場合は運営が保留します")
     return embed
+
+
+def build_otp_stage_file(match: dict) -> discord.File:
+    width, height = 1000, 420
+    stage = match.get("current_stage") or "抽選待ち"
+    image = Image.new("RGB", (width, height), (28, 31, 39))
+    draw = ImageDraw.Draw(image)
+    try:
+        font_title = ImageFont.truetype("/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc", 54)
+        font_stage = ImageFont.truetype("/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc", 78)
+        font_small = ImageFont.truetype("/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc", 30)
+    except Exception:
+        font_title = ImageFont.load_default()
+        font_stage = ImageFont.load_default()
+        font_small = ImageFont.load_default()
+    draw.rectangle((0, 0, width, height), fill=(24, 26, 34))
+    draw.rectangle((0, 0, 22, height), fill=(88, 101, 242))
+    draw.rounded_rectangle((58, 52, width - 58, height - 52), radius=22, fill=(38, 41, 51), outline=(74, 78, 92), width=2)
+    draw.text((96, 92), f"{match.get('battle_index', 1)}本目の指定ステージ", fill=(190, 194, 205), font=font_title)
+    draw.text((96, 190), stage, fill=(255, 255, 255), font=font_stage)
+    draw.text((96, 320), "Bot抽選済み。画面の再表示では引き直しません。", fill=(190, 194, 205), font=font_small)
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    buffer.seek(0)
+    return discord.File(buffer, filename="otp_stage.png")
 
 
 class OTPMatchReportView(discord.ui.View):
@@ -3608,6 +3634,7 @@ class OTPMatchCheckinView(discord.ui.View):
             await interaction.response.defer(ephemeral=True)
             channel = interaction.channel
             await otp_demo_delete_checkin_message(interaction.guild, tournament, match)
+            match["checked_in_once"] = True
             if not channel:
                 await interaction.followup.send("対戦チャンネルの作成に失敗しました。Botのチャンネル管理権限を確認してください。", ephemeral=True)
                 return
@@ -3705,6 +3732,8 @@ async def otp_demo_delete_match_channel(guild: discord.Guild, match: dict):
     match.pop("channel_id", None)
     match.pop("guide_message_id", None)
     match.pop("report_message_id", None)
+    match.pop("checkin_message_id", None)
+    match.pop("checkin_channel_id", None)
 
 
 async def otp_demo_delayed_delete_match_channel(guild: discord.Guild, tournament: dict, match_id: str, delay_seconds: int = 120):
@@ -3741,7 +3770,7 @@ async def otp_demo_send_match_report_message(channel: discord.abc.Messageable, t
     teams = tournament.get("teams", {})
     labels = [teams[key]["team_name"] for key in match.get("teams", [])]
     view = OTPMatchReportView(tournament["id"], match["id"], match.get("report_generation", 1), labels)
-    message = await channel.send(embed=otp_demo_match_report_embed(tournament, match), view=view)
+    message = await channel.send(embed=otp_demo_match_report_embed(tournament, match), file=build_otp_stage_file(match), view=view)
     match["report_message_id"] = message.id
     return message
 
@@ -3863,9 +3892,15 @@ async def otp_demo_announce_match(guild: discord.Guild, tournament: dict, match:
     if match.get("checkin_message_id") and match.get("checkin_channel_id") != match_channel.id:
         await otp_demo_delete_checkin_message(guild, tournament, match)
 
+    if match.get("checked_in_once"):
+        if match.get("report_message_id") is None:
+            await otp_demo_send_match_report_message(match_channel, tournament, match)
+        return
+
     if not match.get("checkin_message_id") and not match.get("report_message_id"):
         await otp_demo_send_checkin_message(match_channel, tournament, match)
     elif match.get("report_message_id") is None and len(match.get("checkins", {})) >= len(match.get("teams", [])):
+        match["checked_in_once"] = True
         await otp_demo_send_match_report_message(match_channel, tournament, match)
 
 
