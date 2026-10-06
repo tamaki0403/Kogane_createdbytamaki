@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import json
 import random
 from pathlib import Path
@@ -46,6 +47,9 @@ def resolve_path(value: str) -> Path:
 
 
 def find_font(config: dict[str, Any]) -> str | None:
+    env_font = os.getenv("OTP_BOARD_FONT_PATH")
+    if env_font and Path(env_font).exists():
+        return env_font
     for candidate in config.get("fonts", {}).get("preferred", []):
         if Path(candidate).exists():
             return candidate
@@ -70,7 +74,8 @@ def find_font(config: dict[str, Any]) -> str | None:
 
 def font(font_path: str | None, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     if font_path:
-        return ImageFont.truetype(font_path, size=size)
+        index = int(os.getenv("OTP_BOARD_FONT_INDEX", "0") or 0)
+        return ImageFont.truetype(font_path, size=size, index=index)
     return ImageFont.load_default()
 
 

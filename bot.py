@@ -3924,6 +3924,29 @@ async def render_otp_board_image(tournament: dict, board_key: str, data: dict, c
     return output_path
 
 
+async def otp_demo_renderer_font_status() -> str:
+    paths = otp_demo_renderer_paths()
+    script = (
+        "import json, os, sys; "
+        f"sys.path.insert(0, {paths['root']!r}); "
+        "import render; "
+        f"config=render.load_json(render.Path({paths['qualifier_block_config']!r})); "
+        "print(render.find_font(config) or 'NOT_FOUND')"
+    )
+    process = await asyncio.create_subprocess_exec(
+        sys.executable,
+        "-c",
+        script,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await process.communicate()
+    if process.returncode != 0:
+        detail = (stderr or stdout).decode("utf-8", errors="replace")[-1000:]
+        return f"確認失敗: {detail or 'unknown error'}"
+    return stdout.decode("utf-8", errors="replace").strip()
+
+
 async def otp_demo_send_or_edit_board_message(channel: discord.TextChannel, tournament: dict, board_key: str, content: str, image_path: str):
     board_messages = tournament.setdefault("board_messages", {})
     message_id = board_messages.get(board_key)
@@ -7322,6 +7345,22 @@ async def otp_demo_board_update(ctx, tournament_id: str):
         await status_message.edit(content=f"画像更新に失敗しました: {exc}")
         return
     await status_message.edit(content="画像を更新しました: " + ("、".join(updated) if updated else "更新対象なし"))
+
+
+@bot.command(name="OTP画像フォント確認")
+async def otp_demo_board_font_check(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    font_path = await otp_demo_renderer_font_status()
+    env_font = os.getenv("OTP_BOARD_FONT_PATH") or "未指定"
+    env_index = os.getenv("OTP_BOARD_FONT_INDEX") or "0"
+    await ctx.send(
+        "OTP画像レンダラーのフォント確認\n"
+        f"選択フォント: `{font_path}`\n"
+        f"OTP_BOARD_FONT_PATH: `{env_font}`\n"
+        f"OTP_BOARD_FONT_INDEX: `{env_index}`"
+    )
 
 
 @bot.command(name="OTPデモ文面一覧")
