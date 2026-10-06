@@ -1,0 +1,6 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+
+otp-board-renderer/.venv/
+otp-board-renderer/output/

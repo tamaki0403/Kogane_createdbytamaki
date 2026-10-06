@@ -1,0 +1,50 @@
+{
+  "render_type": "qualifier_overview",
+  "canvas": {
+    "width": 1800,
+    "height": 1200,
+    "background": "#f4f4f0",
+    "template": "assets/templates/qualifier_overview.png"
+  },
+  "colors": {
+    "ink": "#08090b",
+    "muted": "#3d4248",
+    "panel": "#ffffff",
+    "panel_alt": "#f7f7f4",
+    "line": "#050608",
+    "accent": "#ff0aad",
+    "cyan": "#00d9ff",
+    "lime": "#c7ff00",
+    "done": "#050608",
+    "playing": "#ff0aad",
+    "waiting": "#5f6670"
+  },
+  "fonts": {
+    "preferred": [
+      "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc",
+      "/System/Library/Fonts/AppleSDGothicNeo.ttc",
+      "/System/Library/Fonts/Supplemental/AppleGothic.ttf",
+      "/System/Library/Fonts/Supplemental/NotoSansGothic-Regular.ttf"
+    ]
+  },
+  "title": {
+    "box": [120, 86, 1560, 86],
+    "font_size": 58
+  },
+  "overview": {
+    "title": "Kogane OTP杯 出場チーム一覧",
+    "columns": "auto",
+    "max_columns": 4,
+    "margin_x": 118,
+    "start_y": 210,
+    "footer_space": 160,
+    "gap_x": 32,
+    "gap_y": 12,
+    "team_start_y": 42,
+    "block_label_height": 28
+  },
+  "footer": {
+    "box": "auto",
+    "font_size": 20
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "render_type": "bracket_visual",
+  "canvas": {
+    "width": 2400,
+    "height": 1500,
+    "background": "#f4f4f0",
+    "template": "assets/templates/bracket_visual.png"
+  },
+  "colors": {
+    "ink": "#08090b",
+    "muted": "#3d4248",
+    "panel": "#ffffff",
+    "panel_alt": "#f7f7f4",
+    "line": "#050608",
+    "accent": "#ff0aad",
+    "cyan": "#00d9ff",
+    "lime": "#c7ff00",
+    "done": "#050608",
+    "ready": "#00a6c7",
+    "active": "#ff0aad",
+    "hold": "#7a5c00",
+    "waiting": "#5f6670",
+    "bye": "#5f6670",
+    "no_match": "#5f6670"
+  },
+  "fonts": {
+    "preferred": [
+      "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc",
+      "/System/Library/Fonts/AppleSDGothicNeo.ttc",
+      "/System/Library/Fonts/Supplemental/AppleGothic.ttf",
+      "/System/Library/Fonts/Supplemental/NotoSansGothic-Regular.ttf"
+    ]
+  },
+  "title": {
+    "box": [140, 86, 2120, 88],
+    "font_size": 62
+  },
+  "bracket_visual": {
+    "start": [130, 250],
+    "column_width": 340,
+    "column_gap": 100,
+    "node_height": 74,
+    "max_column_height": 1040
+  },
+  "footer": {
+    "box": [140, 1288, 2120, 40],
+    "font_size": 22
+  }
+}

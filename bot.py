@@ -9,6 +9,7 @@ import csv
 import io
 import re
 import zipfile
+import sys
 import discord
 from discord.ext import commands, tasks
 from itertools import combinations
@@ -3877,6 +3878,117 @@ async def otp_demo_post_progress_placeholder(guild: discord.Guild, tournament: d
         pass
 
 
+def otp_demo_renderer_paths():
+    root = os.path.join(os.path.dirname(__file__), "otp-board-renderer")
+    return {
+        "root": root,
+        "render": os.path.join(root, "render.py"),
+        "qualifier_block_config": os.path.join(root, "configs", "qualifier_4team.json"),
+        "qualifier_overview_config": os.path.join(root, "configs", "qualifier_overview.json"),
+        "bracket_config": os.path.join(root, "configs", "bracket_tree.json"),
+    }
+
+
+def otp_demo_board_work_dir(tournament: dict) -> str:
+    safe_id = re.sub(r"[^0-9A-Za-z_.-]+", "_", tournament.get("id", "otp"))
+    path = os.path.join(DATA_DIR, "otp_boards", safe_id)
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+async def render_otp_board_image(tournament: dict, board_key: str, data: dict, config_path: str) -> str:
+    paths = otp_demo_renderer_paths()
+    if not os.path.exists(paths["render"]):
+        raise FileNotFoundError("otp-board-renderer/render.py が見つかりません。")
+    work_dir = otp_demo_board_work_dir(tournament)
+    input_path = os.path.join(work_dir, f"{board_key}.json")
+    output_path = os.path.join(work_dir, f"{board_key}.png")
+    with open(input_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    process = await asyncio.create_subprocess_exec(
+        sys.executable,
+        paths["render"],
+        "--input",
+        input_path,
+        "--config",
+        config_path,
+        "--output",
+        output_path,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    stdout, stderr = await process.communicate()
+    if process.returncode != 0:
+        detail = (stderr or stdout).decode("utf-8", errors="replace")[-1000:]
+        raise RuntimeError(detail or "画像レンダラーの実行に失敗しました。")
+    return output_path
+
+
+async def otp_demo_send_or_edit_board_message(channel: discord.TextChannel, tournament: dict, board_key: str, content: str, image_path: str):
+    board_messages = tournament.setdefault("board_messages", {})
+    message_id = board_messages.get(board_key)
+    file_name = f"{board_key}.png"
+    if message_id:
+        try:
+            message = await channel.fetch_message(message_id)
+            await message.delete()
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            pass
+    message = await channel.send(content, file=discord.File(image_path, filename=file_name))
+    board_messages[board_key] = message.id
+    return message
+
+
+async def update_otp_board_images(guild: discord.Guild, tournament: dict) -> list[str]:
+    channel = guild.get_channel(tournament.get("progress_channel_id"))
+    if not isinstance(channel, discord.TextChannel):
+        raise RuntimeError("公開進行チャンネルが見つかりません。")
+    paths = otp_demo_renderer_paths()
+    updated = []
+    if tournament.get("blocks"):
+        overview_data = build_otp_qualifier_overview_board_data(tournament)
+        overview_path = await render_otp_board_image(tournament, "qualifier_overview", overview_data, paths["qualifier_overview_config"])
+        await otp_demo_send_or_edit_board_message(
+            channel,
+            tournament,
+            "qualifier_overview",
+            f"【OTP杯 予選ブロック一覧｜{tournament.get('id')}】",
+            overview_path,
+        )
+        updated.append("予選ブロック一覧")
+
+        for block_index in range(1, len(tournament.get("blocks", [])) + 1):
+            block_label = otp_demo_block_label(block_index)
+            block_data = build_otp_qualifier_block_board_data(tournament, block_index)
+            block_path = await render_otp_board_image(tournament, f"qualifier_{block_label}", block_data, paths["qualifier_block_config"])
+            await otp_demo_send_or_edit_board_message(
+                channel,
+                tournament,
+                f"qualifier_{block_label}",
+                f"【OTP杯 予選 {block_label}ブロック｜{tournament.get('id')}】",
+                block_path,
+            )
+            updated.append(f"予選{block_label}ブロック")
+
+    for bracket_name, label in (("upper", "上位トーナメント"), ("lower", "下位トーナメント")):
+        bracket_data = build_otp_bracket_board_data(tournament, bracket_name)
+        if not bracket_data:
+            continue
+        bracket_path = await render_otp_board_image(tournament, f"bracket_{bracket_name}", bracket_data, paths["bracket_config"])
+        await otp_demo_send_or_edit_board_message(
+            channel,
+            tournament,
+            f"bracket_{bracket_name}",
+            f"【OTP杯 {label}｜{tournament.get('id')}】",
+            bracket_path,
+        )
+        updated.append(label)
+
+    tournament["board_updated_at"] = time.time()
+    save_otp_tournaments()
+    return updated
+
+
 async def otp_demo_announce_match(guild: discord.Guild, tournament: dict, match: dict):
     channel = guild.get_channel(tournament.get("progress_channel_id")) or guild.get_channel(tournament.get("admin_channel_id"))
     if not channel:
@@ -3921,6 +4033,283 @@ def otp_demo_get_leader_id(team: dict) -> str | None:
         if member.get("role") == "リーダー":
             return str(member.get("discord_id"))
     return None
+
+
+def otp_demo_block_label(block_index: int) -> str:
+    value = int(block_index)
+    label = ""
+    while value > 0:
+        value, remainder = divmod(value - 1, 26)
+        label = chr(ord("A") + remainder) + label
+    return label or "A"
+
+
+def otp_demo_match_status_label(status: str | None) -> str:
+    return {
+        "waiting": "waiting",
+        "active": "active",
+        "disputed": "active",
+        "hold": "waiting",
+        "done": "done",
+        "bye": "bye",
+    }.get(status or "waiting", status or "waiting")
+
+
+def otp_demo_updated_at() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%S%z")
+
+
+def otp_demo_block_stats(tournament: dict, block_index: int) -> dict:
+    if block_index < 1 or block_index > len(tournament.get("blocks", [])):
+        return {}
+    block_teams = tournament.get("blocks", [])[block_index - 1]
+    stats = {
+        team: {
+            "match_wins": 0,
+            "match_losses": 0,
+            "battle_wins": 0,
+            "battle_losses": 0,
+        }
+        for team in block_teams
+    }
+    for match in tournament.get("matches", {}).values():
+        if match.get("phase") != "qualifier" or match.get("block") != block_index or match.get("status") != "done":
+            continue
+        a, b = match.get("teams", [None, None])
+        if a not in stats or b not in stats:
+            continue
+        aw = int(match.get("wins", {}).get(a, 0))
+        bw = int(match.get("wins", {}).get(b, 0))
+        stats[a]["battle_wins"] += aw
+        stats[a]["battle_losses"] += bw
+        stats[b]["battle_wins"] += bw
+        stats[b]["battle_losses"] += aw
+        winner = a if aw > bw else b
+        loser = b if winner == a else a
+        stats[winner]["match_wins"] += 1
+        stats[loser]["match_losses"] += 1
+    return stats
+
+
+def otp_demo_ranked_block_teams(tournament: dict, block_index: int) -> list[str]:
+    if str(block_index) in tournament.get("block_rankings", {}):
+        return tournament["block_rankings"][str(block_index)]
+    return rank_otp_demo_block(tournament, block_index)
+
+
+def otp_demo_board_team_entry(tournament: dict, team_key: str, rank: int | None = None, stats: dict | None = None) -> dict:
+    team = tournament.get("teams", {}).get(team_key, {})
+    entry = {
+        "team_key": team_key,
+        "application_id": team.get("application_id", "-"),
+        "name": team.get("team_name", "未定"),
+    }
+    if rank is not None:
+        entry["rank"] = rank
+    if stats:
+        entry.update(stats)
+    return entry
+
+
+def build_otp_qualifier_block_board_data(tournament: dict, block_index: int) -> dict:
+    block_label = otp_demo_block_label(block_index)
+    ranked = otp_demo_ranked_block_teams(tournament, block_index)
+    stats = otp_demo_block_stats(tournament, block_index)
+    teams = [
+        otp_demo_board_team_entry(tournament, team_key, index, stats.get(team_key, {}))
+        for index, team_key in enumerate(ranked, start=1)
+    ]
+    block_matches = []
+    block_match_no = 1
+    for match_id in tournament.get("match_order", []):
+        match = tournament.get("matches", {}).get(match_id)
+        if not match or match.get("phase") != "qualifier" or match.get("block") != block_index:
+            continue
+        match_teams = match.get("teams", [])
+        score = None
+        if len(match_teams) == 2 and match.get("status") == "done":
+            score = [int(match.get("wins", {}).get(match_teams[0], 0)), int(match.get("wins", {}).get(match_teams[1], 0))]
+        block_matches.append({
+            "match_id": match.get("id", match_id),
+            "match_no": f"{block_label}-{block_match_no}",
+            "teams": match_teams,
+            "score": score,
+            "status": otp_demo_match_status_label(match.get("status")),
+            "winner": match.get("winner"),
+        })
+        block_match_no += 1
+    return {
+        "tournament_id": tournament.get("id"),
+        "updated_at": otp_demo_updated_at(),
+        "block": {
+            "block_id": block_label,
+            "name": f"{block_label}ブロック",
+            "teams": teams,
+            "matches": block_matches,
+        },
+    }
+
+
+def build_otp_qualifier_overview_board_data(tournament: dict) -> dict:
+    blocks = []
+    for block_index, block_teams in enumerate(tournament.get("blocks", []), start=1):
+        block_label = otp_demo_block_label(block_index)
+        ranked = otp_demo_ranked_block_teams(tournament, block_index)
+        rank_by_team = {team_key: rank for rank, team_key in enumerate(ranked, start=1)}
+        blocks.append({
+            "block_id": block_label,
+            "name": f"{block_label}ブロック",
+            "teams": [
+                otp_demo_board_team_entry(tournament, team_key, rank_by_team.get(team_key))
+                for team_key in sorted(block_teams, key=lambda key: tournament.get("teams", {}).get(key, {}).get("application_number") or 999999)
+            ],
+        })
+    return {
+        "tournament_id": tournament.get("id"),
+        "updated_at": otp_demo_updated_at(),
+        "qualifiers": {"blocks": blocks},
+    }
+
+
+def otp_demo_team_qualifier_meta(tournament: dict, team_key: str) -> tuple[str | None, int | None]:
+    for block_index, block_teams in enumerate(tournament.get("blocks", []), start=1):
+        if team_key not in block_teams:
+            continue
+        ranked = otp_demo_ranked_block_teams(tournament, block_index)
+        rank = ranked.index(team_key) + 1 if team_key in ranked else None
+        return otp_demo_block_label(block_index), rank
+    return None, None
+
+
+def otp_demo_bracket_slot_entry(tournament: dict, team_key: str | None, score=None, status: str = "waiting", is_winner: bool = False, note: str | None = None) -> dict:
+    if not team_key:
+        return {
+            "team_key": None,
+            "score": score,
+            "status": status,
+            "is_winner": False,
+            "note": note or "未定",
+        }
+    team = tournament.get("teams", {}).get(team_key, {})
+    block_label, qualifier_rank = otp_demo_team_qualifier_meta(tournament, team_key)
+    return {
+        "team_key": team_key,
+        "entry_no": team.get("application_number"),
+        "team_name": team.get("team_name", "未定"),
+        "block": block_label,
+        "rank": qualifier_rank,
+        "score": score,
+        "status": status,
+        "is_winner": bool(is_winner),
+        "note": note,
+    }
+
+
+def build_otp_bracket_board_data(tournament: dict, bracket_name: str) -> dict | None:
+    bracket = tournament.get("brackets", {}).get(bracket_name)
+    if not bracket:
+        return None
+    stored_slots = list(bracket.get("slots", []))
+    if not stored_slots:
+        return None
+
+    slot_count = 32
+    initial_slots = (stored_slots + [None] * slot_count)[:slot_count]
+    phase_matches = [
+        match for match in tournament.get("matches", {}).values()
+        if match.get("phase") == bracket_name
+    ]
+    match_by_pair = {
+        frozenset(match.get("teams", [])): match
+        for match in phase_matches
+        if len(match.get("teams", [])) == 2
+    }
+    round_defs = [
+        ("r1", "R1", 16),
+        ("r2", "R2", 8),
+        ("qf", "Quarterfinal", 4),
+        ("sf", "Semifinal", 2),
+        ("final", "Final", 1),
+    ]
+    title = "上位トーナメント" if bracket_name == "upper" else "下位トーナメント"
+    rounds = []
+    current_slots = initial_slots
+    for round_index, (round_key, label, match_count) in enumerate(round_defs, start=1):
+        matches = []
+        next_slots = []
+        for match_index in range(match_count):
+            a = current_slots[match_index * 2] if match_index * 2 < len(current_slots) else None
+            b = current_slots[match_index * 2 + 1] if match_index * 2 + 1 < len(current_slots) else None
+            pair_match = match_by_pair.get(frozenset([key for key in (a, b) if key]))
+            bo = 5 if label == "Final" else 3
+            status = "waiting"
+            winner = None
+            scores = [None, None]
+            notes = [None, None]
+            if pair_match:
+                status = otp_demo_match_status_label(pair_match.get("status"))
+                winner = pair_match.get("winner")
+                scores = [
+                    int(pair_match.get("wins", {}).get(a, 0)) if a else None,
+                    int(pair_match.get("wins", {}).get(b, 0)) if b else None,
+                ]
+                bo = int(pair_match.get("best_of", bo))
+            elif a and not b:
+                status = "bye"
+                winner = a
+                notes = ["不戦勝", "空き枠"]
+            elif b and not a:
+                status = "bye"
+                winner = b
+                notes = ["空き枠", "不戦勝"]
+            elif a and b:
+                status = "ready"
+            else:
+                notes = ["勝者待ち" if round_index > 1 else "空き枠", "勝者待ち" if round_index > 1 else "空き枠"]
+
+            match_key = f"{bracket_name}-{round_key}-{match_index + 1:02d}"
+            matches.append({
+                "match_key": match_key,
+                "label": f"{label} #{match_index + 1}",
+                "bo": bo,
+                "status": status,
+                "winner": winner,
+                "slots": [
+                    otp_demo_bracket_slot_entry(tournament, a, scores[0], status, a == winner if a else False, notes[0]),
+                    otp_demo_bracket_slot_entry(tournament, b, scores[1], status, b == winner if b else False, notes[1]),
+                ],
+            })
+            next_slots.append(winner if winner else None)
+        rounds.append({
+            "key": round_key,
+            "round": round_index,
+            "label": label,
+            "bo": 5 if label == "Final" else 3,
+            "matches": matches,
+        })
+        current_slots = next_slots
+    teams = {}
+    for team_key in {key for key in initial_slots if key}:
+        team = tournament.get("teams", {}).get(team_key, {})
+        block_label, qualifier_rank = otp_demo_team_qualifier_meta(tournament, team_key)
+        teams[team_key] = {
+            "application_id": team.get("application_id"),
+            "name": team.get("team_name"),
+            "qualifier_block": block_label,
+            "qualifier_rank": qualifier_rank,
+        }
+    return {
+        "tournament_id": tournament.get("id"),
+        "updated_at": otp_demo_updated_at(),
+        "bracket": {
+            "bracket_id": bracket_name,
+            "title": title,
+            "bracket_type": bracket_name,
+            "image": {"width": 2400, "height": 1800},
+            "teams": teams,
+            "rounds": rounds,
+        },
+    }
 
 
 def rank_otp_demo_block(tournament: dict, block_index: int) -> list[str]:
@@ -4311,6 +4700,22 @@ class OTPDemoControlView(discord.ui.View):
             text = f"## {title}\n{body}"
             for i in range(0, len(text), 1900):
                 await interaction.channel.send(text[i:i + 1900])
+
+    @discord.ui.button(label="画像更新", style=discord.ButtonStyle.primary, custom_id="otp_demo_panel_board_update")
+    async def board_update_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        tournament = await self.require_operator(interaction)
+        if not tournament:
+            return
+        await interaction.response.defer(ephemeral=True)
+        try:
+            updated = await update_otp_board_images(interaction.guild, tournament)
+        except Exception as exc:
+            await interaction.followup.send(f"画像更新に失敗しました: {exc}", ephemeral=True)
+            return
+        await interaction.followup.send(
+            "画像を更新しました: " + ("、".join(updated) if updated else "更新対象なし"),
+            ephemeral=True,
+        )
 
     @discord.ui.button(label="デモ終了", style=discord.ButtonStyle.danger, custom_id="otp_demo_panel_finish")
     async def finish_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -6787,6 +7192,21 @@ async def otp_demo_status(ctx, tournament_id: str):
     text = otp_demo_summary_text(tournament)
     for i in range(0, len(text), 1900):
         await ctx.send(text[i:i + 1900])
+
+
+@bot.command(name="OTP画像更新")
+async def otp_demo_board_update(ctx, tournament_id: str):
+    tournament = get_otp_tournaments().get(tournament_id)
+    if not tournament or not otp_demo_is_operator(ctx.author, tournament):
+        await ctx.send("大会が見つからないか、権限がありません。")
+        return
+    status_message = await ctx.send("OTP進行画像を生成しています。")
+    try:
+        updated = await update_otp_board_images(ctx.guild, tournament)
+    except Exception as exc:
+        await status_message.edit(content=f"画像更新に失敗しました: {exc}")
+        return
+    await status_message.edit(content="画像を更新しました: " + ("、".join(updated) if updated else "更新対象なし"))
 
 
 @bot.command(name="OTPデモ文面一覧")

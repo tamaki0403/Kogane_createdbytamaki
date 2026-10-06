@@ -1,0 +1,94 @@
+{
+  "tournament_id": "demo-20261006",
+  "updated_at": "2026-10-06T21:00:00+09:00",
+  "bracket": {
+    "bracket_id": "upper",
+    "title": "Kogane OTP杯 上位トーナメント",
+    "subtitle": "Final BO5 / Others BO3",
+    "slot_count": 32,
+    "teams": {
+      "team_001": {"application_id": "OTP-001", "name": "テストA", "qualifier_block": "A", "qualifier_rank": 1},
+      "team_002": {"application_id": "OTP-002", "name": "テストB", "qualifier_block": "A", "qualifier_rank": 2},
+      "team_003": {"application_id": "OTP-003", "name": "テストC", "qualifier_block": "B", "qualifier_rank": 1},
+      "team_004": {"application_id": "OTP-004", "name": "テストD", "qualifier_block": "B", "qualifier_rank": 2},
+      "team_005": {"application_id": "OTP-005", "name": "テストE", "qualifier_block": "C", "qualifier_rank": 1},
+      "team_006": {"application_id": "OTP-006", "name": "テストF", "qualifier_block": "C", "qualifier_rank": 2},
+      "team_007": {"application_id": "OTP-007", "name": "テストG", "qualifier_block": "D", "qualifier_rank": 1},
+      "team_008": {"application_id": "OTP-008", "name": "テストH", "qualifier_block": "D", "qualifier_rank": 2},
+      "team_009": {"application_id": "OTP-009", "name": "テストI", "qualifier_block": "E", "qualifier_rank": 1},
+      "team_010": {"application_id": "OTP-010", "name": "テストJ", "qualifier_block": "E", "qualifier_rank": 2},
+      "team_011": {"application_id": "OTP-011", "name": "テストK", "qualifier_block": "F", "qualifier_rank": 1},
+      "team_012": {"application_id": "OTP-012", "name": "テストL", "qualifier_block": "F", "qualifier_rank": 2},
+      "team_013": {"application_id": "OTP-013", "name": "テストM", "qualifier_block": "G", "qualifier_rank": 1},
+      "team_014": {"application_id": "OTP-014", "name": "テストN", "qualifier_block": "G", "qualifier_rank": 2},
+      "team_015": {"application_id": "OTP-015", "name": "テストO", "qualifier_block": "H", "qualifier_rank": 1},
+      "team_016": {"application_id": "OTP-016", "name": "テストP", "qualifier_block": "H", "qualifier_rank": 2}
+    },
+    "rounds": [
+      {
+        "key": "r1",
+        "label": "R1",
+        "round_index": 0,
+        "bo": 3,
+        "slots": [
+          {"slot_id": "r1-01-a", "pair_id": "r1-01", "bracket_index": 0, "team_key": "team_002", "score": 2, "status": "done", "is_winner": true},
+          {"slot_id": "r1-01-b", "pair_id": "r1-01", "bracket_index": 1, "team_key": "team_004", "score": 1, "status": "done", "is_winner": false},
+          {"slot_id": "r1-02-a", "pair_id": "r1-02", "bracket_index": 2, "team_key": "team_006", "score": 1, "status": "active", "is_winner": false},
+          {"slot_id": "r1-02-b", "pair_id": "r1-02", "bracket_index": 3, "team_key": "team_008", "score": 1, "status": "active", "is_winner": false},
+          {"slot_id": "r1-03-a", "pair_id": "r1-03", "bracket_index": 4, "team_key": "team_010", "score": null, "status": "ready", "is_winner": false},
+          {"slot_id": "r1-03-b", "pair_id": "r1-03", "bracket_index": 5, "team_key": "team_012", "score": null, "status": "ready", "is_winner": false},
+          {"slot_id": "r1-04-a", "pair_id": "r1-04", "bracket_index": 6, "team_key": "team_014", "score": 0, "status": "done", "is_winner": false},
+          {"slot_id": "r1-04-b", "pair_id": "r1-04", "bracket_index": 7, "team_key": "team_016", "score": 2, "status": "done", "is_winner": true}
+        ]
+      },
+      {
+        "key": "r2",
+        "label": "R2",
+        "round_index": 1,
+        "bo": 3,
+        "slots": [
+          {"slot_id": "r2-01-a", "pair_id": "r2-01", "bracket_index": 0, "team_key": "team_001", "score": null, "status": "bye", "is_winner": false, "note": "不戦勝"},
+          {"slot_id": "r2-01-b", "pair_id": "r2-01", "bracket_index": 1, "team_key": "team_002", "score": null, "status": "ready", "is_winner": false},
+          {"slot_id": "r2-02-a", "pair_id": "r2-02", "bracket_index": 2, "team_key": null, "score": null, "status": "waiting", "is_winner": false, "note": "勝者待ち"},
+          {"slot_id": "r2-02-b", "pair_id": "r2-02", "bracket_index": 3, "team_key": "team_003", "score": null, "status": "bye", "is_winner": false, "note": "不戦勝"},
+          {"slot_id": "r2-03-a", "pair_id": "r2-03", "bracket_index": 4, "team_key": null, "score": null, "status": "waiting", "is_winner": false, "note": "勝者待ち"},
+          {"slot_id": "r2-03-b", "pair_id": "r2-03", "bracket_index": 5, "team_key": "team_005", "score": null, "status": "bye", "is_winner": false, "note": "不戦勝"},
+          {"slot_id": "r2-04-a", "pair_id": "r2-04", "bracket_index": 6, "team_key": "team_007", "score": 2, "status": "done", "is_winner": true},
+          {"slot_id": "r2-04-b", "pair_id": "r2-04", "bracket_index": 7, "team_key": "team_016", "score": 0, "status": "done", "is_winner": false}
+        ]
+      },
+      {
+        "key": "qf",
+        "label": "QF",
+        "round_index": 2,
+        "bo": 3,
+        "slots": [
+          {"slot_id": "qf-01-a", "pair_id": "qf-01", "bracket_index": 0, "team_key": null, "score": null, "status": "waiting", "is_winner": false, "note": "勝者待ち"},
+          {"slot_id": "qf-01-b", "pair_id": "qf-01", "bracket_index": 1, "team_key": null, "score": null, "status": "waiting", "is_winner": false, "note": "勝者待ち"},
+          {"slot_id": "qf-02-a", "pair_id": "qf-02", "bracket_index": 2, "team_key": null, "score": null, "status": "waiting", "is_winner": false, "note": "勝者待ち"},
+          {"slot_id": "qf-02-b", "pair_id": "qf-02", "bracket_index": 3, "team_key": "team_007", "score": null, "status": "ready", "is_winner": false}
+        ]
+      },
+      {
+        "key": "sf",
+        "label": "SF",
+        "round_index": 3,
+        "bo": 3,
+        "slots": [
+          {"slot_id": "sf-01-a", "pair_id": "sf-01", "bracket_index": 0, "team_key": null, "score": null, "status": "waiting", "is_winner": false, "note": "勝者待ち"},
+          {"slot_id": "sf-01-b", "pair_id": "sf-01", "bracket_index": 1, "team_key": null, "score": null, "status": "waiting", "is_winner": false, "note": "勝者待ち"}
+        ]
+      },
+      {
+        "key": "final",
+        "label": "Final",
+        "round_index": 4,
+        "bo": 5,
+        "slots": [
+          {"slot_id": "final-a", "pair_id": "final", "bracket_index": 0, "team_key": null, "score": null, "status": "waiting", "is_winner": false, "note": "勝者待ち"},
+          {"slot_id": "final-b", "pair_id": "final", "bracket_index": 1, "team_key": null, "score": null, "status": "waiting", "is_winner": false, "note": "勝者待ち"}
+        ]
+      }
+    ]
+  }
+}

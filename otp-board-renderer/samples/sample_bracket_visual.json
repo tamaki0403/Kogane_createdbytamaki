@@ -1,0 +1,66 @@
+{
+  "tournament_id": "demo-20261006",
+  "updated_at": "2026-10-06T21:00:00+09:00",
+  "bracket": {
+    "bracket_id": "upper",
+    "title": "上位トーナメント",
+    "teams": {
+      "demo-20261006:OTP-001": {"application_id": "OTP-001", "name": "テストA", "qualifier_block": "A", "qualifier_rank": 1},
+      "demo-20261006:OTP-002": {"application_id": "OTP-002", "name": "テストB", "qualifier_block": "A", "qualifier_rank": 2},
+      "demo-20261006:OTP-003": {"application_id": "OTP-003", "name": "テストC", "qualifier_block": "B", "qualifier_rank": 1},
+      "demo-20261006:OTP-004": {"application_id": "OTP-004", "name": "テストD", "qualifier_block": "B", "qualifier_rank": 2},
+      "demo-20261006:OTP-005": {"application_id": "OTP-005", "name": "テストE", "qualifier_block": "C", "qualifier_rank": 1},
+      "demo-20261006:OTP-006": {"application_id": "OTP-006", "name": "テストF", "qualifier_block": "C", "qualifier_rank": 2},
+      "demo-20261006:OTP-007": {"application_id": "OTP-007", "name": "テストG", "qualifier_block": "D", "qualifier_rank": 1},
+      "demo-20261006:OTP-008": {"application_id": "OTP-008", "name": "テストH", "qualifier_block": "D", "qualifier_rank": 2},
+      "demo-20261006:OTP-009": {"application_id": "OTP-009", "name": "テストI", "qualifier_block": "E", "qualifier_rank": 1},
+      "demo-20261006:OTP-010": {"application_id": "OTP-010", "name": "テストJ", "qualifier_block": "E", "qualifier_rank": 2},
+      "demo-20261006:OTP-011": {"application_id": "OTP-011", "name": "テストK", "qualifier_block": "F", "qualifier_rank": 1},
+      "demo-20261006:OTP-012": {"application_id": "OTP-012", "name": "テストL", "qualifier_block": "F", "qualifier_rank": 2}
+    },
+    "rounds": [
+      {
+        "round": 1,
+        "label": "R1",
+        "nodes": [
+          {"node_id": "U-R1-01", "label": "R1 第1試合", "status": "done", "teams": [{"team_key": "demo-20261006:OTP-002", "score": 2, "is_winner": true}, {"team_key": "demo-20261006:OTP-004", "score": 1}], "next_node_id": "U-R2-01", "next_slot": 1},
+          {"node_id": "U-R1-02", "label": "R1 第2試合", "status": "active", "teams": [{"team_key": "demo-20261006:OTP-006", "score": 1}, {"team_key": "demo-20261006:OTP-008", "score": 1}], "next_node_id": "U-R2-02", "next_slot": 0},
+          {"node_id": "U-R1-03", "label": "R1 第3試合", "status": "ready", "teams": [{"team_key": "demo-20261006:OTP-010"}, {"team_key": "demo-20261006:OTP-012"}], "next_node_id": "U-R2-03", "next_slot": 0},
+          {"node_id": "U-R1-04", "label": "R1 第4試合", "status": "done", "teams": [{"team_key": "demo-20261006:OTP-014", "score": 0}, {"team_key": "demo-20261006:OTP-016", "score": 2, "is_winner": true}], "next_node_id": "U-R2-04", "next_slot": 1}
+        ]
+      },
+      {
+        "round": 2,
+        "label": "R2",
+        "nodes": [
+          {"node_id": "U-R2-01", "label": "R2 第1試合", "status": "ready", "teams": [{"team_key": "demo-20261006:OTP-001", "note": "不戦勝"}, {"team_key": "demo-20261006:OTP-002"}], "next_node_id": "U-QF-01", "next_slot": 0},
+          {"node_id": "U-R2-02", "label": "R2 第2試合", "status": "waiting", "teams": [{"team_key": null, "note": "勝者待ち"}, {"team_key": "demo-20261006:OTP-003", "note": "不戦勝"}], "next_node_id": "U-QF-01", "next_slot": 1},
+          {"node_id": "U-R2-03", "label": "R2 第3試合", "status": "waiting", "teams": [{"team_key": null, "note": "勝者待ち"}, {"team_key": "demo-20261006:OTP-005", "note": "不戦勝"}], "next_node_id": "U-QF-02", "next_slot": 0},
+          {"node_id": "U-R2-04", "label": "R2 第4試合", "status": "done", "teams": [{"team_key": "demo-20261006:OTP-007", "note": "不戦勝", "score": 2, "is_winner": true}, {"team_key": "demo-20261006:OTP-016", "score": 0}], "next_node_id": "U-QF-02", "next_slot": 1}
+        ]
+      },
+      {
+        "round": 3,
+        "label": "QF",
+        "nodes": [
+          {"node_id": "U-QF-01", "label": "準々決勝 第1試合", "status": "waiting", "teams": [{"team_key": null, "note": "勝者待ち"}, {"team_key": null, "note": "勝者待ち"}], "next_node_id": "U-SF-01", "next_slot": 0},
+          {"node_id": "U-QF-02", "label": "準々決勝 第2試合", "status": "waiting", "teams": [{"team_key": "demo-20261006:OTP-005"}, {"team_key": "demo-20261006:OTP-007"}], "next_node_id": "U-SF-01", "next_slot": 1}
+        ]
+      },
+      {
+        "round": 4,
+        "label": "SF",
+        "nodes": [
+          {"node_id": "U-SF-01", "label": "準決勝", "status": "waiting", "teams": [{"team_key": null, "note": "勝者待ち"}, {"team_key": null, "note": "勝者待ち"}], "next_node_id": "U-F-01", "next_slot": 0}
+        ]
+      },
+      {
+        "round": 5,
+        "label": "Final",
+        "nodes": [
+          {"node_id": "U-F-01", "label": "決勝", "status": "waiting", "teams": [{"team_key": null, "note": "勝者待ち"}, {"team_key": null, "note": "勝者待ち"}]}
+        ]
+      }
+    ]
+  }
+}

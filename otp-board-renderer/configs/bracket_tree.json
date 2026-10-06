@@ -1,0 +1,66 @@
+{
+  "render_type": "bracket_tree",
+  "canvas": {
+    "width": 2400,
+    "height": 1600,
+    "background": "#050608",
+    "template": "assets/templates/bracket_tree.png"
+  },
+  "colors": {
+    "ink": "#f7fbff",
+    "muted": "#a8b3be",
+    "panel": "#10151c",
+    "panel_alt": "#151b24",
+    "final_panel": "#172015",
+    "header": "#070a0f",
+    "line": "#e8f8ff",
+    "accent": "#ff0aad",
+    "cyan": "#00d9ff",
+    "lime": "#c7ff00",
+    "done": "#1f2937",
+    "ready": "#00a6c7",
+    "active": "#ff0aad",
+    "hold": "#7a5c00",
+    "waiting": "#5f6670",
+    "bye": "#5f6670",
+    "no_match": "#5f6670"
+  },
+  "fonts": {
+    "preferred": [
+      "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc",
+      "/System/Library/Fonts/AppleSDGothicNeo.ttc",
+      "/System/Library/Fonts/Supplemental/AppleGothic.ttf",
+      "/System/Library/Fonts/Supplemental/NotoSansGothic-Regular.ttf"
+    ]
+  },
+  "title": {
+    "box": [110, 70, 2180, 78],
+    "font_size": 54
+  },
+  "bracket_tree": {
+    "title": "Kogane OTP杯 上位トーナメント",
+    "subtitle": "R1 / R2 / QF / SF: BO3    Final: BO5",
+    "subtitle_box": [110, 150, 2180, 34],
+    "subtitle_font_size": 24,
+    "start": [92, 250],
+    "card_width": 330,
+    "card_height": 134,
+    "final_card_height": 152,
+    "min_card_height": 64,
+    "card_header_height": 34,
+    "card_radius": 8,
+    "slot_height": 42,
+    "slot_gap": 8,
+    "column_gap": 150,
+    "connector_stub": 42,
+    "line_width": 4,
+    "min_match_gap": 18,
+    "bottom_margin": 132,
+    "label_font_size": 16,
+    "bo_font_size": 14
+  },
+  "footer": {
+    "box": [110, 1492, 2180, 34],
+    "font_size": 22
+  }
+}

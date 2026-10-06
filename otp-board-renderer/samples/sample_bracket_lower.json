@@ -1,0 +1,43 @@
+{
+  "tournament_id": "demo-20261006",
+  "updated_at": "2026-10-06T21:00:00+09:00",
+  "bracket": {
+    "bracket_id": "lower",
+    "title": "下位トーナメント",
+    "format": "single_elimination",
+    "entry_count": 20,
+    "slot_count": 32,
+    "rounds": [
+      {"round": 1, "label": "R1", "best_of": 3, "target_wins": 2},
+      {"round": 2, "label": "R2", "best_of": 3, "target_wins": 2},
+      {"round": 3, "label": "Quarterfinal", "best_of": 3, "target_wins": 2},
+      {"round": 4, "label": "Semifinal", "best_of": 3, "target_wins": 2},
+      {"round": 5, "label": "Final", "best_of": 5, "target_wins": 3}
+    ],
+    "teams": {
+      "demo-20261006:OTP-001": {"application_id": "OTP-001", "name": "テストA", "qualifier_block": "A", "qualifier_rank": 1},
+      "demo-20261006:OTP-002": {"application_id": "OTP-002", "name": "テストB", "qualifier_block": "A", "qualifier_rank": 2},
+      "demo-20261006:OTP-003": {"application_id": "OTP-003", "name": "テストC", "qualifier_block": "B", "qualifier_rank": 1},
+      "demo-20261006:OTP-004": {"application_id": "OTP-004", "name": "テストD", "qualifier_block": "B", "qualifier_rank": 2},
+      "demo-20261006:OTP-005": {"application_id": "OTP-005", "name": "テストE", "qualifier_block": "C", "qualifier_rank": 1},
+      "demo-20261006:OTP-006": {"application_id": "OTP-006", "name": "テストF", "qualifier_block": "C", "qualifier_rank": 2},
+      "demo-20261006:OTP-007": {"application_id": "OTP-007", "name": "テストG", "qualifier_block": "D", "qualifier_rank": 1},
+      "demo-20261006:OTP-008": {"application_id": "OTP-008", "name": "テストH", "qualifier_block": "D", "qualifier_rank": 2},
+      "demo-20261006:OTP-009": {"application_id": "OTP-009", "name": "テストI", "qualifier_block": "E", "qualifier_rank": 1},
+      "demo-20261006:OTP-010": {"application_id": "OTP-010", "name": "テストJ", "qualifier_block": "E", "qualifier_rank": 2}
+    },
+    "matches": [
+      {"match_id": "L-R1-01", "round": 1, "round_label": "R1", "match_no": 1, "label": "R1 第1試合", "teams": ["demo-20261006:OTP-001", "demo-20261006:OTP-002"], "score": [2, 1], "status": "done", "winner": "demo-20261006:OTP-001", "next_match_id": "L-R2-01", "next_slot": 0, "is_bye": false, "is_final": false, "best_of": 3, "target_wins": 2},
+      {"match_id": "L-R1-02", "round": 1, "round_label": "R1", "match_no": 2, "label": "R1 第2試合", "teams": ["demo-20261006:OTP-004", "demo-20261006:OTP-005"], "score": [null, null], "status": "ready", "winner": null, "next_match_id": "L-R2-01", "next_slot": 1, "is_bye": false, "is_final": false, "best_of": 3, "target_wins": 2},
+      {"match_id": "L-R1-03", "round": 1, "round_label": "R1", "match_no": 3, "label": "R1 第3試合", "teams": ["demo-20261006:OTP-006", "demo-20261006:OTP-007"], "score": [null, null], "status": "waiting", "winner": null, "next_match_id": "L-R2-02", "next_slot": 0, "is_bye": false, "is_final": false, "best_of": 3, "target_wins": 2},
+      {"match_id": "L-R1-04", "round": 1, "round_label": "R1", "match_no": 4, "label": "R1 第4試合", "teams": ["demo-20261006:OTP-008", "demo-20261006:OTP-009"], "score": [null, null], "status": "active", "winner": null, "next_match_id": "L-R2-02", "next_slot": 1, "is_bye": false, "is_final": false, "best_of": 3, "target_wins": 2},
+      {"match_id": "L-R2-01", "round": 2, "round_label": "R2", "match_no": 1, "label": "R2 第1試合", "teams": ["demo-20261006:OTP-001", null], "score": [null, null], "status": "waiting", "winner": null, "next_match_id": "L-QF-01", "next_slot": 0, "is_bye": false, "is_final": false, "best_of": 3, "target_wins": 2, "sources": ["L-R1-01", "L-R1-02"]},
+      {"match_id": "L-R2-02", "round": 2, "round_label": "R2", "match_no": 2, "label": "R2 第2試合", "teams": [null, null], "score": [null, null], "status": "waiting", "winner": null, "next_match_id": "L-QF-01", "next_slot": 1, "is_bye": false, "is_final": false, "best_of": 3, "target_wins": 2, "sources": ["L-R1-03", "L-R1-04"]},
+      {"match_id": "L-R2-03", "round": 2, "round_label": "R2", "match_no": 3, "label": "R2 第3試合", "teams": ["demo-20261006:OTP-003", null], "score": [null, null], "status": "waiting", "winner": null, "next_match_id": "L-QF-02", "next_slot": 0, "is_bye": false, "is_final": false, "best_of": 3, "target_wins": 2, "advance_reasons": ["bye", null]},
+      {"match_id": "L-QF-01", "round": 3, "round_label": "Quarterfinal", "match_no": 1, "label": "準々決勝 第1試合", "teams": [null, null], "score": [null, null], "status": "waiting", "winner": null, "next_match_id": "L-SF-01", "next_slot": 0, "is_bye": false, "is_final": false, "best_of": 3, "target_wins": 2},
+      {"match_id": "L-QF-02", "round": 3, "round_label": "Quarterfinal", "match_no": 2, "label": "準々決勝 第2試合", "teams": ["demo-20261006:OTP-003", "demo-20261006:OTP-010"], "score": [null, null], "status": "ready", "winner": null, "next_match_id": "L-SF-01", "next_slot": 1, "is_bye": false, "is_final": false, "best_of": 3, "target_wins": 2, "advance_reasons": ["bye", null]},
+      {"match_id": "L-SF-01", "round": 4, "round_label": "Semifinal", "match_no": 1, "label": "準決勝 第1試合", "teams": [null, null], "score": [null, null], "status": "waiting", "winner": null, "next_match_id": "L-F-01", "next_slot": 0, "is_bye": false, "is_final": false, "best_of": 3, "target_wins": 2},
+      {"match_id": "L-F-01", "round": 5, "round_label": "Final", "match_no": 1, "label": "下位決勝", "teams": [null, null], "score": [null, null], "status": "waiting", "winner": null, "next_match_id": null, "next_slot": null, "is_bye": false, "is_final": true, "best_of": 5, "target_wins": 3}
+    ]
+  }
+}

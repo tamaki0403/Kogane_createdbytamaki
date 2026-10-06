@@ -1,0 +1,67 @@
+{
+  "canvas": {
+    "width": 1600,
+    "height": 1000,
+    "background": "#f4f4f0",
+    "template": "assets/templates/qualifier_4team.png"
+  },
+  "colors": {
+    "ink": "#08090b",
+    "muted": "#3d4248",
+    "panel": "#ffffff",
+    "panel_alt": "#f7f7f4",
+    "line": "#050608",
+    "accent": "#ff0aad",
+    "cyan": "#00d9ff",
+    "lime": "#c7ff00",
+    "done": "#050608",
+    "playing": "#ff0aad",
+    "waiting": "#5f6670"
+  },
+  "fonts": {
+    "preferred": [
+      "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc",
+      "/System/Library/Fonts/AppleSDGothicNeo.ttc",
+      "/System/Library/Fonts/Supplemental/AppleGothic.ttf",
+      "/System/Library/Fonts/Supplemental/NotoSansGothic-Regular.ttf"
+    ]
+  },
+  "title": {
+    "box": [100, 78, 1400, 82],
+    "font_size": 56
+  },
+  "team_rows": {
+    "title": "出場チーム",
+    "header_box": [90, 178, 620, 52],
+    "rows": [
+      [90, 250, 620, 108],
+      [90, 382, 620, 108],
+      [90, 514, 620, 108],
+      [90, 646, 620, 108]
+    ],
+    "id_width": 150,
+    "id_font_size": 28,
+    "name_font_size": 36,
+    "stat_font_size": 22
+  },
+  "matches": {
+    "title": "対戦カード",
+    "header_box": [770, 178, 740, 52],
+    "rows": [
+      [770, 250, 740, 82],
+      [770, 342, 740, 82],
+      [770, 434, 740, 82],
+      [770, 526, 740, 82],
+      [770, 618, 740, 82],
+      [770, 710, 740, 82]
+    ],
+    "team_font_size": 27,
+    "score_font_size": 42,
+    "status_font_size": 22,
+    "label_font_size": 20
+  },
+  "footer": {
+    "box": [80, 812, 1440, 44],
+    "font_size": 22
+  }
+}

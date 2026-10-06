@@ -1,0 +1,931 @@
+{
+  "bracket_id": "upper",
+  "title": "上位トーナメント",
+  "format": "single_elimination",
+  "slot_count": 32,
+  "updated_at": "2026-10-06T21:00:00+09:00",
+  "rounds": [
+    {
+      "round": 1,
+      "label": "R1",
+      "best_of": 3,
+      "target_wins": 2,
+      "slots": [
+        {
+          "slot_id": "U-R1-01-A",
+          "match_id": "U-R1-01",
+          "slot_index": 0,
+          "team_key": "demo-20261006:OTP-002",
+          "score": 2,
+          "status": "done",
+          "is_winner": true,
+          "note": null
+        },
+        {
+          "slot_id": "U-R1-01-B",
+          "match_id": "U-R1-01",
+          "slot_index": 1,
+          "team_key": "demo-20261006:OTP-004",
+          "score": 1,
+          "status": "done",
+          "is_winner": false,
+          "note": null
+        },
+        {
+          "slot_id": "U-R1-02-A",
+          "match_id": "U-R1-02",
+          "slot_index": 0,
+          "team_key": "demo-20261006:OTP-006",
+          "score": 1,
+          "status": "active",
+          "is_winner": false,
+          "note": null
+        },
+        {
+          "slot_id": "U-R1-02-B",
+          "match_id": "U-R1-02",
+          "slot_index": 1,
+          "team_key": "demo-20261006:OTP-008",
+          "score": 1,
+          "status": "active",
+          "is_winner": false,
+          "note": null
+        },
+        {
+          "slot_id": "U-R1-03-A",
+          "match_id": "U-R1-03",
+          "slot_index": 0,
+          "team_key": "demo-20261006:OTP-010",
+          "score": null,
+          "status": "ready",
+          "is_winner": false,
+          "note": null
+        },
+        {
+          "slot_id": "U-R1-03-B",
+          "match_id": "U-R1-03",
+          "slot_index": 1,
+          "team_key": "demo-20261006:OTP-012",
+          "score": null,
+          "status": "ready",
+          "is_winner": false,
+          "note": null
+        },
+        {
+          "slot_id": "U-R1-04-A",
+          "match_id": "U-R1-04",
+          "slot_index": 0,
+          "team_key": "demo-20261006:OTP-014",
+          "score": 0,
+          "status": "done",
+          "is_winner": false,
+          "note": null
+        },
+        {
+          "slot_id": "U-R1-04-B",
+          "match_id": "U-R1-04",
+          "slot_index": 1,
+          "team_key": "demo-20261006:OTP-016",
+          "score": 2,
+          "status": "done",
+          "is_winner": true,
+          "note": null
+        },
+        {
+          "slot_id": "U-R1-05-A",
+          "match_id": "U-R1-05",
+          "slot_index": 0,
+          "team_key": "demo-20261006:OTP-003",
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": null
+        },
+        {
+          "slot_id": "U-R1-05-B",
+          "match_id": "U-R1-05",
+          "slot_index": 1,
+          "team_key": "demo-20261006:OTP-005",
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": null
+        },
+        {
+          "slot_id": "U-R1-06-A",
+          "match_id": "U-R1-06",
+          "slot_index": 0,
+          "team_key": "demo-20261006:OTP-007",
+          "score": 2,
+          "status": "done",
+          "is_winner": true,
+          "note": null
+        },
+        {
+          "slot_id": "U-R1-06-B",
+          "match_id": "U-R1-06",
+          "slot_index": 1,
+          "team_key": "demo-20261006:OTP-009",
+          "score": 0,
+          "status": "done",
+          "is_winner": false,
+          "note": null
+        },
+        {
+          "slot_id": "U-R1-07-A",
+          "match_id": "U-R1-07",
+          "slot_index": 0,
+          "team_key": "demo-20261006:OTP-011",
+          "score": null,
+          "status": "ready",
+          "is_winner": false,
+          "note": null
+        },
+        {
+          "slot_id": "U-R1-07-B",
+          "match_id": "U-R1-07",
+          "slot_index": 1,
+          "team_key": "demo-20261006:OTP-013",
+          "score": null,
+          "status": "ready",
+          "is_winner": false,
+          "note": null
+        },
+        {
+          "slot_id": "U-R1-08-A",
+          "match_id": "U-R1-08",
+          "slot_index": 0,
+          "team_key": "demo-20261006:OTP-015",
+          "score": 1,
+          "status": "done",
+          "is_winner": false,
+          "note": null
+        },
+        {
+          "slot_id": "U-R1-08-B",
+          "match_id": "U-R1-08",
+          "slot_index": 1,
+          "team_key": "demo-20261006:OTP-017",
+          "score": 2,
+          "status": "done",
+          "is_winner": true,
+          "note": null
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "label": "R2",
+      "best_of": 3,
+      "target_wins": 2,
+      "slots": [
+        {
+          "slot_id": "U-R2-01-A",
+          "match_id": "U-R2-01",
+          "slot_index": 0,
+          "team_key": "demo-20261006:OTP-001",
+          "score": null,
+          "status": "ready",
+          "is_winner": false,
+          "note": "不戦勝"
+        },
+        {
+          "slot_id": "U-R2-01-B",
+          "match_id": "U-R2-01",
+          "slot_index": 1,
+          "team_key": "demo-20261006:OTP-002",
+          "score": null,
+          "status": "ready",
+          "is_winner": false,
+          "note": null
+        },
+        {
+          "slot_id": "U-R2-02-A",
+          "match_id": "U-R2-02",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-R2-02-B",
+          "match_id": "U-R2-02",
+          "slot_index": 1,
+          "team_key": "demo-20261006:OTP-003",
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "不戦勝"
+        },
+        {
+          "slot_id": "U-R2-03-A",
+          "match_id": "U-R2-03",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-R2-03-B",
+          "match_id": "U-R2-03",
+          "slot_index": 1,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-R2-04-A",
+          "match_id": "U-R2-04",
+          "slot_index": 0,
+          "team_key": "demo-20261006:OTP-005",
+          "score": 2,
+          "status": "done",
+          "is_winner": true,
+          "note": "不戦勝"
+        },
+        {
+          "slot_id": "U-R2-04-B",
+          "match_id": "U-R2-04",
+          "slot_index": 1,
+          "team_key": "demo-20261006:OTP-016",
+          "score": 0,
+          "status": "done",
+          "is_winner": false,
+          "note": null
+        },
+        {
+          "slot_id": "U-R2-05-A",
+          "match_id": "U-R2-05",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-R2-05-B",
+          "match_id": "U-R2-05",
+          "slot_index": 1,
+          "team_key": "demo-20261006:OTP-007",
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "不戦勝"
+        },
+        {
+          "slot_id": "U-R2-06-A",
+          "match_id": "U-R2-06",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-R2-06-B",
+          "match_id": "U-R2-06",
+          "slot_index": 1,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-R2-07-A",
+          "match_id": "U-R2-07",
+          "slot_index": 0,
+          "team_key": "demo-20261006:OTP-009",
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "不戦勝"
+        },
+        {
+          "slot_id": "U-R2-07-B",
+          "match_id": "U-R2-07",
+          "slot_index": 1,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-R2-08-A",
+          "match_id": "U-R2-08",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-R2-08-B",
+          "match_id": "U-R2-08",
+          "slot_index": 1,
+          "team_key": "demo-20261006:OTP-011",
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "不戦勝"
+        },
+        {
+          "slot_id": "U-R2-09-A",
+          "match_id": "U-R2-09",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-R2-09-B",
+          "match_id": "U-R2-09",
+          "slot_index": 1,
+          "team_key": "demo-20261006:OTP-007",
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": null
+        },
+        {
+          "slot_id": "U-R2-10-A",
+          "match_id": "U-R2-10",
+          "slot_index": 0,
+          "team_key": "demo-20261006:OTP-013",
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "不戦勝"
+        },
+        {
+          "slot_id": "U-R2-10-B",
+          "match_id": "U-R2-10",
+          "slot_index": 1,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-R2-11-A",
+          "match_id": "U-R2-11",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-R2-11-B",
+          "match_id": "U-R2-11",
+          "slot_index": 1,
+          "team_key": "demo-20261006:OTP-015",
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "不戦勝"
+        },
+        {
+          "slot_id": "U-R2-12-A",
+          "match_id": "U-R2-12",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-R2-12-B",
+          "match_id": "U-R2-12",
+          "slot_index": 1,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-R2-13-A",
+          "match_id": "U-R2-13",
+          "slot_index": 0,
+          "team_key": "demo-20261006:OTP-017",
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "不戦勝"
+        },
+        {
+          "slot_id": "U-R2-13-B",
+          "match_id": "U-R2-13",
+          "slot_index": 1,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-R2-14-A",
+          "match_id": "U-R2-14",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-R2-14-B",
+          "match_id": "U-R2-14",
+          "slot_index": 1,
+          "team_key": "demo-20261006:OTP-018",
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "不戦勝"
+        },
+        {
+          "slot_id": "U-R2-15-A",
+          "match_id": "U-R2-15",
+          "slot_index": 0,
+          "team_key": "demo-20261006:OTP-017",
+          "score": null,
+          "status": "active",
+          "is_winner": false,
+          "note": null
+        },
+        {
+          "slot_id": "U-R2-15-B",
+          "match_id": "U-R2-15",
+          "slot_index": 1,
+          "team_key": "demo-20261006:OTP-019",
+          "score": null,
+          "status": "active",
+          "is_winner": false,
+          "note": "不戦勝"
+        },
+        {
+          "slot_id": "U-R2-16-A",
+          "match_id": "U-R2-16",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-R2-16-B",
+          "match_id": "U-R2-16",
+          "slot_index": 1,
+          "team_key": "demo-20261006:OTP-020",
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "不戦勝"
+        }
+      ]
+    },
+    {
+      "round": 3,
+      "label": "Quarterfinal",
+      "best_of": 3,
+      "target_wins": 2,
+      "slots": [
+        {
+          "slot_id": "U-QF-01-A",
+          "match_id": "U-QF-01",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-QF-01-B",
+          "match_id": "U-QF-01",
+          "slot_index": 1,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-QF-02-A",
+          "match_id": "U-QF-02",
+          "slot_index": 0,
+          "team_key": "demo-20261006:OTP-005",
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": null
+        },
+        {
+          "slot_id": "U-QF-02-B",
+          "match_id": "U-QF-02",
+          "slot_index": 1,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-QF-03-A",
+          "match_id": "U-QF-03",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-QF-03-B",
+          "match_id": "U-QF-03",
+          "slot_index": 1,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-QF-04-A",
+          "match_id": "U-QF-04",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-QF-04-B",
+          "match_id": "U-QF-04",
+          "slot_index": 1,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-QF-05-A",
+          "match_id": "U-QF-05",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-QF-05-B",
+          "match_id": "U-QF-05",
+          "slot_index": 1,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-QF-06-A",
+          "match_id": "U-QF-06",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-QF-06-B",
+          "match_id": "U-QF-06",
+          "slot_index": 1,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-QF-07-A",
+          "match_id": "U-QF-07",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-QF-07-B",
+          "match_id": "U-QF-07",
+          "slot_index": 1,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-QF-08-A",
+          "match_id": "U-QF-08",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-QF-08-B",
+          "match_id": "U-QF-08",
+          "slot_index": 1,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        }
+      ]
+    },
+    {
+      "round": 4,
+      "label": "Semifinal",
+      "best_of": 3,
+      "target_wins": 2,
+      "slots": [
+        {
+          "slot_id": "U-SF-01-A",
+          "match_id": "U-SF-01",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-SF-01-B",
+          "match_id": "U-SF-01",
+          "slot_index": 1,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-SF-02-A",
+          "match_id": "U-SF-02",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-SF-02-B",
+          "match_id": "U-SF-02",
+          "slot_index": 1,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-SF-03-A",
+          "match_id": "U-SF-03",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-SF-03-B",
+          "match_id": "U-SF-03",
+          "slot_index": 1,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-SF-04-A",
+          "match_id": "U-SF-04",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-SF-04-B",
+          "match_id": "U-SF-04",
+          "slot_index": 1,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        }
+      ]
+    },
+    {
+      "round": 5,
+      "label": "Final",
+      "best_of": 5,
+      "target_wins": 3,
+      "slots": [
+        {
+          "slot_id": "U-F-01-A",
+          "match_id": "U-F-01",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-F-01-B",
+          "match_id": "U-F-01",
+          "slot_index": 1,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-F-02-A",
+          "match_id": "U-F-02",
+          "slot_index": 0,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        },
+        {
+          "slot_id": "U-F-02-B",
+          "match_id": "U-F-02",
+          "slot_index": 1,
+          "team_key": null,
+          "score": null,
+          "status": "waiting",
+          "is_winner": false,
+          "note": "勝者待ち"
+        }
+      ]
+    }
+  ],
+  "teams": {
+    "demo-20261006:OTP-001": {
+      "application_id": "OTP-001",
+      "name": "テストA",
+      "qualifier_block": "A",
+      "qualifier_rank": 1
+    },
+    "demo-20261006:OTP-002": {
+      "application_id": "OTP-002",
+      "name": "テストB",
+      "qualifier_block": "A",
+      "qualifier_rank": 2
+    },
+    "demo-20261006:OTP-003": {
+      "application_id": "OTP-003",
+      "name": "テストC",
+      "qualifier_block": "B",
+      "qualifier_rank": 1
+    },
+    "demo-20261006:OTP-004": {
+      "application_id": "OTP-004",
+      "name": "テストD",
+      "qualifier_block": "B",
+      "qualifier_rank": 2
+    },
+    "demo-20261006:OTP-005": {
+      "application_id": "OTP-005",
+      "name": "テストE",
+      "qualifier_block": "C",
+      "qualifier_rank": 1
+    },
+    "demo-20261006:OTP-006": {
+      "application_id": "OTP-006",
+      "name": "テストF",
+      "qualifier_block": "C",
+      "qualifier_rank": 2
+    },
+    "demo-20261006:OTP-007": {
+      "application_id": "OTP-007",
+      "name": "テストG",
+      "qualifier_block": "D",
+      "qualifier_rank": 1
+    },
+    "demo-20261006:OTP-008": {
+      "application_id": "OTP-008",
+      "name": "テストH",
+      "qualifier_block": "D",
+      "qualifier_rank": 2
+    },
+    "demo-20261006:OTP-009": {
+      "application_id": "OTP-009",
+      "name": "テストI",
+      "qualifier_block": "E",
+      "qualifier_rank": 1
+    },
+    "demo-20261006:OTP-010": {
+      "application_id": "OTP-010",
+      "name": "テストJ",
+      "qualifier_block": "E",
+      "qualifier_rank": 2
+    },
+    "demo-20261006:OTP-011": {
+      "application_id": "OTP-011",
+      "name": "テストK",
+      "qualifier_block": "F",
+      "qualifier_rank": 1
+    },
+    "demo-20261006:OTP-012": {
+      "application_id": "OTP-012",
+      "name": "テストL",
+      "qualifier_block": "F",
+      "qualifier_rank": 2
+    },
+    "demo-20261006:OTP-013": {
+      "application_id": "OTP-013",
+      "name": "テストM",
+      "qualifier_block": "G",
+      "qualifier_rank": 1
+    },
+    "demo-20261006:OTP-014": {
+      "application_id": "OTP-014",
+      "name": "テストN",
+      "qualifier_block": "G",
+      "qualifier_rank": 2
+    },
+    "demo-20261006:OTP-015": {
+      "application_id": "OTP-015",
+      "name": "テストO",
+      "qualifier_block": "H",
+      "qualifier_rank": 1
+    },
+    "demo-20261006:OTP-016": {
+      "application_id": "OTP-016",
+      "name": "テストP",
+      "qualifier_block": "H",
+      "qualifier_rank": 2
+    },
+    "demo-20261006:OTP-017": {
+      "application_id": "OTP-017",
+      "name": "テストQ",
+      "qualifier_block": "I",
+      "qualifier_rank": 1
+    },
+    "demo-20261006:OTP-018": {
+      "application_id": "OTP-018",
+      "name": "テストR",
+      "qualifier_block": "I",
+      "qualifier_rank": 2
+    },
+    "demo-20261006:OTP-019": {
+      "application_id": "OTP-019",
+      "name": "テストS",
+      "qualifier_block": "J",
+      "qualifier_rank": 1
+    },
+    "demo-20261006:OTP-020": {
+      "application_id": "OTP-020",
+      "name": "テストT",
+      "qualifier_block": "J",
+      "qualifier_rank": 2
+    }
+  }
+}

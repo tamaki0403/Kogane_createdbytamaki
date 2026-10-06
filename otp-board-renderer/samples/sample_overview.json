@@ -1,0 +1,68 @@
+{
+  "tournament_id": "demo-20261006",
+  "updated_at": "2026-10-06T21:00:00+09:00",
+  "qualifiers": {
+    "blocks": [
+      {"block_id": "A", "name": "Aブロック", "teams": [
+        {"team_key": "demo-20261006:OTP-001", "application_id": "OTP-001", "name": "Aチーム1", "rank": 1},
+        {"team_key": "demo-20261006:OTP-002", "application_id": "OTP-002", "name": "Aチーム2", "rank": 2},
+        {"team_key": "demo-20261006:OTP-003", "application_id": "OTP-003", "name": "Aチーム3", "rank": 3},
+        {"team_key": "demo-20261006:OTP-004", "application_id": "OTP-004", "name": "Aチーム4", "rank": 4}
+      ]},
+      {"block_id": "B", "name": "Bブロック", "teams": [
+        {"team_key": "demo-20261006:OTP-005", "application_id": "OTP-005", "name": "Bチーム1", "rank": 2},
+        {"team_key": "demo-20261006:OTP-006", "application_id": "OTP-006", "name": "Bチーム2", "rank": 3},
+        {"team_key": "demo-20261006:OTP-007", "application_id": "OTP-007", "name": "Bチーム3", "rank": 4},
+        {"team_key": "demo-20261006:OTP-008", "application_id": "OTP-008", "name": "Bチーム4", "rank": 1}
+      ]},
+      {"block_id": "C", "name": "Cブロック", "teams": [
+        {"team_key": "demo-20261006:OTP-009", "application_id": "OTP-009", "name": "Cチーム1", "rank": 3},
+        {"team_key": "demo-20261006:OTP-010", "application_id": "OTP-010", "name": "Cチーム2", "rank": 4},
+        {"team_key": "demo-20261006:OTP-011", "application_id": "OTP-011", "name": "Cチーム3", "rank": 1},
+        {"team_key": "demo-20261006:OTP-012", "application_id": "OTP-012", "name": "Cチーム4", "rank": 2}
+      ]},
+      {"block_id": "D", "name": "Dブロック", "teams": [
+        {"team_key": "demo-20261006:OTP-013", "application_id": "OTP-013", "name": "Dチーム1", "rank": 4},
+        {"team_key": "demo-20261006:OTP-014", "application_id": "OTP-014", "name": "Dチーム2", "rank": 1},
+        {"team_key": "demo-20261006:OTP-015", "application_id": "OTP-015", "name": "Dチーム3", "rank": 2},
+        {"team_key": "demo-20261006:OTP-016", "application_id": "OTP-016", "name": "Dチーム4", "rank": 3}
+      ]},
+      {"block_id": "E", "name": "Eブロック", "teams": [
+        {"team_key": "demo-20261006:OTP-017", "application_id": "OTP-017", "name": "Eチーム1", "rank": 1},
+        {"team_key": "demo-20261006:OTP-018", "application_id": "OTP-018", "name": "Eチーム2", "rank": 2},
+        {"team_key": "demo-20261006:OTP-019", "application_id": "OTP-019", "name": "Eチーム3", "rank": 3},
+        {"team_key": "demo-20261006:OTP-020", "application_id": "OTP-020", "name": "Eチーム4", "rank": 4}
+      ]},
+      {"block_id": "F", "name": "Fブロック", "teams": [
+        {"team_key": "demo-20261006:OTP-021", "application_id": "OTP-021", "name": "Fチーム1", "rank": 2},
+        {"team_key": "demo-20261006:OTP-022", "application_id": "OTP-022", "name": "Fチーム2", "rank": 3},
+        {"team_key": "demo-20261006:OTP-023", "application_id": "OTP-023", "name": "Fチーム3", "rank": 4},
+        {"team_key": "demo-20261006:OTP-024", "application_id": "OTP-024", "name": "Fチーム4", "rank": 1}
+      ]},
+      {"block_id": "G", "name": "Gブロック", "teams": [
+        {"team_key": "demo-20261006:OTP-025", "application_id": "OTP-025", "name": "Gチーム1", "rank": 3},
+        {"team_key": "demo-20261006:OTP-026", "application_id": "OTP-026", "name": "Gチーム2", "rank": 4},
+        {"team_key": "demo-20261006:OTP-027", "application_id": "OTP-027", "name": "Gチーム3", "rank": 1},
+        {"team_key": "demo-20261006:OTP-028", "application_id": "OTP-028", "name": "Gチーム4", "rank": 2}
+      ]},
+      {"block_id": "H", "name": "Hブロック", "teams": [
+        {"team_key": "demo-20261006:OTP-029", "application_id": "OTP-029", "name": "Hチーム1", "rank": 4},
+        {"team_key": "demo-20261006:OTP-030", "application_id": "OTP-030", "name": "Hチーム2", "rank": 1},
+        {"team_key": "demo-20261006:OTP-031", "application_id": "OTP-031", "name": "Hチーム3", "rank": 2},
+        {"team_key": "demo-20261006:OTP-032", "application_id": "OTP-032", "name": "Hチーム4", "rank": 3}
+      ]},
+      {"block_id": "I", "name": "Iブロック", "teams": [
+        {"team_key": "demo-20261006:OTP-033", "application_id": "OTP-033", "name": "Iチーム1", "rank": 1},
+        {"team_key": "demo-20261006:OTP-034", "application_id": "OTP-034", "name": "Iチーム2", "rank": 2},
+        {"team_key": "demo-20261006:OTP-035", "application_id": "OTP-035", "name": "Iチーム3", "rank": 3},
+        {"team_key": "demo-20261006:OTP-036", "application_id": "OTP-036", "name": "Iチーム4", "rank": 4}
+      ]},
+      {"block_id": "J", "name": "Jブロック", "teams": [
+        {"team_key": "demo-20261006:OTP-037", "application_id": "OTP-037", "name": "Jチーム1", "rank": 2},
+        {"team_key": "demo-20261006:OTP-038", "application_id": "OTP-038", "name": "Jチーム2", "rank": 3},
+        {"team_key": "demo-20261006:OTP-039", "application_id": "OTP-039", "name": "Jチーム3", "rank": 4},
+        {"team_key": "demo-20261006:OTP-040", "application_id": "OTP-040", "name": "Jチーム4", "rank": 1}
+      ]}
+    ]
+  }
+}

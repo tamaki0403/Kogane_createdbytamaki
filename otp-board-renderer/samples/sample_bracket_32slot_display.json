@@ -1,0 +1,818 @@
+{
+  "title": "Kogane OTP杯 上位トーナメント",
+  "bracket_type": "upper",
+  "image": {
+    "width": 2400,
+    "height": 1800
+  },
+  "rounds": [
+    {
+      "key": "r1",
+      "label": "R1",
+      "bo": 3,
+      "matches": [
+        {
+          "match_key": "r1_m1",
+          "label": "R1 #1",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": "team_001",
+              "entry_no": 1,
+              "team_name": "テスト01",
+              "block": "A",
+              "rank": 2,
+              "score": null,
+              "status": "bye",
+              "is_winner": true,
+              "note": "不戦勝"
+            },
+            {
+              "team_key": "team_002",
+              "entry_no": 2,
+              "team_name": "テスト02",
+              "block": "A",
+              "rank": 1,
+              "score": null,
+              "status": "ready",
+              "is_winner": false,
+              "note": null
+            }
+          ]
+        },
+        {
+          "match_key": "r1_m2",
+          "label": "R1 #2",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": "team_003",
+              "entry_no": 3,
+              "team_name": "テスト03",
+              "block": "B",
+              "rank": 2,
+              "score": null,
+              "status": "ready",
+              "is_winner": false,
+              "note": null
+            },
+            {
+              "team_key": "team_004",
+              "entry_no": 4,
+              "team_name": "テスト04",
+              "block": "B",
+              "rank": 1,
+              "score": null,
+              "status": "bye",
+              "is_winner": true,
+              "note": "不戦勝"
+            }
+          ]
+        },
+        {
+          "match_key": "r1_m3",
+          "label": "R1 #3",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": "team_005",
+              "entry_no": 5,
+              "team_name": "テスト05",
+              "block": "C",
+              "rank": 2,
+              "score": null,
+              "status": "ready",
+              "is_winner": false,
+              "note": null
+            },
+            {
+              "team_key": "team_006",
+              "entry_no": 6,
+              "team_name": "テスト06",
+              "block": "C",
+              "rank": 1,
+              "score": null,
+              "status": "ready",
+              "is_winner": false,
+              "note": null
+            }
+          ]
+        },
+        {
+          "match_key": "r1_m4",
+          "label": "R1 #4",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": "team_007",
+              "entry_no": 7,
+              "team_name": "テスト07",
+              "block": "D",
+              "rank": 2,
+              "score": null,
+              "status": "bye",
+              "is_winner": true,
+              "note": "不戦勝"
+            },
+            {
+              "team_key": "team_008",
+              "entry_no": 8,
+              "team_name": "テスト08",
+              "block": "D",
+              "rank": 1,
+              "score": null,
+              "status": "ready",
+              "is_winner": false,
+              "note": null
+            }
+          ]
+        },
+        {
+          "match_key": "r1_m5",
+          "label": "R1 #5",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": "team_009",
+              "entry_no": 9,
+              "team_name": "テスト09",
+              "block": "E",
+              "rank": 2,
+              "score": null,
+              "status": "ready",
+              "is_winner": false,
+              "note": null
+            },
+            {
+              "team_key": "team_010",
+              "entry_no": 10,
+              "team_name": "テスト10",
+              "block": "E",
+              "rank": 1,
+              "score": null,
+              "status": "bye",
+              "is_winner": true,
+              "note": "不戦勝"
+            }
+          ]
+        },
+        {
+          "match_key": "r1_m6",
+          "label": "R1 #6",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": "team_011",
+              "entry_no": 11,
+              "team_name": "テスト11",
+              "block": "F",
+              "rank": 2,
+              "score": null,
+              "status": "ready",
+              "is_winner": false,
+              "note": null
+            },
+            {
+              "team_key": "team_012",
+              "entry_no": 12,
+              "team_name": "テスト12",
+              "block": "F",
+              "rank": 1,
+              "score": null,
+              "status": "ready",
+              "is_winner": false,
+              "note": null
+            }
+          ]
+        },
+        {
+          "match_key": "r1_m7",
+          "label": "R1 #7",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": "team_013",
+              "entry_no": 13,
+              "team_name": "テスト13",
+              "block": "G",
+              "rank": 2,
+              "score": null,
+              "status": "bye",
+              "is_winner": true,
+              "note": "不戦勝"
+            },
+            {
+              "team_key": "team_014",
+              "entry_no": 14,
+              "team_name": "テスト14",
+              "block": "G",
+              "rank": 1,
+              "score": null,
+              "status": "ready",
+              "is_winner": false,
+              "note": null
+            }
+          ]
+        },
+        {
+          "match_key": "r1_m8",
+          "label": "R1 #8",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": "team_015",
+              "entry_no": 15,
+              "team_name": "テスト15",
+              "block": "H",
+              "rank": 2,
+              "score": null,
+              "status": "ready",
+              "is_winner": false,
+              "note": null
+            },
+            {
+              "team_key": "team_016",
+              "entry_no": 16,
+              "team_name": "テスト16",
+              "block": "H",
+              "rank": 1,
+              "score": null,
+              "status": "bye",
+              "is_winner": true,
+              "note": "不戦勝"
+            }
+          ]
+        },
+        {
+          "match_key": "r1_m9",
+          "label": "R1 #9",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": "team_017",
+              "entry_no": 17,
+              "team_name": "テスト17",
+              "block": "I",
+              "rank": 2,
+              "score": null,
+              "status": "ready",
+              "is_winner": false,
+              "note": null
+            },
+            {
+              "team_key": "team_018",
+              "entry_no": 18,
+              "team_name": "テスト18",
+              "block": "I",
+              "rank": 1,
+              "score": null,
+              "status": "ready",
+              "is_winner": false,
+              "note": null
+            }
+          ]
+        },
+        {
+          "match_key": "r1_m10",
+          "label": "R1 #10",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": "team_019",
+              "entry_no": 19,
+              "team_name": "テスト19",
+              "block": "J",
+              "rank": 2,
+              "score": null,
+              "status": "bye",
+              "is_winner": true,
+              "note": "不戦勝"
+            },
+            {
+              "team_key": "team_020",
+              "entry_no": 20,
+              "team_name": "テスト20",
+              "block": "J",
+              "rank": 1,
+              "score": null,
+              "status": "ready",
+              "is_winner": false,
+              "note": null
+            }
+          ]
+        },
+        {
+          "match_key": "r1_m11",
+          "label": "R1 #11",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "no_match",
+              "is_winner": false,
+              "note": "空き枠"
+            },
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "no_match",
+              "is_winner": false,
+              "note": "空き枠"
+            }
+          ]
+        },
+        {
+          "match_key": "r1_m12",
+          "label": "R1 #12",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "no_match",
+              "is_winner": false,
+              "note": "空き枠"
+            },
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "no_match",
+              "is_winner": false,
+              "note": "空き枠"
+            }
+          ]
+        },
+        {
+          "match_key": "r1_m13",
+          "label": "R1 #13",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "no_match",
+              "is_winner": false,
+              "note": "空き枠"
+            },
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "no_match",
+              "is_winner": false,
+              "note": "空き枠"
+            }
+          ]
+        },
+        {
+          "match_key": "r1_m14",
+          "label": "R1 #14",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "no_match",
+              "is_winner": false,
+              "note": "空き枠"
+            },
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "no_match",
+              "is_winner": false,
+              "note": "空き枠"
+            }
+          ]
+        },
+        {
+          "match_key": "r1_m15",
+          "label": "R1 #15",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "no_match",
+              "is_winner": false,
+              "note": "空き枠"
+            },
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "no_match",
+              "is_winner": false,
+              "note": "空き枠"
+            }
+          ]
+        },
+        {
+          "match_key": "r1_m16",
+          "label": "R1 #16",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "no_match",
+              "is_winner": false,
+              "note": "空き枠"
+            },
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "no_match",
+              "is_winner": false,
+              "note": "空き枠"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "r2",
+      "label": "R2",
+      "bo": 3,
+      "matches": [
+        {
+          "match_key": "r2_m1",
+          "label": "R2 #1",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            },
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            }
+          ]
+        },
+        {
+          "match_key": "r2_m2",
+          "label": "R2 #2",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            },
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            }
+          ]
+        },
+        {
+          "match_key": "r2_m3",
+          "label": "R2 #3",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            },
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            }
+          ]
+        },
+        {
+          "match_key": "r2_m4",
+          "label": "R2 #4",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            },
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            }
+          ]
+        },
+        {
+          "match_key": "r2_m5",
+          "label": "R2 #5",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            },
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            }
+          ]
+        },
+        {
+          "match_key": "r2_m6",
+          "label": "R2 #6",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            },
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            }
+          ]
+        },
+        {
+          "match_key": "r2_m7",
+          "label": "R2 #7",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            },
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            }
+          ]
+        },
+        {
+          "match_key": "r2_m8",
+          "label": "R2 #8",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            },
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "qf",
+      "label": "QF",
+      "bo": 3,
+      "matches": [
+        {
+          "match_key": "qf_m1",
+          "label": "QF #1",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            },
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            }
+          ]
+        },
+        {
+          "match_key": "qf_m2",
+          "label": "QF #2",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            },
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            }
+          ]
+        },
+        {
+          "match_key": "qf_m3",
+          "label": "QF #3",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            },
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            }
+          ]
+        },
+        {
+          "match_key": "qf_m4",
+          "label": "QF #4",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            },
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "sf",
+      "label": "SF",
+      "bo": 3,
+      "matches": [
+        {
+          "match_key": "sf_m1",
+          "label": "SF #1",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            },
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            }
+          ]
+        },
+        {
+          "match_key": "sf_m2",
+          "label": "SF #2",
+          "bo": 3,
+          "slots": [
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            },
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "final",
+      "label": "Final",
+      "bo": 5,
+      "matches": [
+        {
+          "match_key": "final_m1",
+          "label": "Final #1",
+          "bo": 5,
+          "slots": [
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            },
+            {
+              "team_key": null,
+              "team_name": null,
+              "score": null,
+              "status": "waiting",
+              "is_winner": false,
+              "note": "勝者待ち"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
