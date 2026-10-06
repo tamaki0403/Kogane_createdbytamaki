@@ -7347,8 +7347,7 @@ async def otp_demo_board_update(ctx, tournament_id: str):
     await status_message.edit(content="画像を更新しました: " + ("、".join(updated) if updated else "更新対象なし"))
 
 
-@bot.command(name="OTP画像フォント確認")
-async def otp_demo_board_font_check(ctx):
+async def send_otp_demo_board_font_check(ctx):
     if ctx.author.id != OWNER_ID:
         await ctx.send("管理者専用です")
         return
@@ -7361,6 +7360,21 @@ async def otp_demo_board_font_check(ctx):
         f"OTP_BOARD_FONT_PATH: `{env_font}`\n"
         f"OTP_BOARD_FONT_INDEX: `{env_index}`"
     )
+
+
+@bot.command(name="OTP画像フォント確認")
+async def otp_demo_board_font_check(ctx):
+    await send_otp_demo_board_font_check(ctx)
+
+
+@bot.command(name="OTPフォント確認")
+async def otp_demo_board_font_check_short(ctx):
+    await send_otp_demo_board_font_check(ctx)
+
+
+@bot.command(name="fontcheck")
+async def otp_demo_board_font_check_ascii(ctx):
+    await send_otp_demo_board_font_check(ctx)
 
 
 @bot.command(name="OTPデモ文面一覧")
