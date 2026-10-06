@@ -3388,8 +3388,12 @@ def otp_demo_match_report_embed(tournament: dict, match: dict) -> discord.Embed:
 
 
 def build_otp_stage_file(match: dict) -> discord.File:
-    width, height = 1000, 420
     stage = match.get("current_stage") or "抽選待ち"
+    stage_path = os.path.join(os.path.dirname(__file__), "assets", "stages", f"{stage}.png")
+    if os.path.exists(stage_path):
+        return discord.File(stage_path, filename="otp_stage.png")
+
+    width, height = 1000, 420
     image = Image.new("RGB", (width, height), (28, 31, 39))
     draw = ImageDraw.Draw(image)
     try:
