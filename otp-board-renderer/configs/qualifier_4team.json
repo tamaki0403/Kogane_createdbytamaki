@@ -20,6 +20,8 @@
   },
   "fonts": {
     "preferred": [
+      "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+      "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
       "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc",
       "/System/Library/Fonts/AppleSDGothicNeo.ttc",
       "/System/Library/Fonts/Supplemental/AppleGothic.ttf",
@@ -27,8 +29,8 @@
     ]
   },
   "title": {
-    "box": [100, 78, 1400, 82],
-    "font_size": 56
+    "box": [100, 74, 1400, 90],
+    "font_size": 62
   },
   "team_rows": {
     "title": "出場チーム",
@@ -62,6 +64,6 @@
   },
   "footer": {
     "box": [80, 812, 1440, 44],
-    "font_size": 22
+    "font_size": 18
   }
 }

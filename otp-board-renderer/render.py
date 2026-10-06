@@ -50,9 +50,17 @@ def find_font(config: dict[str, Any]) -> str | None:
         if Path(candidate).exists():
             return candidate
     for pattern in (
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-*.ttc",
+        "/usr/share/fonts/truetype/noto/*CJK*.ttc",
+        "/usr/share/fonts/truetype/noto/*CJK*.otf",
+        "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",
         "/System/Library/Fonts/*角*W6.ttc",
         "/System/Library/Fonts/*角*W5.ttc",
         "/System/Library/Fonts/*角*W4.ttc",
+        "/System/Library/Fonts/AppleSDGothicNeo.ttc",
+        "/System/Library/Fonts/Supplemental/AppleGothic.ttf",
     ):
         matches = sorted(Path("/").glob(pattern.lstrip("/")))
         if matches:
@@ -366,6 +374,8 @@ def render_section_label(
 
 
 def choose_overview_columns(block_count: int, max_columns: int = 4) -> int:
+    if block_count <= 4:
+        return 1
     if block_count <= 10:
         return 2
     if block_count <= 15:
@@ -389,7 +399,12 @@ def overview_layout(config: dict[str, Any], block_count: int) -> dict[str, int]:
     gap_y = overview.get("gap_y", 12)
     col_w = (width - margin_x * 2 - gap_x * (cols - 1)) // cols
     block_h = (height - start_y - footer_space - gap_y * (rows - 1)) // rows
-    block_h = max(112, min(150, block_h))
+    if block_count <= 4:
+        block_h = max(190, min(300, block_h))
+        configured_team_gap = overview.get("team_gap_y_small", 34)
+    else:
+        block_h = max(112, min(150, block_h))
+        configured_team_gap = max(17, min(22, (block_h - overview.get("team_start_y", 42) - 10) // 4))
     return {
         "cols": cols,
         "rows": rows,
@@ -402,7 +417,7 @@ def overview_layout(config: dict[str, Any], block_count: int) -> dict[str, int]:
         "gap_x": gap_x,
         "gap_y": gap_y,
         "team_start_y": overview.get("team_start_y", 42),
-        "team_gap_y": max(17, min(22, (block_h - overview.get("team_start_y", 42) - 10) // 4)),
+        "team_gap_y": configured_team_gap,
         "block_label_height": overview.get("block_label_height", 28),
     }
 

@@ -27,6 +27,8 @@
   },
   "fonts": {
     "preferred": [
+      "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+      "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
       "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc",
       "/System/Library/Fonts/AppleSDGothicNeo.ttc",
       "/System/Library/Fonts/Supplemental/AppleGothic.ttf",

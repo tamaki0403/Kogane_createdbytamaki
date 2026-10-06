@@ -3939,6 +3939,58 @@ async def otp_demo_send_or_edit_board_message(channel: discord.TextChannel, tour
     return message
 
 
+async def otp_demo_get_or_create_block_thread(channel: discord.TextChannel, tournament: dict, block_label: str) -> discord.Thread | None:
+    board_messages = tournament.setdefault("board_messages", {})
+    board_threads = tournament.setdefault("board_threads", {})
+    parent_key = f"qualifier_{block_label}_parent"
+    thread_key = f"qualifier_{block_label}"
+    parent_message = None
+    parent_message_id = board_messages.get(parent_key)
+    if parent_message_id:
+        try:
+            parent_message = await channel.fetch_message(parent_message_id)
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            parent_message = None
+    if parent_message is None:
+        parent_message = await channel.send(
+            f"【OTP杯 予選 {block_label}ブロック｜{tournament.get('id')}】\n"
+            "このブロックの進行画像はスレッド内で更新します。"
+        )
+        board_messages[parent_key] = parent_message.id
+
+    thread_id = board_threads.get(thread_key)
+    thread = channel.guild.get_thread(thread_id) if thread_id else None
+    if thread is not None:
+        try:
+            if thread.archived:
+                await thread.edit(archived=False)
+        except (discord.Forbidden, discord.HTTPException):
+            pass
+        return thread
+
+    try:
+        thread = await parent_message.create_thread(name=f"予選{block_label}ブロック")
+    except discord.HTTPException:
+        return None
+    board_threads[thread_key] = thread.id
+    return thread
+
+
+async def otp_demo_send_or_edit_thread_board_message(thread: discord.Thread, tournament: dict, board_key: str, content: str, image_path: str):
+    board_messages = tournament.setdefault("board_messages", {})
+    message_id = board_messages.get(board_key)
+    file_name = f"{board_key}.png"
+    if message_id:
+        try:
+            message = await thread.fetch_message(message_id)
+            await message.delete()
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            pass
+    message = await thread.send(content, file=discord.File(image_path, filename=file_name))
+    board_messages[board_key] = message.id
+    return message
+
+
 async def update_otp_board_images(guild: discord.Guild, tournament: dict) -> list[str]:
     channel = guild.get_channel(tournament.get("progress_channel_id"))
     if not isinstance(channel, discord.TextChannel):
@@ -3961,14 +4013,25 @@ async def update_otp_board_images(guild: discord.Guild, tournament: dict) -> lis
             block_label = otp_demo_block_label(block_index)
             block_data = build_otp_qualifier_block_board_data(tournament, block_index)
             block_path = await render_otp_board_image(tournament, f"qualifier_{block_label}", block_data, paths["qualifier_block_config"])
-            await otp_demo_send_or_edit_board_message(
-                channel,
-                tournament,
-                f"qualifier_{block_label}",
-                f"【OTP杯 予選 {block_label}ブロック｜{tournament.get('id')}】",
-                block_path,
-            )
-            updated.append(f"予選{block_label}ブロック")
+            thread = await otp_demo_get_or_create_block_thread(channel, tournament, block_label)
+            if thread is None:
+                await otp_demo_send_or_edit_board_message(
+                    channel,
+                    tournament,
+                    f"qualifier_{block_label}",
+                    f"【OTP杯 予選 {block_label}ブロック｜{tournament.get('id')}】",
+                    block_path,
+                )
+                updated.append(f"予選{block_label}ブロック")
+            else:
+                await otp_demo_send_or_edit_thread_board_message(
+                    thread,
+                    tournament,
+                    f"qualifier_{block_label}",
+                    f"【OTP杯 予選 {block_label}ブロック｜{tournament.get('id')}】",
+                    block_path,
+                )
+                updated.append(f"予選{block_label}ブロック（スレッド）")
 
     for bracket_name, label in (("upper", "上位トーナメント"), ("lower", "下位トーナメント")):
         bracket_data = build_otp_bracket_board_data(tournament, bracket_name)
@@ -4622,6 +4685,38 @@ def build_otp_solo_test_team(tournament_id: str, number: int, name: str) -> tupl
     }
 
 
+async def start_otp_demo_tournament(guild: discord.Guild, operator: discord.Member, tournament: dict) -> str:
+    if tournament.get("status") not in ("setup", "paused"):
+        return "この大会は開始可能な状態ではありません。"
+    candidates = [key for key, team in tournament.get("teams", {}).items() if otp_demo_team_ready(tournament, team)[0]]
+    blocks = calculate_otp_demo_blocks(candidates)
+    if blocks is None:
+        return "このチーム数では大会を開催できません。登録は継続できます。"
+    rr = make_round_robin_matches(blocks)
+    tournament.update({
+        "status": "running",
+        "phase": "qualifier",
+        "paused": False,
+        "solo_test_mode": False,
+        "started_at": time.time(),
+        "started_by": str(operator.id),
+        "eligible_team_keys": candidates,
+        "blocks": blocks,
+        "matches": rr["matches"],
+        "match_order": rr["order"],
+        "brackets": {},
+    })
+    save_otp_tournaments()
+    image_note = ""
+    try:
+        await update_otp_board_images(guild, tournament)
+        image_note = "\n進行画像も生成しました。"
+    except Exception as exc:
+        image_note = f"\n進行画像の生成は失敗しました: {exc}"
+    await otp_demo_start_waiting_matches(guild, tournament)
+    return f"OTPデモ `{tournament['id']}` を開始しました。予選ブロック: " + " / ".join(str(len(b)) for b in blocks) + image_note
+
+
 async def start_otp_solo_test(guild: discord.Guild, operator: discord.Member, tournament: dict) -> str:
     if tournament.get("status") == "running":
         return "すでに進行中です。別の大会IDを使うか、現在のデモを終了してください。"
@@ -4647,11 +4742,18 @@ async def start_otp_solo_test(guild: discord.Guild, operator: discord.Member, to
         "brackets": {},
     })
     save_otp_tournaments()
+    image_note = ""
+    try:
+        await update_otp_board_images(guild, tournament)
+        image_note = "\n進行画像も生成しました。"
+    except Exception as exc:
+        image_note = f"\n進行画像の生成は失敗しました: {exc}"
     await otp_demo_start_waiting_matches(guild, tournament)
     return (
         f"OTPデモ `{tournament['id']}` を1人テストモードで開始しました。\n"
         "Discord IDなしの仮3チームを作成しました。対戦チャンネルを作り、通常版との差分も表示します。\n"
         "結果入力は対戦チャンネル内の勝者ボタンで行います。コマンド入力も予備として残しています。"
+        f"{image_note}"
     )
 
 
@@ -4670,7 +4772,7 @@ class OTPDemoControlView(discord.ui.View):
             return None
         return tournament
 
-    @discord.ui.button(label="1人テスト開始", style=discord.ButtonStyle.success, custom_id="otp_demo_panel_solo_start")
+    @discord.ui.button(label="1人テスト開始", style=discord.ButtonStyle.success, custom_id="otp_demo_panel_solo_start", row=0)
     async def solo_start(self, interaction: discord.Interaction, button: discord.ui.Button):
         tournament = await self.require_operator(interaction)
         if not tournament:
@@ -4679,14 +4781,27 @@ class OTPDemoControlView(discord.ui.View):
         message = await start_otp_solo_test(interaction.guild, interaction.user, tournament)
         await interaction.followup.send(message, ephemeral=True)
 
-    @discord.ui.button(label="状況表示", style=discord.ButtonStyle.primary, custom_id="otp_demo_panel_status")
+    @discord.ui.button(label="大会開始", style=discord.ButtonStyle.success, custom_id="otp_demo_panel_start", row=0)
+    async def start_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        tournament = await self.require_operator(interaction)
+        if not tournament:
+            return
+        await interaction.response.defer(ephemeral=True)
+        try:
+            message = await start_otp_demo_tournament(interaction.guild, interaction.user, tournament)
+        except Exception as exc:
+            await interaction.followup.send(f"大会開始に失敗しました: {exc}", ephemeral=True)
+            return
+        await interaction.followup.send(message, ephemeral=True)
+
+    @discord.ui.button(label="状況表示", style=discord.ButtonStyle.primary, custom_id="otp_demo_panel_status", row=0)
     async def status_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         tournament = await self.require_operator(interaction)
         if not tournament:
             return
         await interaction.response.send_message(otp_demo_summary_text(tournament)[:1900], ephemeral=True)
 
-    @discord.ui.button(label="文面一覧", style=discord.ButtonStyle.secondary, custom_id="otp_demo_panel_texts")
+    @discord.ui.button(label="文面一覧", style=discord.ButtonStyle.secondary, custom_id="otp_demo_panel_texts", row=1)
     async def texts_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         tournament = await self.require_operator(interaction)
         if not tournament:
@@ -4701,7 +4816,7 @@ class OTPDemoControlView(discord.ui.View):
             for i in range(0, len(text), 1900):
                 await interaction.channel.send(text[i:i + 1900])
 
-    @discord.ui.button(label="画像更新", style=discord.ButtonStyle.primary, custom_id="otp_demo_panel_board_update")
+    @discord.ui.button(label="画像更新", style=discord.ButtonStyle.primary, custom_id="otp_demo_panel_board_update", row=1)
     async def board_update_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         tournament = await self.require_operator(interaction)
         if not tournament:
@@ -4717,7 +4832,7 @@ class OTPDemoControlView(discord.ui.View):
             ephemeral=True,
         )
 
-    @discord.ui.button(label="デモ終了", style=discord.ButtonStyle.danger, custom_id="otp_demo_panel_finish")
+    @discord.ui.button(label="デモ終了", style=discord.ButtonStyle.danger, custom_id="otp_demo_panel_finish", row=1)
     async def finish_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         tournament = await self.require_operator(interaction)
         if not tournament:
@@ -7287,30 +7402,12 @@ async def otp_demo_start(ctx, tournament_id: str, confirm: str = ""):
     if confirm != "確定":
         await ctx.send(f"先に `!OTPデモ開始確認 {tournament_id}` を確認し、開始する場合は `!OTPデモ開始 {tournament_id} 確定` と送ってください。")
         return
-    if tournament.get("status") not in ("setup", "paused"):
-        await ctx.send("この大会は開始可能な状態ではありません。")
+    try:
+        message = await start_otp_demo_tournament(ctx.guild, ctx.author, tournament)
+    except Exception as exc:
+        await ctx.send(f"大会開始に失敗しました: {exc}")
         return
-    candidates = [key for key, team in tournament.get("teams", {}).items() if otp_demo_team_ready(tournament, team)[0]]
-    blocks = calculate_otp_demo_blocks(candidates)
-    if blocks is None:
-        await ctx.send("このチーム数では大会を開催できません。登録は継続できます。")
-        return
-    rr = make_round_robin_matches(blocks)
-    tournament.update({
-        "status": "running",
-        "phase": "qualifier",
-        "paused": False,
-        "started_at": time.time(),
-        "started_by": str(ctx.author.id),
-        "eligible_team_keys": candidates,
-        "blocks": blocks,
-        "matches": rr["matches"],
-        "match_order": rr["order"],
-        "brackets": {},
-    })
-    save_otp_tournaments()
-    await ctx.send(f"OTPデモ `{tournament_id}` を開始しました。予選ブロック: " + " / ".join(str(len(b)) for b in blocks))
-    await otp_demo_start_waiting_matches(ctx.guild, tournament)
+    await ctx.send(message)
 
 
 @bot.command(name="OTP勝ち")
