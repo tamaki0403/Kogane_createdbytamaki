@@ -7339,6 +7339,50 @@ async def user_id_list(ctx):
             await ctx.send(chunk)
 
 
+@bot.command(name="ロールID一覧")
+async def role_user_id_list(ctx, role_id: int):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if ctx.channel.id != ADMIN_CHANNEL_ID:
+        await ctx.send("このコマンドは運営チャンネルで使ってください")
+        return
+
+    role = ctx.guild.get_role(role_id)
+    if role is None:
+        await ctx.send("対象ロールが見つかりません。ロールIDを確認してください。")
+        return
+
+    try:
+        members = [member async for member in ctx.guild.fetch_members(limit=None)]
+    except Exception:
+        members = ctx.guild.members
+
+    role_members = sorted(
+        [member for member in members if not member.bot and any(member_role.id == role_id for member_role in member.roles)],
+        key=lambda member: member.display_name.lower(),
+    )
+    if not role_members:
+        await ctx.send(f"{role.name} が付与されているプレイヤーはいません。")
+        return
+
+    lines = [f"【{role.name} ユーザーID一覧｜{len(role_members)}人】"]
+    lines.extend(f"{member.display_name} {member.id}" for member in role_members)
+    text = "\n".join(lines)
+    if len(text) <= 1900:
+        await ctx.send(text)
+    else:
+        chunk = ""
+        for line in lines:
+            if len(chunk) + len(line) + 1 > 1900:
+                await ctx.send(chunk)
+                chunk = line
+            else:
+                chunk += ("\n" if chunk else "") + line
+        if chunk:
+            await ctx.send(chunk)
+
+
 @bot.command(name="OTPデモ設定")
 async def otp_demo_setup(ctx, tournament_id: str, category_id: int, admin_channel_id: int, summary_channel_id: int, progress_channel_id: int, operator_role_id: int = 0):
     if ctx.author.id != OWNER_ID:
