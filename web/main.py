@@ -1,17 +1,19 @@
 import os
 import json
 import uuid
+import asyncio
 from fastapi import FastAPI, File, UploadFile, Form, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from otp_web import build_public_tournament, list_public_tournaments
 
-from fastapi.responses import JSONResponse
-import json
+from fastapi.responses import JSONResponse, StreamingResponse
 
 app = FastAPI(default_response_class=JSONResponse)
 
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "test_data")
+BOT_STATE_FILE = os.getenv("OTP_BOT_STATE_FILE", os.path.join(DATA_DIR, "bot_state.json"))
 RATINGS_FILE = os.path.join(DATA_DIR, "ratings.json")
 PLAYER_PROFILES_FILE = os.path.join(DATA_DIR, "player_profiles.json")
 WEB_BADGE_FILE = os.path.join(DATA_DIR, "web_badge_definitions.json")
@@ -372,6 +374,61 @@ def get_player(user_id: str):
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/api/otp/tournaments")
+def get_public_otp_tournaments():
+    state = load_json(BOT_STATE_FILE)
+    return JSONResponse(
+        content={"tournaments": list_public_tournaments(state)},
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get("/api/otp/tournaments/{tournament_id}")
+def get_public_otp_tournament(tournament_id: str):
+    state = load_json(BOT_STATE_FILE)
+    tournament = state.get("otp_tournaments", {}).get(tournament_id)
+    if tournament is None:
+        return JSONResponse(
+            content={"error": "大会データが見つかりません。"},
+            status_code=404,
+            headers={"Cache-Control": "no-store"},
+        )
+    return JSONResponse(
+        content=build_public_tournament(tournament),
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get("/api/otp/tournaments/{tournament_id}/events")
+async def stream_public_otp_tournament_events(tournament_id: str):
+    async def event_stream():
+        last_signature = None
+        heartbeat = 0
+        while True:
+            try:
+                stat = os.stat(BOT_STATE_FILE)
+                signature = f"{stat.st_mtime_ns}:{stat.st_size}"
+                if signature != last_signature:
+                    state = load_json(BOT_STATE_FILE)
+                    if tournament_id in state.get("otp_tournaments", {}):
+                        payload = json.dumps({"tournament_id": tournament_id}, ensure_ascii=False)
+                        yield f"event: update\ndata: {payload}\n\n"
+                    last_signature = signature
+                heartbeat += 1
+                if heartbeat >= 15:
+                    yield ": keep-alive\n\n"
+                    heartbeat = 0
+            except FileNotFoundError:
+                pass
+            await asyncio.sleep(1)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+    )
 
 
 # 静的ファイル（HTML）の配信

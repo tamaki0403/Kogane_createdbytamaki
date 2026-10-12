@@ -14,6 +14,12 @@ import discord
 from discord.ext import commands, tasks
 from itertools import combinations
 from PIL import Image, ImageDraw, ImageFont
+from otp_web import (
+    build_single_elimination_slots,
+    build_public_tournament,
+    list_public_tournaments,
+    rank_qualifier_group,
+)
 
 # =========================
 # ファイルパス / 環境変数
@@ -1126,6 +1132,7 @@ badge_bulk_waiting = {}
 bulk_rate_change_waiting = {}
 bulk_profile_edit_waiting = {}
 bulk_admin_waiting = {}
+bulk_role_grant_waiting = {}
 otp_demo_bulk_waiting = {}
 
 ROOM_KEYS = ("A", "B")
@@ -4399,40 +4406,7 @@ def build_otp_bracket_board_data(tournament: dict, bracket_name: str) -> dict | 
 
 
 def rank_otp_demo_block(tournament: dict, block_index: int) -> list[str]:
-    block_teams = tournament.get("blocks", [])[block_index - 1]
-    stats = {team: {"match_wins": 0, "battle_wins": 0, "battle_losses": 0, "order": tournament["teams"][team].get("application_number") or 999999} for team in block_teams}
-    direct = {}
-    for match in tournament.get("matches", {}).values():
-        if match.get("block") != block_index or match.get("status") != "done":
-            continue
-        a, b = match["teams"]
-        aw = match["wins"].get(a, 0)
-        bw = match["wins"].get(b, 0)
-        stats[a]["battle_wins"] += aw
-        stats[a]["battle_losses"] += bw
-        stats[b]["battle_wins"] += bw
-        stats[b]["battle_losses"] += aw
-        winner = a if aw > bw else b
-        stats[winner]["match_wins"] += 1
-        direct[frozenset((a, b))] = winner
-
-    def base(team):
-        s = stats[team]
-        return (-s["match_wins"], -s["battle_wins"], s["battle_losses"], s["order"])
-
-    ranked = sorted(block_teams, key=base)
-    changed = True
-    while changed:
-        changed = False
-        for i in range(len(ranked) - 1):
-            a, b = ranked[i], ranked[i + 1]
-            sa, sb = stats[a], stats[b]
-            if (sa["match_wins"], sa["battle_wins"], sa["battle_losses"]) == (sb["match_wins"], sb["battle_wins"], sb["battle_losses"]):
-                tied = [t for t in block_teams if (stats[t]["match_wins"], stats[t]["battle_wins"], stats[t]["battle_losses"]) == (sa["match_wins"], sa["battle_wins"], sa["battle_losses"])]
-                if len(tied) == 2 and direct.get(frozenset((a, b))) == b:
-                    ranked[i], ranked[i + 1] = b, a
-                    changed = True
-    return ranked
+    return rank_qualifier_group(tournament, block_index)
 
 
 def build_single_elim_bracket(tournament: dict, team_keys: list[str], bracket_name: str) -> tuple[dict, list[str]]:
@@ -4441,18 +4415,7 @@ def build_single_elim_bracket(tournament: dict, team_keys: list[str], bracket_na
     size = 1
     while size < len(team_keys):
         size *= 2
-    byes = set(random.sample(team_keys, size - len(team_keys))) if size > len(team_keys) else set()
-    slots = [None] * size
-    bye_positions = list(range(size))
-    random.shuffle(bye_positions)
-    remaining = [t for t in team_keys if t not in byes]
-    for team, pos in zip(byes, bye_positions):
-        slots[pos] = team
-    for team in remaining:
-        for i, value in enumerate(slots):
-            if value is None:
-                slots[i] = team
-                break
+    slots, byes = build_single_elimination_slots(team_keys)
     matches = {}
     order = []
     pair_no = 1
@@ -6740,6 +6703,133 @@ async def process_bulk_admin_message(message: discord.Message):
     return True
 
 
+def extract_discord_user_ids(text: str) -> list[int]:
+    ids = []
+    seen = set()
+    for raw_id in re.findall(r"\b\d{17,20}\b", text):
+        user_id = int(raw_id)
+        if user_id in seen:
+            continue
+        seen.add(user_id)
+        ids.append(user_id)
+    return ids
+
+
+async def process_bulk_role_grant_message(message: discord.Message):
+    guild = message.guild
+    if guild is None:
+        return False
+
+    state = bulk_role_grant_waiting.get(guild.id)
+    if not state or state.get("user_id") != message.author.id:
+        return False
+
+    if message.content.strip() == "キャンセル":
+        bulk_role_grant_waiting.pop(guild.id, None)
+        await message.channel.send("ロール一括付与をキャンセルしました。")
+        return True
+
+    if message.content.strip() != "実行":
+        user_ids = extract_discord_user_ids(message.content)
+        if not user_ids:
+            await message.channel.send("Discord IDを見つけられませんでした。続けて貼るか、やめる場合は `キャンセル`。")
+            return True
+
+        stored_ids = state.setdefault("user_ids", [])
+        seen = set(stored_ids)
+        added_now = 0
+        for user_id in user_ids:
+            if user_id in seen:
+                continue
+            stored_ids.append(user_id)
+            seen.add(user_id)
+            added_now += 1
+        await message.channel.send(
+            f"{added_now}件のIDを追加しました。現在 {len(stored_ids)}件です。\n"
+            "続きがあれば貼ってください。全部貼り終わったら `実行`、やめる場合は `キャンセル`。"
+        )
+        return True
+
+    user_ids = state.get("user_ids", [])
+    if not user_ids:
+        await message.channel.send("まだDiscord IDが追加されていません。参加者表を貼ってください。やめる場合は `キャンセル`。")
+        return True
+
+    role = guild.get_role(state["role_id"])
+    if role is None:
+        bulk_role_grant_waiting.pop(guild.id, None)
+        await message.channel.send("対象ロールが見つかりません。ロールIDを確認してください。")
+        return True
+    if not role_can_be_managed(guild, role):
+        bulk_role_grant_waiting.pop(guild.id, None)
+        await message.channel.send("Botがこのロールを操作できません。Botのロールを対象ロールより上に置き、「ロールの管理」権限を確認してください。")
+        return True
+
+    added = []
+    already = []
+    not_found = []
+    failed = []
+    for user_id in user_ids:
+        member = guild.get_member(user_id)
+        if member is None:
+            try:
+                member = await guild.fetch_member(user_id)
+            except discord.NotFound:
+                not_found.append(user_id)
+                continue
+            except (discord.Forbidden, discord.HTTPException):
+                failed.append(user_id)
+                continue
+
+        if role in member.roles:
+            already.append(user_id)
+            continue
+        try:
+            await member.add_roles(role, reason=f"{message.author} による大会参加ロール一括付与")
+            added.append(user_id)
+        except (discord.Forbidden, discord.HTTPException):
+            failed.append(user_id)
+
+    bulk_role_grant_waiting.pop(guild.id, None)
+
+    lines = [
+        f"【ロール一括付与結果】",
+        f"対象ロール: {role.mention}",
+        f"抽出ID: {len(user_ids)}件",
+        f"付与: {len(added)}人",
+        f"すでに所持: {len(already)}人",
+        f"サーバー内で見つからない: {len(not_found)}人",
+        f"失敗: {len(failed)}人",
+    ]
+    if not_found:
+        lines.append("")
+        lines.append("【見つからないID】")
+        lines.extend(str(user_id) for user_id in not_found[:40])
+        if len(not_found) > 40:
+            lines.append(f"...ほか {len(not_found) - 40}件")
+    if failed:
+        lines.append("")
+        lines.append("【失敗ID】")
+        lines.extend(str(user_id) for user_id in failed[:40])
+        if len(failed) > 40:
+            lines.append(f"...ほか {len(failed) - 40}件")
+
+    text = "\n".join(lines)
+    if len(text) <= 1900:
+        await message.channel.send(text)
+    else:
+        chunk = ""
+        for line in lines:
+            if len(chunk) + len(line) + 1 > 1900:
+                await message.channel.send(chunk)
+                chunk = line
+            else:
+                chunk += ("\n" if chunk else "") + line
+        if chunk:
+            await message.channel.send(chunk)
+    return True
+
+
 # =========================
 # コマンド
 # =========================
@@ -6786,6 +6876,7 @@ async def on_message(message):
         process_bulk_rate_change_message,
         process_bulk_profile_edit_message,
         process_bulk_admin_message,
+        process_bulk_role_grant_message,
         process_otp_demo_bulk_message,
     ]:
         if await handler(message):
@@ -7171,6 +7262,33 @@ async def bulk_admin_mode(ctx):
         "バッジ付与 / バッジ削除 / バッジ強制付与\n"
         "レート / 初期補正付与 / 初期補正剥奪\nコイン / チケット付与\n\n"
         "やめるときは キャンセル"
+    )
+
+
+@bot.command(name="ロール一括付与")
+async def bulk_role_grant_mode(ctx, role_id: int):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if ctx.channel.id != ADMIN_CHANNEL_ID:
+        await ctx.send("このコマンドは運営チャンネルで使ってください")
+        return
+
+    role = ctx.guild.get_role(role_id)
+    if role is None:
+        await ctx.send("対象ロールが見つかりません。ロールIDを確認してください。")
+        return
+    if not role_can_be_managed(ctx.guild, role):
+        await ctx.send("Botがこのロールを操作できません。Botのロールを対象ロールより上に置き、「ロールの管理」権限を確認してください。")
+        return
+
+    bulk_role_grant_waiting[ctx.guild.id] = {"user_id": ctx.author.id, "role_id": role_id}
+    await ctx.send(
+        f"ロール一括付与モードに入りました。\n"
+        f"対象ロール: {role.mention}\n"
+        "参加者表をそのまま貼ってください。複数回に分けて貼れます。\n"
+        "Discord IDだけを抽出して蓄積します。全部貼り終わったら `実行`。\n"
+        "やめるときは `キャンセル`"
     )
 
 
@@ -8019,7 +8137,7 @@ import uuid
 import uvicorn
 from fastapi import FastAPI, Request, File, UploadFile, Form
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 api = FastAPI()
 
@@ -8044,6 +8162,63 @@ async def otp_form_submission(request: Request):
         print(f"OTP杯フォーム処理エラー: {exc}")
         return JSONResponse(content={"error": "failed to create team"}, status_code=500)
     return JSONResponse(content={"success": True, "team_number": team["number"]})
+
+
+@api.get("/api/otp/tournaments")
+def get_public_otp_tournaments():
+    """公開可能な大会一覧。Discord/運営用の識別情報は含めない。"""
+    state = load_bot_state()
+    return JSONResponse(
+        content={"tournaments": list_public_tournaments(state)},
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@api.get("/api/otp/tournaments/{tournament_id}")
+def get_public_otp_tournament(tournament_id: str):
+    """同一時点のBot状態から作る、閲覧専用の大会スナップショット。"""
+    tournament = load_bot_state().get("otp_tournaments", {}).get(tournament_id)
+    if tournament is None:
+        return JSONResponse(
+            content={"error": "大会データが見つかりません。"},
+            status_code=404,
+            headers={"Cache-Control": "no-store"},
+        )
+    return JSONResponse(
+        content=build_public_tournament(tournament),
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@api.get("/api/otp/tournaments/{tournament_id}/events")
+async def stream_public_otp_tournament_events(tournament_id: str):
+    """保存ファイルの置換を検知し、ブラウザへ再取得通知だけを送る。"""
+    async def event_stream():
+        last_signature = None
+        heartbeat = 0
+        while True:
+            try:
+                stat = os.stat(BOT_STATE_FILE)
+                signature = f"{stat.st_mtime_ns}:{stat.st_size}"
+                if signature != last_signature:
+                    state = load_bot_state()
+                    if tournament_id in state.get("otp_tournaments", {}):
+                        payload = json.dumps({"tournament_id": tournament_id}, ensure_ascii=False)
+                        yield f"event: update\ndata: {payload}\n\n"
+                    last_signature = signature
+                heartbeat += 1
+                if heartbeat >= 15:
+                    yield ": keep-alive\n\n"
+                    heartbeat = 0
+            except FileNotFoundError:
+                pass
+            await asyncio.sleep(1)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+    )
 
 # =========================
 # 画像アップロード（バッジ・バナー用）
