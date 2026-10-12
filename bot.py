@@ -73,6 +73,9 @@ OWNER_ID = 1225788050894753865
 BASE_CHANGE_GAIN = 1.20
 RECRUIT_NOTIFICATION_ROLE_ID = 1549685991969923183
 RECRUIT_COOLDOWN_SECONDS = 10 * 60
+OTP_SCRIM_CHANNEL_ID = 1559154303938334790
+OTP_SCRIM_ROLE_ID = 1559156727448862840
+OTP_SCRIM_REACTION = "👍"
 
 # =========================
 # チャンネル設定
@@ -1140,6 +1143,10 @@ ROOM_KEYS = ("A", "B")
 
 def get_bulk_role_grant_waiting():
     return bot_state.setdefault("bulk_role_grant_waiting", {})
+
+
+def get_reaction_role_configs():
+    return bot_state.setdefault("reaction_roles", {})
 
 STAGES = [
     "ユノハナ大渓谷", "ゴンズイ地区", "ヤガラ市場", "マテガイ放水路",
@@ -6895,6 +6902,55 @@ async def on_message(message):
     await bot.process_commands(message)
 
 
+async def handle_reaction_role(payload: discord.RawReactionActionEvent, *, add: bool):
+    if payload.guild_id is None or payload.user_id == bot.user.id:
+        return
+
+    configs = get_reaction_role_configs()
+    config = configs.get(str(payload.message_id))
+    if not config:
+        return
+    if str(payload.emoji) != config.get("emoji"):
+        return
+
+    guild = bot.get_guild(payload.guild_id)
+    if guild is None:
+        return
+
+    role = guild.get_role(int(config["role_id"]))
+    if role is None or not role_can_be_managed(guild, role):
+        return
+
+    member = getattr(payload, "member", None)
+    if member is None:
+        try:
+            member = await guild.fetch_member(payload.user_id)
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            return
+    if member.bot:
+        return
+
+    try:
+        if add:
+            if role not in member.roles:
+                await member.add_roles(role, reason="リアクションロール")
+        else:
+            if role in member.roles:
+                await member.remove_roles(role, reason="リアクションロール解除")
+    except (discord.Forbidden, discord.HTTPException):
+        return
+
+
+@bot.event
+async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
+    await handle_reaction_role(payload, add=True)
+
+
+@bot.event
+async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
+    await handle_reaction_role(payload, add=False)
+
+
 @bot.command(name="やめる")
 async def cancel_room(ctx):
     room_key = get_room_key_by_channel_id(ctx.channel.id)
@@ -7254,6 +7310,60 @@ async def update_home(ctx):
         return
     await post_home_message(ctx.guild)
     await ctx.send("ホームメッセージを更新しました")
+
+
+@bot.command(name="OTP対抗戦ロール設置")
+async def setup_otp_scrim_reaction_role(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    if ctx.channel.id != ADMIN_CHANNEL_ID:
+        await ctx.send("このコマンドは運営チャンネルで使ってください")
+        return
+
+    channel = ctx.guild.get_channel(OTP_SCRIM_CHANNEL_ID)
+    if channel is None:
+        await ctx.send("投稿先チャンネルが見つかりません。")
+        return
+
+    role = ctx.guild.get_role(OTP_SCRIM_ROLE_ID)
+    if role is None:
+        await ctx.send("OTP杯対抗戦ロールが見つかりません。")
+        return
+    if not role_can_be_managed(ctx.guild, role):
+        await ctx.send("BotがOTP杯対抗戦ロールを操作できません。Botのロールを対象ロールより上に置き、「ロールの管理」権限を確認してください。")
+        return
+
+    text = (
+        f"## OTP杯 対抗戦ロール\n"
+        f"OTP杯の練習・対抗戦募集をしやすくするため、{role.mention} ロールを用意しました。\n\n"
+        f"このメッセージに {OTP_SCRIM_REACTION} を押すとロールが付与され、リアクションを外すとロールも外れます。\n"
+        f"すでに一部の参加者には、このロールを付与済みです。\n\n"
+        f"このチャンネルで {role.mention} を使って、対抗戦相手をぜひ探してください。"
+    )
+    try:
+        message = await channel.send(
+            text,
+            allowed_mentions=discord.AllowedMentions(roles=True, users=False, everyone=False),
+        )
+        await message.add_reaction(OTP_SCRIM_REACTION)
+    except discord.Forbidden:
+        await ctx.send("メッセージ投稿またはリアクション追加ができません。チャンネル権限を確認してください。")
+        return
+    except discord.HTTPException:
+        await ctx.send("メッセージ投稿に失敗しました。少し待ってからもう一度試してください。")
+        return
+
+    configs = get_reaction_role_configs()
+    configs[str(message.id)] = {
+        "guild_id": ctx.guild.id,
+        "channel_id": channel.id,
+        "role_id": role.id,
+        "emoji": OTP_SCRIM_REACTION,
+        "label": "OTP杯対抗戦",
+    }
+    save_bot_state(bot_state)
+    await ctx.send(f"OTP杯対抗戦ロール案内を {channel.mention} に投稿し、リアクションロールを設定しました。")
 
 
 @bot.command(name="運営一括")
