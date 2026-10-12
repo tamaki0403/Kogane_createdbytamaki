@@ -1137,6 +1137,10 @@ otp_demo_bulk_waiting = {}
 
 ROOM_KEYS = ("A", "B")
 
+
+def get_bulk_role_grant_waiting():
+    return bot_state.setdefault("bulk_role_grant_waiting", {})
+
 STAGES = [
     "ユノハナ大渓谷", "ゴンズイ地区", "ヤガラ市場", "マテガイ放水路",
     "ナメロウ金属", "マサバ海峡大橋", "キンメダイ美術館", "マヒマヒリゾート&スパ",
@@ -6720,12 +6724,14 @@ async def process_bulk_role_grant_message(message: discord.Message):
     if guild is None:
         return False
 
-    state = bulk_role_grant_waiting.get(guild.id)
+    waiting = get_bulk_role_grant_waiting()
+    state = waiting.get(str(guild.id))
     if not state or state.get("user_id") != message.author.id:
         return False
 
     if message.content.strip() == "キャンセル":
-        bulk_role_grant_waiting.pop(guild.id, None)
+        waiting.pop(str(guild.id), None)
+        save_bot_state(bot_state)
         await message.channel.send("ロール一括付与をキャンセルしました。")
         return True
 
@@ -6744,6 +6750,7 @@ async def process_bulk_role_grant_message(message: discord.Message):
             stored_ids.append(user_id)
             seen.add(user_id)
             added_now += 1
+        save_bot_state(bot_state)
         await message.channel.send(
             f"{added_now}件のIDを追加しました。現在 {len(stored_ids)}件です。\n"
             "続きがあれば貼ってください。全部貼り終わったら `実行`、やめる場合は `キャンセル`。"
@@ -6757,11 +6764,13 @@ async def process_bulk_role_grant_message(message: discord.Message):
 
     role = guild.get_role(state["role_id"])
     if role is None:
-        bulk_role_grant_waiting.pop(guild.id, None)
+        waiting.pop(str(guild.id), None)
+        save_bot_state(bot_state)
         await message.channel.send("対象ロールが見つかりません。ロールIDを確認してください。")
         return True
     if not role_can_be_managed(guild, role):
-        bulk_role_grant_waiting.pop(guild.id, None)
+        waiting.pop(str(guild.id), None)
+        save_bot_state(bot_state)
         await message.channel.send("Botがこのロールを操作できません。Botのロールを対象ロールより上に置き、「ロールの管理」権限を確認してください。")
         return True
 
@@ -6790,7 +6799,8 @@ async def process_bulk_role_grant_message(message: discord.Message):
         except (discord.Forbidden, discord.HTTPException):
             failed.append(user_id)
 
-    bulk_role_grant_waiting.pop(guild.id, None)
+    waiting.pop(str(guild.id), None)
+    save_bot_state(bot_state)
 
     lines = [
         f"【ロール一括付与結果】",
@@ -7282,7 +7292,9 @@ async def bulk_role_grant_mode(ctx, role_id: int):
         await ctx.send("Botがこのロールを操作できません。Botのロールを対象ロールより上に置き、「ロールの管理」権限を確認してください。")
         return
 
-    bulk_role_grant_waiting[ctx.guild.id] = {"user_id": ctx.author.id, "role_id": role_id}
+    waiting = get_bulk_role_grant_waiting()
+    waiting[str(ctx.guild.id)] = {"user_id": ctx.author.id, "role_id": role_id, "user_ids": []}
+    save_bot_state(bot_state)
     await ctx.send(
         f"ロール一括付与モードに入りました。\n"
         f"対象ロール: {role.mention}\n"
