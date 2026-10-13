@@ -107,6 +107,19 @@ class OtpWebProjectionTests(unittest.TestCase):
         self.assertEqual([len(block["groups"]) for block in result["qualifier_blocks"]], [2, 1, 2, 1])
         self.assertEqual(result["team_count"], 24)
 
+    def test_planned_bracket_sources_use_display_ranges(self):
+        fixture = tournament_fixture(1)
+        fixture["brackets"]["upper"]["slots"] = [None, None]
+        fixture["brackets"]["upper"]["slot_sources"] = [
+            {"source_group_index": 1, "rank": 1},
+            {"source_group_index": 1, "rank": 2},
+        ]
+        result = build_public_tournament(fixture)
+        self.assertEqual(
+            [source["label"] for source in result["upper_bracket"]["slot_sources"]],
+            ["A1〜A4・1位", "A1〜A4・2位"],
+        )
+
     def test_pending_report_is_not_exposed_as_a_confirmed_score(self):
         result = build_public_tournament(tournament_fixture())
         match = next(match for match in result["matches"] if match["match_id"] == "U001")

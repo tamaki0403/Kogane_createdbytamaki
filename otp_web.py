@@ -223,6 +223,7 @@ def build_public_tournament(tournament: dict) -> dict[str, Any]:
     raw_groups = tournament.get("blocks", [])
     counts = _section_counts(len(raw_groups))
     placement_by_team: dict[str, str] = {}
+    range_by_group: dict[int, str] = {}
     qualifier_sections = []
     group_cursor = 0
 
@@ -272,6 +273,8 @@ def build_public_tournament(tournament: dict) -> dict[str, Any]:
                 "teams": display_teams,
                 "matches": [_public_match(match, placement_by_team) for match in group_matches],
             })
+            if display_teams:
+                range_by_group[source_index] = f"{display_teams[0]['position']}〜{display_teams[-1]['position']}"
             group_cursor += 1
         qualifier_sections.append({
             "block_id": section_label,
@@ -299,11 +302,25 @@ def build_public_tournament(tournament: dict) -> dict[str, Any]:
             brackets[bracket_name] = None
             continue
         slots = list(bracket.get("slots", []))
+        slot_sources = []
+        for source in bracket.get("slot_sources", []):
+            if not source:
+                slot_sources.append(None)
+                continue
+            group_index = int(source.get("source_group_index", 0) or 0)
+            rank = int(source.get("rank", 0) or 0)
+            source_range = range_by_group.get(group_index) or source.get("range") or "予選"
+            slot_sources.append({
+                "source_group_index": group_index,
+                "rank": rank,
+                "label": source.get("label") or f"{source_range}・{rank}位",
+            })
         bracket_matches = [match for match in matches if match.get("phase") == bracket_name]
         brackets[bracket_name] = {
             "league": bracket_name,
             "active_team_count": bracket.get("active_team_count", sum(bool(slot) for slot in slots)),
             "initial_slots": slots,
+            "slot_sources": slot_sources,
             "auto_advancers": list(bracket.get("auto_advancers", [])),
             "matches": bracket_matches,
             "progression_complete": any((match.get("round") or 0) > 1 for match in bracket_matches),

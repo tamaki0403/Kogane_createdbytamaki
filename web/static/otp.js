@@ -47,7 +47,7 @@
       id: group.group_id,
       block: group.section,
       range: group.start_position && group.end_position
-        ? `${group.start_position}–${group.end_position}` : "",
+        ? `${group.start_position}〜${group.end_position}` : "",
       complete: number(group.complete_matches),
       total: number(group.total_matches),
       confirmed: Boolean(group.advancement_confirmed),
@@ -92,7 +92,7 @@
     const tag = staticCard ? "div" : "button";
     const attrs = staticCard ? "" : ` type="button" data-group-id="${esc(group.id)}"`;
     return `<${tag} class="group-card"${attrs}>
-      <div class="group-head"><strong>${esc(group.id)}組</strong><span class="done">${esc(done)}</span></div>
+      <div class="group-head"><strong>${esc(group.range)}</strong><span class="done">${esc(done)}</span></div>
       <div class="team-list">${group.teams.map((item) => teamRow(item, staticCard)).join("")}</div>
       <div class="group-foot"><span>${esc(group.range)} / ${group.teams.length}チーム</span>${staticCard ? "" : '<span class="arrow">→</span>'}</div>
     </${tag}>`;
@@ -158,7 +158,7 @@
     $("#qual").hidden = true;
     $("#bracket").hidden = true;
     $("#detail").hidden = false;
-    $("#detail-title").textContent = `${group.id}組 詳細`;
+    $("#detail-title").textContent = `${group.range} 詳細`;
     const complete = group.matches.filter((match) => match.status === "done").length;
     $("#detail .status").textContent = `${complete}/${group.matches.length}試合 確定`;
     const rounds = scheduledRounds(group);
@@ -208,6 +208,13 @@
     </article>`;
   }
 
+  function bracketRoundName(round, totalRounds) {
+    if (round === totalRounds) return "決勝";
+    if (round === totalRounds - 1) return "準決勝";
+    if (round === totalRounds - 2) return "準々決勝";
+    return `${round}回戦`;
+  }
+
   function renderBracket() {
     const bracket = snapshot[currentLeague === "upper" ? "upper_bracket" : "lower_bracket"];
     const accentName = currentLeague === "upper" ? "上位リーグ" : "下位リーグ";
@@ -215,16 +222,27 @@
     $("#league-desc").textContent = bracket ? `${accentName} / ${number(bracket.active_team_count)}チーム` : `${accentName} / 未生成`;
     $("#bracket .status").textContent = bracket ? (statusText[snapshot.status] || "進行状況") : "未生成";
     renderSideResults(bracket);
-    if (!bracket || !(bracket.initial_slots || []).some(Boolean)) {
+    const hasEntrants = Boolean(bracket) && (
+      (bracket.initial_slots || []).some(Boolean) ||
+      (bracket.slot_sources || []).some(Boolean)
+    );
+    if (!hasEntrants) {
       $("#bracket-canvas").innerHTML = '<p class="sub" style="padding:30px">対戦表はまだ生成されていません。</p>';
       $(".bracket-caption").innerHTML = "<strong>本戦データ未生成</strong>";
       return;
     }
 
     const initial = bracket.initial_slots;
+    const slotSources = bracket.slot_sources || [];
+    const initialEntries = initial.map((teamId, index) => {
+      if (teamId) return {teamId, label: teamName(teamId)};
+      const source = slotSources[index];
+      return source ? {label: source.label, source} : null;
+    });
     const size = initial.length;
-    const teamCount = number(bracket.active_team_count) || initial.filter(Boolean).length;
+    const teamCount = number(bracket.active_team_count) || initialEntries.filter(Boolean).length;
     const totalRounds = Math.max(1, Math.log2(size));
+    const firstRoundName = bracketRoundName(1, totalRounds);
     if (size === 2) {
       const ids = initial.filter(Boolean);
       const match = roundMatch(bracket, 1, 0, ids);
@@ -233,7 +251,7 @@
       canvas.style.height = "360px";
       canvas.innerHTML = `<div class="round-title" style="left:18px">決勝<span>1試合</span></div>${matchCard({
         x: 18, y: 80, match, label: match?.match_id || "決勝",
-        slots: initial.map((id) => id ? {teamId: id, label: teamName(id)} : {label: "未確定"})
+        slots: initialEntries.map((entry) => entry || {label: "未確定"})
       }, true)}`;
       $(".bracket-scroll").setAttribute("aria-label", `${teamCount}チームの決勝戦`);
       $(".bracket-caption").innerHTML = `<strong>${teamCount}チーム / 全${Math.max(0, teamCount - 1)}試合</strong><span>Botで確定した結果を表示します。</span>`;
@@ -241,34 +259,64 @@
     }
     const columns = [];
     const sourcePairs = [];
-    for (let index = 0; index < size; index += 2) sourcePairs.push(initial.slice(index, index + 2));
+    for (let index = 0; index < size; index += 2) sourcePairs.push(initialEntries.slice(index, index + 2));
 
     const secondCount = Math.max(1, size / 4);
-    const secondNodes = Array.from({length: secondCount}, (_, index) => ({
-      round: 2, index, x: 244, y: 80 + index * 146,
-      label: `2回戦 ${index + 1}`, slots: [{label: "1回戦の勝者"}, {label: "1回戦の勝者"}], match: null
-    }));
+    const sourceBounds = Array.from({length: secondCount}, (_, index) => {
+      const bounds = [];
+      [0, 1].forEach((targetSlot) => {
+        const pair = sourcePairs[index * 2 + targetSlot] || [];
+        const entryCount = pair.filter(Boolean).length;
+        if (!entryCount) return;
+        const isMatch = entryCount === 2;
+        const top = isMatch
+          ? (targetSlot ? 64 : -64)
+          : 24 + targetSlot * 30;
+        bounds.push({top, bottom: top + (isMatch ? 86 : 30)});
+      });
+      if (!bounds.length) return {min: 24, max: 54};
+      return {
+        min: Math.min(...bounds.map((bound) => bound.top)),
+        max: Math.max(...bounds.map((bound) => bound.bottom))
+      };
+    });
+    const secondNodes = [];
+    sourceBounds.forEach((bounds, index) => {
+      const previous = sourceBounds[index - 1];
+      const previousNode = secondNodes[index - 1];
+      const y = index === 0
+        ? Math.max(80, 64 - bounds.min)
+        : previousNode.y + Math.max(146, previous.max - bounds.min + 24);
+      secondNodes.push({
+        round: 2, index, x: 244, y,
+        label: `${bracketRoundName(2, totalRounds)} ${index + 1}`,
+        slots: [{label: `${firstRoundName}の勝者`}, {label: `${firstRoundName}の勝者`}], match: null
+      });
+    });
     columns.push(secondNodes);
 
     const sources = [];
     sourcePairs.forEach((pair, pairIndex) => {
-      const ids = pair.filter(Boolean);
+      const entries = pair.filter(Boolean);
+      const actualTeamIds = entries.map((entry) => entry.teamId).filter(Boolean);
       const target = secondNodes[Math.floor(pairIndex / 2)];
       const targetSlot = pairIndex % 2;
-      if (ids.length === 2) {
-        const match = roundMatch(bracket, 1, pairIndex, ids);
+      if (entries.length === 2) {
+        const match = actualTeamIds.length === 2
+          ? roundMatch(bracket, 1, pairIndex, actualTeamIds)
+          : null;
         // Leave a clear gap from the adjacent one-team entry.  Both still
         // connect to their original slots on the same second-round card.
         const y = target.y + (targetSlot ? 64 : -64);
-        const source = {kind: "match", x: 18, y, match, ids, target, targetSlot};
+        const source = {kind: "match", x: 18, y, match, slots: entries, target, targetSlot};
         sources.push(source);
         target.slots[targetSlot] = match?.status === "done" && match.winner_team_id
           ? {teamId: match.winner_team_id, label: teamName(match.winner_team_id)}
-          : {label: `${match?.match_id || "1回戦"}の勝者`};
-      } else if (ids.length === 1) {
+          : {label: `${match?.match_id || firstRoundName}の勝者`};
+      } else if (entries.length === 1) {
         const y = target.y + 24 + targetSlot * 30;
-        sources.push({kind: "entry", x: 18, y, teamId: ids[0], target, targetSlot});
-        target.slots[targetSlot] = {teamId: ids[0], label: teamName(ids[0])};
+        sources.push({kind: "entry", x: 18, y, slot: entries[0], target, targetSlot});
+        target.slots[targetSlot] = entries[0];
       }
     });
 
@@ -293,7 +341,7 @@
         while (slots.length < 2) slots.push({label: "未確定"});
         const node = {
           round, index, x: 244 + (round - 2) * 226, y,
-          label: round === totalRounds ? "決勝" : `${round}回戦 ${index + 1}`,
+          label: round === totalRounds ? "決勝" : `${bracketRoundName(round, totalRounds)} ${index + 1}`,
           slots, match: null, inputs
         };
         node.match = roundMatch(bracket, round, index, slots.map((slot) => slot.teamId).filter(Boolean));
@@ -321,12 +369,11 @@
     }));
 
     const firstMatchCount = sources.filter((source) => source.kind === "match").length;
-    const roundNames = ["1回戦", "2回戦", "準々決勝", "準決勝", "決勝"];
     const titles = [
-      {x: 18, name: roundNames[0], count: `${firstMatchCount}試合 + ${teamCount - firstMatchCount * 2}枠`},
+      {x: 18, name: firstRoundName, count: `${firstMatchCount}試合 + ${teamCount - firstMatchCount * 2}枠`},
       ...columns.map((nodes, index) => ({
         x: 244 + index * 226,
-        name: roundNames[index + 1] || `${index + 2}回戦`,
+        name: bracketRoundName(index + 2, totalRounds),
         count: `${nodes.length}試合`
       }))
     ];
@@ -334,15 +381,15 @@
       if (source.kind === "match") {
         const node = {
           x: source.x, y: source.y, match: source.match,
-          label: source.match?.match_id || "1回戦",
-          slots: source.ids.map((id) => ({teamId: id, label: teamName(id)}))
+          label: source.match?.match_id || firstRoundName,
+          slots: source.slots
         };
         return matchCard(node);
       }
-      const data = team(source.teamId);
+      const data = source.slot.teamId ? team(source.slot.teamId) : null;
       return `<div class="seed-entry" style="left:${source.x}px;top:${source.y}px">
-        <span class="seed">${esc(data.placement_number || "")}</span>
-        ${teamLink(source.teamId)}
+        <span class="seed">${esc(data?.placement_number || "")}</span>
+        ${source.slot.teamId ? teamLink(source.slot.teamId) : `<span class="bracket-name pending">${esc(source.slot.label)}</span>`}
       </div>`;
     }).join("");
     const nodeHtml = columns.flatMap((nodes, index) =>
@@ -353,7 +400,7 @@
       ...sources.map((source) => source.y + (source.kind === "match" ? 86 : 30)),
       ...columns.flatMap((nodes) => nodes.map((node) => node.y + 86))
     );
-    const canvasHeight = totalRounds === 5 ? 1220 : Math.max(360, Math.ceil(contentBottom + 40));
+    const canvasHeight = Math.max(totalRounds === 5 ? 1220 : 360, Math.ceil(contentBottom + 40));
     const canvas = $("#bracket-canvas");
     $(".bracket-scroll").setAttribute("aria-label", `${teamCount}チームの対戦表。横スクロールで決勝まで表示`);
     canvas.style.width = `${canvasWidth}px`;
@@ -368,6 +415,7 @@
 
   function renderSideResults(bracket) {
     const entrants = (bracket?.initial_slots || []).filter(Boolean);
+    const planned = (bracket?.slot_sources || []).filter(Boolean);
     const grouped = new Map();
     entrants.forEach((id) => {
       const position = team(id).placement_number || "—";
@@ -375,6 +423,12 @@
       if (!grouped.has(block)) grouped.set(block, []);
       grouped.get(block).push(id);
     });
+    if (!entrants.length && planned.length) {
+      $("#league-results").innerHTML = `<p class="side-label">進出予定枠</p>${planned.map((source) =>
+        `<div class="side-team"><span></span><span>${esc(source.label)}</span></div>`
+      ).join("")}<p class="side-note">順位確定後、同じ枠をチーム名へ置き換えます。</p>`;
+      return;
+    }
     $("#league-results").innerHTML = bracket ? `<p class="side-label">進出チーム</p>${[...grouped.entries()].sort(([a], [b]) => a.localeCompare(b, "ja")).map(([block, ids]) =>
       `<div class="side-group"><strong>${esc(block)}ブロック</strong>${ids.sort((a, b) => number(team(a).placement_number?.slice(1)) - number(team(b).placement_number?.slice(1))).map((id) =>
         `<div class="side-team"><span>${esc(team(id).placement_number || "")}</span><span role="button" tabindex="0" data-team-id="${esc(id)}">${esc(teamName(id))}</span></div>`
