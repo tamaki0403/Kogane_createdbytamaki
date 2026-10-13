@@ -15,7 +15,10 @@ from discord.ext import commands, tasks
 from itertools import combinations
 from PIL import Image, ImageDraw, ImageFont
 from otp_web import (
+    APPLICATION_LAYOUT_TOURNAMENT_ID,
+    application_layout_seed,
     build_application_layout_preview,
+    build_seeded_qualifier_blocks,
     build_single_elimination_slots,
     build_public_tournament,
     list_public_application_layout_preview,
@@ -3252,6 +3255,58 @@ def calculate_otp_demo_blocks(team_keys: list[str]) -> list[list[str]] | None:
     return blocks
 
 
+def otp_application_preview_numbers() -> set[int]:
+    return {
+        int(team["number"])
+        for team in get_otp_teams().values()
+        if (
+            isinstance(team, dict)
+            and str(team.get("number", "")).isdigit()
+            and int(team["number"]) not in {1, 2}
+        )
+    }
+
+
+def otp_demo_web_blocks(tournament: dict, candidates: list[str]) -> tuple[list[list[str]] | None, str | None]:
+    """Return the public Web draw only when its applications exactly match."""
+    number_by_key = {}
+    duplicate_numbers = set()
+    for key in candidates:
+        number = tournament.get("teams", {}).get(key, {}).get("application_number")
+        if not isinstance(number, int):
+            return None, "申請番号が数値化されていない参加チームがあります。"
+        if number in number_by_key.values():
+            duplicate_numbers.add(number)
+        number_by_key[key] = number
+    if duplicate_numbers:
+        values = "、".join(f"OTP-{number:03d}" for number in sorted(duplicate_numbers))
+        return None, f"大会登録に重複した申請番号があります: {values}"
+
+    web_numbers = otp_application_preview_numbers()
+    candidate_numbers = set(number_by_key.values())
+    if web_numbers != candidate_numbers:
+        missing = sorted(web_numbers - candidate_numbers)
+        extra = sorted(candidate_numbers - web_numbers)
+        details = []
+        if missing:
+            details.append("Discord大会登録に不足: " + "、".join(f"OTP-{number:03d}" for number in missing))
+        if extra:
+            details.append("Web申請一覧にない登録: " + "、".join(f"OTP-{number:03d}" for number in extra))
+        return None, "WebとDiscordの参加対象が一致しません。" + " / ".join(details)
+
+    seed = application_layout_seed(bot_state, sorted(web_numbers))
+    blocks = build_seeded_qualifier_blocks(candidates, number_by_key, seed)
+    if blocks is None:
+        return None, "このチーム数では3・4チームの予選組を構成できません。"
+    return blocks, None
+
+
+def otp_demo_start_blocks(tournament: dict, candidates: list[str]) -> tuple[list[list[str]] | None, str | None]:
+    if tournament.get("web_tournament_id") == APPLICATION_LAYOUT_TOURNAMENT_ID:
+        return otp_demo_web_blocks(tournament, candidates)
+    return calculate_otp_demo_blocks(candidates), None
+
+
 def make_round_robin_matches(blocks: list[list[str]]) -> dict:
     matches = {}
     order = []
@@ -4689,7 +4744,9 @@ async def start_otp_demo_tournament(guild: discord.Guild, operator: discord.Memb
     if tournament.get("status") not in ("setup", "paused"):
         return "この大会は開始可能な状態ではありません。"
     candidates = [key for key, team in tournament.get("teams", {}).items() if otp_demo_team_ready(tournament, team)[0]]
-    blocks = calculate_otp_demo_blocks(candidates)
+    blocks, alignment_error = otp_demo_start_blocks(tournament, candidates)
+    if alignment_error:
+        return alignment_error + " Webと異なる組分けでは開始しません。"
     if blocks is None:
         return "このチーム数では大会を開催できません。登録は継続できます。"
     rr = make_round_robin_matches(blocks)
@@ -4702,6 +4759,16 @@ async def start_otp_demo_tournament(guild: discord.Guild, operator: discord.Memb
         "started_by": str(operator.id),
         "eligible_team_keys": candidates,
         "blocks": blocks,
+        "grouping_source": (
+            "web_application_layout"
+            if tournament.get("web_tournament_id") == APPLICATION_LAYOUT_TOURNAMENT_ID
+            else "discord_random"
+        ),
+        "grouping_seed": (
+            application_layout_seed(bot_state, sorted(otp_application_preview_numbers()))
+            if tournament.get("web_tournament_id") == APPLICATION_LAYOUT_TOURNAMENT_ID
+            else None
+        ),
         "matches": rr["matches"],
         "match_order": rr["order"],
         "brackets": {},
@@ -7722,15 +7789,51 @@ async def otp_demo_start_check(ctx, tournament_id: str):
             candidates.append(key)
         else:
             excluded.append(f"{team.get('application_id')} {team.get('team_name')}｜{reason}")
-    blocks = calculate_otp_demo_blocks(candidates)
+    blocks, alignment_error = otp_demo_start_blocks(tournament, candidates)
     lines = [f"開始対象 {len(candidates)}チーム"]
     lines.extend(f"・{tournament['teams'][key]['application_id']} {tournament['teams'][key]['team_name']}" for key in sorted(candidates, key=lambda k: tournament["teams"][k].get("application_number") or 999999))
     lines.extend(["", "除外対象"])
     lines.extend(excluded or ["なし"])
-    lines.extend(["", "予選ブロック構成", "開催不可" if blocks is None else " / ".join(str(len(b)) for b in blocks)])
+    lines.extend(["", "予選ブロック構成"])
+    if alignment_error:
+        lines.extend(["開始不可", alignment_error, "Webと異なる組分けでは開始しません。"])
+    else:
+        lines.append("開催不可" if blocks is None else " / ".join(str(len(b)) for b in blocks))
     lines.append("")
     lines.append(f"開始する場合は `!OTPデモ開始 {tournament_id} 確定` を実行してください。")
     await ctx.send("\n".join(lines))
+
+
+@bot.command(name="OTPWeb連携")
+async def otp_web_link(ctx, tournament_id: str):
+    tournament = get_otp_tournaments().get(tournament_id)
+    if not tournament or not otp_demo_is_operator(ctx.author, tournament):
+        await ctx.send("大会が見つからないか、権限がありません。")
+        return
+    if tournament.get("status") not in ("setup", "paused"):
+        await ctx.send("開始済みの大会へWeb連携を後付けすることはできません。")
+        return
+
+    for other in get_otp_tournaments().values():
+        if other is not tournament and other.get("web_tournament_id") == APPLICATION_LAYOUT_TOURNAMENT_ID:
+            other.pop("web_tournament_id", None)
+    tournament["web_tournament_id"] = APPLICATION_LAYOUT_TOURNAMENT_ID
+    tournament["updated_at"] = time.time()
+    candidates = [key for key, team in tournament.get("teams", {}).items() if otp_demo_team_ready(tournament, team)[0]]
+    blocks, alignment_error = otp_demo_web_blocks(tournament, candidates)
+    save_otp_tournaments()
+    if alignment_error:
+        await ctx.send(
+            f"`{tournament_id}` をWeb連携対象に設定しましたが、まだ開始できません。\n"
+            f"{alignment_error}\n"
+            "不足を直した後、`!OTPデモ開始確認 " + tournament_id + "` で再確認してください。"
+        )
+        return
+    await ctx.send(
+        f"`{tournament_id}` を `{APPLICATION_LAYOUT_TOURNAMENT_ID}` と連携しました。\n"
+        f"対象 {len(candidates)}チーム｜予選組: " + " / ".join(str(len(block)) for block in blocks) + "\n"
+        "開始時はWebと同じ組分けを保存し、異なる組分けでは開始しません。"
+    )
 
 
 @bot.command(name="OTPデモ開始")
@@ -8350,7 +8453,21 @@ def get_public_otp_tournaments():
 def get_public_otp_tournament(tournament_id: str):
     """同一時点のBot状態から作る、閲覧専用の大会スナップショット。"""
     state = load_bot_state()
-    if tournament_id == "all-teams-layout-test":
+    if tournament_id == APPLICATION_LAYOUT_TOURNAMENT_ID:
+        linked = next((
+            item for item in state.get("otp_tournaments", {}).values()
+            if (
+                item.get("web_tournament_id") == APPLICATION_LAYOUT_TOURNAMENT_ID
+                and item.get("blocks")
+                and item.get("status") in ("running", "paused", "done")
+            )
+        ), None)
+        if linked is not None:
+            public = build_public_tournament(linked)
+            public["tournament_id"] = APPLICATION_LAYOUT_TOURNAMENT_ID
+            public["data_mode"] = "linked_discord_tournament"
+            public["live_updates"] = True
+            return JSONResponse(content=public, headers={"Cache-Control": "no-store"})
         preview = build_application_layout_preview(state)
         if preview is not None:
             return JSONResponse(content=preview, headers={"Cache-Control": "no-store"})

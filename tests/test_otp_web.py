@@ -2,8 +2,10 @@ import random
 import unittest
 
 from otp_web import (
+    application_layout_seed,
     build_application_layout_preview,
     build_public_tournament,
+    build_seeded_qualifier_blocks,
     build_single_elimination_slots,
     list_public_layout_fixtures,
     list_public_tournaments,
@@ -105,6 +107,28 @@ def tournament_fixture(group_count=10):
 
 
 class OtpWebProjectionTests(unittest.TestCase):
+    def test_seeded_blocks_are_shared_by_application_number_not_key_prefix(self):
+        numbers = list(range(3, 37))
+        web_keys = [f"all-teams-layout-test:OTP-{number:03d}" for number in numbers]
+        discord_keys = [f"live:OTP-{number:03d}" for number in numbers]
+        seed = application_layout_seed({"otp_application_layout_seed": 123456}, numbers)
+
+        web_blocks = build_seeded_qualifier_blocks(
+            web_keys, dict(zip(web_keys, numbers)), seed
+        )
+        discord_blocks = build_seeded_qualifier_blocks(
+            discord_keys, dict(zip(discord_keys, numbers)), seed
+        )
+
+        def block_numbers(blocks):
+            return [
+                [int(key.rsplit("-", 1)[1]) for key in block]
+                for block in blocks
+            ]
+
+        self.assertEqual(block_numbers(web_blocks), block_numbers(discord_blocks))
+        self.assertEqual([len(block) for block in web_blocks], [4] * 7 + [3] * 2)
+
     def test_application_layout_preview_tracks_new_and_renamed_teams(self):
         state = {"otp_teams": {}, "otp_application_layout_seed": 12345}
         for number in range(1, 10):

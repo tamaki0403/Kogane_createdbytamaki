@@ -30,6 +30,8 @@ _PUBLIC_LAYOUT_FIXTURES = {
     ),
 }
 
+APPLICATION_LAYOUT_TOURNAMENT_ID = "all-teams-layout-test"
+
 
 def load_public_layout_fixture(tournament_id: str) -> dict[str, Any] | None:
     """Load an explicitly named, sanitized layout test without touching Bot state."""
@@ -72,6 +74,36 @@ def qualifier_group_sizes(team_count: int) -> list[int] | None:
         if rest % 3 == 0:
             return [4] * four_count + [3] * (rest // 3)
     return None
+
+
+def application_layout_seed(state: dict, application_numbers: list[int]) -> str:
+    """Return the persisted application draw seed, with a stable legacy fallback."""
+    stored = state.get("otp_application_layout_seed")
+    if stored is not None:
+        return str(stored)
+    return "otp-application-layout-initial:" + ",".join(
+        str(number) for number in sorted(application_numbers)
+    )
+
+
+def build_seeded_qualifier_blocks(
+    team_keys: list[str], application_number_by_key: dict[str, int], seed: str
+) -> list[list[str]] | None:
+    """Build the one canonical draw shared by the Web preview and Discord start."""
+    sizes = qualifier_group_sizes(len(team_keys))
+    if not sizes:
+        return None
+    shuffled = sorted(
+        team_keys,
+        key=lambda key: (application_number_by_key.get(key, 999999), key),
+    )
+    random.Random(str(seed)).shuffle(shuffled)
+    blocks = []
+    offset = 0
+    for size in sizes:
+        blocks.append(shuffled[offset:offset + size])
+        offset += size
+    return blocks
 
 
 def build_single_elimination_slots(team_keys: list[str], rng=None) -> tuple[list[str | None], set[str]]:
@@ -432,9 +464,10 @@ def build_application_layout_preview(state: dict) -> dict[str, Any] | None:
     if not applications:
         return fallback
 
-    tournament_id = "all-teams-layout-test"
+    tournament_id = APPLICATION_LAYOUT_TOURNAMENT_ID
     teams: dict[str, dict[str, Any]] = {}
     ordered_keys = []
+    application_number_by_key = {}
     for application in applications:
         number = int(application["number"])
         application_id = f"OTP-{number:03d}"
@@ -467,24 +500,16 @@ def build_application_layout_preview(state: dict) -> dict[str, Any] | None:
             "updated_at": application.get("updated_at"),
         }
         ordered_keys.append(team_key)
+        application_number_by_key[team_key] = number
 
-    # Keep one draw stable across reloads and team-name edits. The Bot rotates
-    # this persisted seed only when a new application is accepted.
-    grouping_seed = state.get("otp_application_layout_seed") or (
-        "otp-application-layout-initial:" + ",".join(
-            str(application["number"]) for application in applications
-        )
+    grouping_seed = application_layout_seed(
+        state, [int(application["number"]) for application in applications]
     )
-    random.Random(str(grouping_seed)).shuffle(ordered_keys)
-
-    sizes = qualifier_group_sizes(len(ordered_keys))
-    if sizes is None:
-        sizes = [len(ordered_keys)] if len(ordered_keys) <= 4 else [3, 2]
-    blocks = []
-    offset = 0
-    for size in sizes:
-        blocks.append(ordered_keys[offset:offset + size])
-        offset += size
+    blocks = build_seeded_qualifier_blocks(
+        ordered_keys, application_number_by_key, grouping_seed
+    )
+    if blocks is None:
+        return fallback
 
     matches: dict[str, dict[str, Any]] = {}
     match_order = []
