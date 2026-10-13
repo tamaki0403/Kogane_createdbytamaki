@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse
 from otp_web import (
     build_application_layout_preview,
     build_public_tournament,
+    is_public_tournament,
     list_public_application_layout_preview,
     list_public_tournaments,
     load_public_layout_fixture,
@@ -402,7 +403,7 @@ def get_public_otp_tournament(tournament_id: str):
         if preview is not None:
             return JSONResponse(content=preview, headers={"Cache-Control": "no-store"})
     tournament = state.get("otp_tournaments", {}).get(tournament_id)
-    if tournament is None:
+    if tournament is None or not is_public_tournament(tournament):
         fixture = load_public_layout_fixture(tournament_id)
         if fixture is None:
             return JSONResponse(

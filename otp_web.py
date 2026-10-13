@@ -10,7 +10,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 import json
-import os
 import random
 
 
@@ -24,13 +23,21 @@ PUBLIC_RULES = [
 ]
 
 
-_PUBLIC_LAYOUT_FIXTURES = {
-    "all-teams-layout-test": os.path.join(
-        os.path.dirname(__file__), "web", "fixtures", "all-teams-layout-test.json"
-    ),
-}
+# Static layout-test fixtures are intentionally no longer public.  The OTP
+# page now shows only live application data or the linked production event.
+_PUBLIC_LAYOUT_FIXTURES: dict[str, str] = {}
 
 APPLICATION_LAYOUT_TOURNAMENT_ID = "all-teams-layout-test"
+
+
+def is_withdrawn_application(team: dict) -> bool:
+    """Return whether the application-side Bot status means withdrawal."""
+    status = str(team.get("status") or "").strip().lower()
+    return status == "withdrawn" or status.startswith("棄権")
+
+
+def is_public_tournament(tournament: dict) -> bool:
+    return tournament.get("public") is True or tournament.get("kind") == "main"
 
 
 def load_public_layout_fixture(tournament_id: str) -> dict[str, Any] | None:
@@ -457,7 +464,7 @@ def build_public_tournament(tournament: dict) -> dict[str, Any]:
         "matches": matches,
         "upper_bracket": brackets["upper"],
         "lower_bracket": brackets["lower"],
-        "rules": PUBLIC_RULES,
+        "rules": list(tournament.get("rules") or PUBLIC_RULES),
         "capabilities": {
             "result_correction": False,
             "bracket_progression": bool(brackets["upper"] and brackets["upper"]["progression_complete"]),
@@ -475,13 +482,14 @@ def list_public_tournaments(state: dict) -> list[dict]:
             "updated_at": _timestamp(item),
         }
         for key, item in state.get("otp_tournaments", {}).items()
+        if is_public_tournament(item)
     ]
     return sorted(items, key=lambda item: item.get("updated_at") or "", reverse=True)
 
 
 def build_application_layout_preview(state: dict) -> dict[str, Any] | None:
     """Build the reserved read-only layout page from live OTP form applications."""
-    applications = sorted(
+    stored_applications = sorted(
         (
             team for team in state.get("otp_teams", {}).values()
             if (
@@ -493,8 +501,12 @@ def build_application_layout_preview(state: dict) -> dict[str, Any] | None:
         key=lambda team: int(team["number"]),
     )
     fallback = load_public_layout_fixture("all-teams-layout-test")
-    if not applications:
+    if not stored_applications:
         return fallback
+    applications = [
+        application for application in stored_applications
+        if not is_withdrawn_application(application)
+    ]
 
     tournament_id = APPLICATION_LAYOUT_TOURNAMENT_ID
     teams: dict[str, dict[str, Any]] = {}
@@ -541,7 +553,29 @@ def build_application_layout_preview(state: dict) -> dict[str, Any] | None:
         ordered_keys, application_number_by_key, grouping_seed
     )
     if blocks is None:
-        return fallback
+        timestamps = [
+            value for application in applications
+            for value in (application.get("updated_at"), application.get("created_at"))
+            if isinstance(value, (int, float))
+        ]
+        raw_tournament = {
+            "id": tournament_id,
+            "name": "Kogane OTP杯 2026",
+            "status": "registration",
+            "phase": "setup",
+            "updated_at": max(timestamps, default=0),
+            "teams": teams,
+            "blocks": [],
+            "matches": {},
+            "match_order": [],
+            "block_rankings": {},
+            "brackets": {},
+        }
+        preview = build_public_tournament(raw_tournament)
+        preview["team_count"] = len(ordered_keys)
+        preview["data_mode"] = "application_layout_preview"
+        preview["live_updates"] = True
+        return preview
 
     matches: dict[str, dict[str, Any]] = {}
     match_order = []
@@ -605,7 +639,7 @@ def build_application_layout_preview(state: dict) -> dict[str, Any] | None:
     ]
     raw_tournament = {
         "id": tournament_id,
-        "name": f"Kogane OTP杯・{len(ordered_keys)}チーム表記テスト",
+        "name": "Kogane OTP杯 2026",
         "status": "registration",
         "phase": "qualifier",
         "updated_at": max(timestamps, default=0),

@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "otp-rehearsal-20261014",
+  "name": "Kogane OTP杯 2026｜予行練習",
+  "kind": "rehearsal",
+  "format": "otp_round_robin_single_elimination",
+  "active_operator_panel": true,
+  "public": true,
+  "public_url": "https://koganecreatedbytamaki-production-9bb5.up.railway.app/otp.html?tournament_id=otp-rehearsal-20261014",
+  "participant_source": "isolated_manual_registration",
+  "event_date": "2026-10-14",
+  "team_members": 4,
+  "xp_limit": 2700,
+  "qualifier": {
+    "group_sizes": [3, 4],
+    "section_labels": ["A", "B", "C", "D"],
+    "upper_places": [1, 2]
+  },
+  "bracket": {
+    "type": "single_elimination",
+    "normal_best_of": 3,
+    "final_best_of": 5,
+    "upper_label": "Aリーグ",
+    "lower_label": "Bリーグ"
+  },
+  "discord": {
+    "admin_channel_id": "1559647960772644934",
+    "operator_role_id": "1559648052309008466",
+    "match_categories": {
+      "qualifier": {
+        "A": "1559648479524032512",
+        "B": "1559648566513762386",
+        "C": "1559648613536243855",
+        "D": "1559648646256009387"
+      },
+      "upper": "1559648679902711848",
+      "lower": "1559648709502050354"
+    }
+  },
+  "stages": [
+    "マサバ海峡大橋",
+    "スメーシーワールド",
+    "クサヤ温泉",
+    "コンブトラック",
+    "タカアシ経済特区",
+    "ネギトロ炭鉱",
+    "デカライン高架下"
+  ],
+  "rules": [
+    "全試合ガチエリアです。",
+    "通常の対戦はBO3、決勝はBO5です。",
+    "使用ブキは2026 Sizzle Seasonの個人使用率TOP3です。",
+    "開始前または開始後15秒以内の回線落ちは、同じステージ・ブキ・ギアで再試合します。",
+    "15秒を超えた回線落ちは原則続行です。",
+    "判断に迷う場合はDiscordで運営に相談してください。"
+  ]
+}

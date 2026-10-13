@@ -8,9 +8,8 @@ from otp_web import (
     build_public_tournament,
     build_seeded_qualifier_blocks,
     build_single_elimination_slots,
-    list_public_layout_fixtures,
+    is_withdrawn_application,
     list_public_tournaments,
-    load_public_layout_fixture,
     qualifier_group_sizes,
     qualifier_section_counts,
     qualifier_section_label,
@@ -202,18 +201,33 @@ class OtpWebProjectionTests(unittest.TestCase):
         redrawn = memberships(build_application_layout_preview(state))
         self.assertNotEqual(first, redrawn)
 
-    def test_sanitized_34_team_layout_fixture(self):
-        fixture = load_public_layout_fixture("all-teams-layout-test")
-        self.assertIsNotNone(fixture)
-        self.assertEqual(fixture["team_count"], 34)
-        self.assertEqual(fixture["group_count"], 9)
-        self.assertEqual(fixture["upper_bracket"]["active_team_count"], 18)
-        self.assertEqual(fixture["lower_bracket"]["active_team_count"], 16)
-        self.assertEqual(fixture["data_mode"], "layout_test")
-        text = repr(fixture)
-        for private_key in ("discord_id", "reporter_id", "operator_id", "channel_id", "corrected_xp"):
-            self.assertNotIn(private_key, text)
-        self.assertTrue(any(item["tournament_id"] == "all-teams-layout-test" for item in list_public_layout_fixtures()))
+    def test_withdrawn_application_is_removed_from_preview_and_draw(self):
+        state = {"otp_teams": {}, "otp_application_layout_seed": 333}
+        for number in range(3, 37):
+            state["otp_teams"][str(number)] = {
+                "number": number,
+                "team_name": f"チーム{number}",
+                "leader_name": f"リーダー{number}",
+                "member_names": [],
+                "players": {},
+                "status": "承認 ✅",
+            }
+        state["otp_teams"]["10"]["status"] = "棄権 ❌"
+
+        preview = build_application_layout_preview(state)
+
+        self.assertTrue(is_withdrawn_application({"status": "withdrawn"}))
+        self.assertTrue(is_withdrawn_application({"status": "棄権 ❌"}))
+        self.assertEqual(preview["team_count"], 33)
+        self.assertNotIn("all-teams-layout-test:OTP-010", preview["teams"])
+        displayed = {
+            entry["team_id"]
+            for block in preview["qualifier_blocks"]
+            for group in block["groups"]
+            for entry in group["teams"]
+        }
+        self.assertEqual(len(displayed), 33)
+        self.assertNotIn("all-teams-layout-test:OTP-010", displayed)
 
     def test_40_teams_are_split_3_2_3_2_and_positions_are_numeric(self):
         result = build_public_tournament(tournament_fixture())
@@ -287,9 +301,17 @@ class OtpWebProjectionTests(unittest.TestCase):
     def test_tournament_list_is_newest_first(self):
         older = tournament_fixture(1)
         newer = tournament_fixture(1)
-        older["id"], older["updated_at"] = "older", 2_000_000_000
-        newer["id"], newer["updated_at"] = "newer", 2_100_000_000
-        items = list_public_tournaments({"otp_tournaments": {"older": older, "newer": newer}})
+        hidden_demo = tournament_fixture(1)
+        older["id"], older["updated_at"], older["public"] = "older", 2_000_000_000, True
+        newer["id"], newer["updated_at"], newer["kind"] = "newer", 2_100_000_000, "main"
+        hidden_demo["id"], hidden_demo["kind"] = "hidden-demo", "demo"
+        items = list_public_tournaments({
+            "otp_tournaments": {
+                "older": older,
+                "newer": newer,
+                "hidden-demo": hidden_demo,
+            }
+        })
         self.assertEqual([item["tournament_id"] for item in items], ["newer", "older"])
 
 
