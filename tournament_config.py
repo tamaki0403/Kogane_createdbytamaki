@@ -30,6 +30,11 @@ def _validate_config(config: dict[str, Any], filename: str) -> None:
         raise ValueError(f"{filename}: the current progression requires upper places 1 and 2")
     if config.get("bracket", {}).get("type") != "single_elimination":
         raise ValueError(f"{filename}: the current format requires single elimination")
+    default_members = int(config.get("team_members", 4))
+    min_members = int(config.get("min_team_members", default_members))
+    max_members = int(config.get("max_team_members", default_members))
+    if min_members < 1 or max_members < min_members or max_members > 4:
+        raise ValueError(f"{filename}: team member range must be within 1..4")
 
 
 def load_tournament_configs(config_dir: Path = CONFIG_DIR) -> dict[str, dict[str, Any]]:

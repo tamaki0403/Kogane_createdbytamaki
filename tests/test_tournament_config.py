@@ -28,6 +28,8 @@ class TournamentConfigTests(unittest.TestCase):
             if item["id"] == "otp-rehearsal-20261014"
         )
         self.assertEqual(rehearsal["participant_source"], "isolated_manual_registration")
+        self.assertEqual(rehearsal["min_team_members"], 1)
+        self.assertEqual(rehearsal["max_team_members"], 4)
         self.assertEqual(rehearsal["discord"]["admin_channel_id"], "1559647960772644934")
         self.assertEqual(
             set(rehearsal["discord"]["match_categories"]["qualifier"]),

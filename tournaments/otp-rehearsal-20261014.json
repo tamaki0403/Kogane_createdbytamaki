@@ -10,6 +10,8 @@
   "participant_source": "isolated_manual_registration",
   "event_date": "2026-10-14",
   "team_members": 4,
+  "min_team_members": 1,
+  "max_team_members": 4,
   "xp_limit": 2700,
   "qualifier": {
     "group_sizes": [3, 4],
