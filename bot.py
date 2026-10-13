@@ -17,6 +17,7 @@ from PIL import Image, ImageDraw, ImageFont
 from otp_web import (
     APPLICATION_LAYOUT_TOURNAMENT_ID,
     application_layout_seed,
+    balanced_qualifier_group_sizes,
     build_application_layout_preview,
     build_seeded_qualifier_blocks,
     build_single_elimination_slots,
@@ -25,6 +26,7 @@ from otp_web import (
     list_public_tournaments,
     load_public_layout_fixture,
     qualifier_group_sizes,
+    qualifier_section_label,
     rank_qualifier_group,
 )
 
@@ -108,6 +110,19 @@ OTP_TEAM_SUMMARY_CHANNEL_ID = 1549775429991137420
 OTP_TEAM_APPROVAL_CHANNEL_ID = 1550008154904072234
 OTP_STAFF_MENTION = "<@1225788050894753865>"
 OTP_FORM_WEBHOOK_SECRET = os.getenv("OTP_FORM_WEBHOOK_SECRET", "")
+OTP_MAIN_TOURNAMENT_ID = "otp-20261024"
+OTP_MAIN_ADMIN_CHANNEL_ID = 1559406345818472458
+OTP_MAIN_OPERATOR_ROLE_ID = 1559406643224125470
+OTP_MAIN_MATCH_CATEGORY_IDS = {
+    "qualifier": {
+        "A": 1559421140600885339,
+        "B": 1559421214886469673,
+        "C": 1559406009141694616,
+        "D": 1559421452531269652,
+    },
+    "upper": 1559421516582486056,
+    "lower": 1559421564741746738,
+}
 
 # ロビーVC（既存・削除しない）
 ROOM_LOBBY_VC = {
@@ -3242,7 +3257,7 @@ def otp_demo_public_team_text(team: dict, tournament: dict) -> str:
 
 
 def calculate_otp_demo_blocks(team_keys: list[str]) -> list[list[str]] | None:
-    sizes = qualifier_group_sizes(len(team_keys))
+    sizes = balanced_qualifier_group_sizes(len(team_keys))
     if not sizes:
         return None
     shuffled = team_keys[:]
@@ -3307,6 +3322,53 @@ def otp_demo_start_blocks(tournament: dict, candidates: list[str]) -> tuple[list
     return calculate_otp_demo_blocks(candidates), None
 
 
+def otp_demo_initial_match_category_counts(tournament: dict, matches: dict, order: list[str]) -> dict[int | None, int]:
+    active_teams = set()
+    counts = {}
+    for match_id in order:
+        match = matches[match_id]
+        if any(team in active_teams for team in match.get("teams", [])):
+            continue
+        active_teams.update(match.get("teams", []))
+        category_id = otp_demo_match_category_id(tournament, match)
+        counts[category_id] = counts.get(category_id, 0) + 1
+    return counts
+
+
+def otp_demo_start_preflight(guild: discord.Guild, tournament: dict, rr: dict) -> list[str]:
+    errors = []
+    admin_channel = guild.get_channel(tournament.get("admin_channel_id"))
+    if not isinstance(admin_channel, discord.TextChannel):
+        errors.append("当日運営チャンネルが見つかりません。")
+
+    category_counts = otp_demo_initial_match_category_counts(
+        tournament, rr["matches"], rr["order"]
+    )
+    configured_ids = set(category_counts)
+    categories = tournament.get("match_category_ids", {})
+    configured_ids.update(categories.get("qualifier", {}).values())
+    configured_ids.update(
+        category_id for category_id in (categories.get("upper"), categories.get("lower"))
+        if category_id
+    )
+    for category_id in configured_ids:
+        category = guild.get_channel(category_id) if category_id else None
+        if not isinstance(category, discord.CategoryChannel):
+            errors.append(f"対戦カテゴリー `{category_id}` が見つかりません。")
+            continue
+        needed = category_counts.get(category_id, 0)
+        if len(category.channels) + needed > 50:
+            errors.append(
+                f"{category.name} は開始時に{needed}チャンネル必要ですが、"
+                f"現在{len(category.channels)}件あるため上限50件を超えます。"
+            )
+        if guild.me:
+            permissions = category.permissions_for(guild.me)
+            if not permissions.manage_channels:
+                errors.append(f"{category.name} でBotにチャンネル管理権限がありません。")
+    return errors
+
+
 def make_round_robin_matches(blocks: list[list[str]]) -> dict:
     matches = {}
     order = []
@@ -3364,11 +3426,18 @@ async def otp_demo_start_waiting_matches(guild: discord.Guild, tournament: dict)
     for match in otp_demo_available_matches(tournament):
         if any(team in active_teams for team in match.get("teams", [])):
             continue
-        match["status"] = "active"
+        # Reserve these teams during this provisioning pass. If Discord rejects
+        # channel creation, keep the match waiting so an operator can retry it.
         active_teams.update(match.get("teams", []))
         if not match.get("current_stage"):
             otp_demo_pick_stage(match)
-        await otp_demo_announce_match(guild, tournament, match)
+        provisioned = await otp_demo_announce_match(guild, tournament, match)
+        if provisioned:
+            match["status"] = "active"
+            match.pop("provision_failed_at", None)
+        else:
+            match["status"] = "waiting"
+            match["provision_failed_at"] = time.time()
     save_otp_tournaments()
 
 
@@ -3761,12 +3830,26 @@ def otp_demo_build_match_overwrites(guild: discord.Guild, tournament: dict, matc
     return overwrites
 
 
+def otp_demo_match_category_id(tournament: dict, match: dict) -> int | None:
+    categories = tournament.get("match_category_ids", {})
+    phase = match.get("phase")
+    if phase == "qualifier":
+        section = qualifier_section_label(
+            int(match.get("block", 1)), len(tournament.get("blocks", []))
+        )
+        return categories.get("qualifier", {}).get(section) or tournament.get("category_id")
+    if phase in ("upper", "lower"):
+        return categories.get(phase) or tournament.get("category_id")
+    return tournament.get("category_id")
+
+
 async def otp_demo_create_match_channel(guild: discord.Guild, tournament: dict, match: dict):
     if match.get("channel_id"):
         channel = guild.get_channel(match.get("channel_id"))
         if channel:
             return channel
-    category = guild.get_channel(tournament.get("category_id"))
+    category_id = otp_demo_match_category_id(tournament, match)
+    category = guild.get_channel(category_id) if category_id else None
     teams = tournament.get("teams", {})
     a, b = match["teams"]
     base_name = f"{teams[a]['team_name']}-vs-{teams[b]['team_name']}"
@@ -3779,8 +3862,11 @@ async def otp_demo_create_match_channel(guild: discord.Guild, tournament: dict, 
             reason="OTP杯デモ対戦チャンネル",
         )
         match["channel_id"] = channel.id
+        match["channel_category_id"] = category.id if isinstance(category, discord.CategoryChannel) else None
+        match.pop("channel_error", None)
         return channel
-    except (discord.Forbidden, discord.HTTPException):
+    except (discord.Forbidden, discord.HTTPException) as exc:
+        match["channel_error"] = f"{type(exc).__name__}: {exc}"
         return None
 
 
@@ -4154,14 +4240,14 @@ async def update_otp_board_images(guild: discord.Guild, tournament: dict) -> lis
 async def otp_demo_announce_match(guild: discord.Guild, tournament: dict, match: dict):
     channel = guild.get_channel(tournament.get("progress_channel_id")) or guild.get_channel(tournament.get("admin_channel_id"))
     if not channel:
-        return
-    await otp_demo_post_progress_placeholder(guild, tournament)
+        match["channel_error"] = "運営チャンネルが見つかりません。"
+        return False
 
     match_channel = guild.get_channel(match.get("channel_id")) if match.get("channel_id") else None
     if not match_channel:
         match_channel = await otp_demo_create_match_channel(guild, tournament, match)
         if not match_channel:
-            return
+            return False
     if not match_channel:
         if not match.get("checkin_message_id"):
             await otp_demo_send_checkin_message(channel, tournament, match)
@@ -4173,13 +4259,14 @@ async def otp_demo_announce_match(guild: discord.Guild, tournament: dict, match:
     if match.get("checked_in_once"):
         if match.get("report_message_id") is None:
             await otp_demo_send_match_report_message(match_channel, tournament, match)
-        return
+        return True
 
     if not match.get("checkin_message_id") and not match.get("report_message_id"):
         await otp_demo_send_checkin_message(match_channel, tournament, match)
     elif match.get("report_message_id") is None and len(match.get("checkins", {})) >= len(match.get("teams", [])):
         match["checked_in_once"] = True
         await otp_demo_send_match_report_message(match_channel, tournament, match)
+    return True
 
 
 def otp_demo_find_team_by_application(tournament: dict, application_id: str) -> str | None:
@@ -4750,6 +4837,13 @@ async def start_otp_demo_tournament(guild: discord.Guild, operator: discord.Memb
     if blocks is None:
         return "このチーム数では大会を開催できません。登録は継続できます。"
     rr = make_round_robin_matches(blocks)
+    preflight_errors = otp_demo_start_preflight(
+        guild, {**tournament, "blocks": blocks}, rr
+    )
+    if preflight_errors:
+        return "大会開始前の確認で問題が見つかりました。\n" + "\n".join(
+            f"・{error}" for error in preflight_errors
+        )
     tournament.update({
         "status": "running",
         "phase": "qualifier",
@@ -4775,11 +4869,13 @@ async def start_otp_demo_tournament(guild: discord.Guild, operator: discord.Memb
     })
     save_otp_tournaments()
     image_note = ""
-    try:
-        await update_otp_board_images(guild, tournament)
-        image_note = "\n進行画像も生成しました。"
-    except Exception as exc:
-        image_note = f"\n進行画像の生成は失敗しました: {exc}"
+    if tournament.get("progress_channel_id"):
+        try:
+            await update_otp_board_images(guild, tournament)
+            image_note = "\n進行画像も生成しました。"
+        except Exception as exc:
+            image_note = f"\n進行画像の生成は失敗しました: {exc}"
+    await otp_demo_post_progress_placeholder(guild, tournament)
     await otp_demo_start_waiting_matches(guild, tournament)
     return f"OTPデモ `{tournament['id']}` を開始しました。予選ブロック: " + " / ".join(str(len(b)) for b in blocks) + image_note
 
@@ -7608,6 +7704,72 @@ async def otp_demo_setup(ctx, tournament_id: str, category_id: int, admin_channe
     )
 
 
+@bot.command(name="OTP本大会設定")
+async def otp_main_setup(ctx):
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("管理者専用です")
+        return
+    admin_channel = ctx.guild.get_channel(OTP_MAIN_ADMIN_CHANNEL_ID)
+    if not isinstance(admin_channel, discord.TextChannel):
+        await ctx.send("当日運営チャンネルが見つかりません。")
+        return
+    if ctx.guild.get_role(OTP_MAIN_OPERATOR_ROLE_ID) is None:
+        await ctx.send("運営ロールが見つかりません。")
+        return
+    category_ids = [
+        *OTP_MAIN_MATCH_CATEGORY_IDS["qualifier"].values(),
+        OTP_MAIN_MATCH_CATEGORY_IDS["upper"],
+        OTP_MAIN_MATCH_CATEGORY_IDS["lower"],
+    ]
+    missing = [
+        category_id for category_id in category_ids
+        if not isinstance(ctx.guild.get_channel(category_id), discord.CategoryChannel)
+    ]
+    if missing:
+        await ctx.send("対戦カテゴリーが見つかりません: " + "、".join(map(str, missing)))
+        return
+
+    tournaments = get_otp_tournaments()
+    existing = tournaments.get(OTP_MAIN_TOURNAMENT_ID, {})
+    if existing.get("status") in ("running", "paused"):
+        await ctx.send("本大会はすでに開始済みのため、設定を上書きしません。")
+        return
+    for other in tournaments.values():
+        if other is not existing and other.get("web_tournament_id") == APPLICATION_LAYOUT_TOURNAMENT_ID:
+            other.pop("web_tournament_id", None)
+    tournaments[OTP_MAIN_TOURNAMENT_ID] = {
+        "id": OTP_MAIN_TOURNAMENT_ID,
+        "name": "Kogane OTP杯 2026",
+        "kind": "main",
+        "guild_id": ctx.guild.id,
+        "category_id": OTP_MAIN_MATCH_CATEGORY_IDS["qualifier"]["A"],
+        "match_category_ids": copy.deepcopy(OTP_MAIN_MATCH_CATEGORY_IDS),
+        "admin_channel_id": OTP_MAIN_ADMIN_CHANNEL_ID,
+        "summary_channel_id": None,
+        "progress_channel_id": None,
+        "operator_role_id": OTP_MAIN_OPERATOR_ROLE_ID,
+        "web_tournament_id": APPLICATION_LAYOUT_TOURNAMENT_ID,
+        "status": "setup",
+        "phase": "setup",
+        "paused": False,
+        "min_members": 4,
+        "max_members": 4,
+        "xp_limit": 2700,
+        "teams": existing.get("teams", {}),
+        "matches": {},
+        "match_order": [],
+        "blocks": [],
+        "created_at": existing.get("created_at", time.time()),
+        "updated_at": time.time(),
+    }
+    save_otp_tournaments()
+    await ctx.send(
+        f"本大会 `{OTP_MAIN_TOURNAMENT_ID}` を設定し、Web進行表と連携しました。\n"
+        "予選A〜D、Aリーグ、Bリーグの6カテゴリーを使用します。\n"
+        "まとめチャンネルとDiscord公開進行チャンネルは使用せず、公開表示はWebページを正とします。"
+    )
+
+
 @bot.command(name="OTPデモ登録")
 async def otp_demo_bulk_register(ctx, tournament_id: str):
     tournaments = get_otp_tournaments()
@@ -7851,6 +8013,34 @@ async def otp_demo_start(ctx, tournament_id: str, confirm: str = ""):
         await ctx.send(f"大会開始に失敗しました: {exc}")
         return
     await ctx.send(message)
+
+
+@bot.command(name="OTPチャンネル再試行")
+async def otp_match_channel_retry(ctx, tournament_id: str):
+    tournament = get_otp_tournaments().get(tournament_id)
+    if not tournament or not otp_demo_is_operator(ctx.author, tournament):
+        await ctx.send("大会が見つからないか、権限がありません。")
+        return
+    if tournament.get("status") != "running":
+        await ctx.send("進行中の大会だけ再試行できます。")
+        return
+    before = sum(
+        bool(match.get("channel_id"))
+        for match in tournament.get("matches", {}).values()
+    )
+    await otp_demo_start_waiting_matches(ctx.guild, tournament)
+    after = sum(
+        bool(match.get("channel_id"))
+        for match in tournament.get("matches", {}).values()
+    )
+    failures = [
+        match for match in tournament.get("matches", {}).values()
+        if match.get("status") == "waiting" and match.get("channel_error")
+    ]
+    await ctx.send(
+        f"対戦チャンネル作成を再試行しました。新規作成 {after - before}件。"
+        + (f" 未解決 {len(failures)}件。" if failures else " 未解決はありません。")
+    )
 
 
 @bot.command(name="OTP勝ち")

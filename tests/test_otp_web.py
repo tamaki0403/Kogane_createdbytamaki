@@ -3,6 +3,7 @@ import unittest
 
 from otp_web import (
     application_layout_seed,
+    balanced_qualifier_group_sizes,
     build_application_layout_preview,
     build_public_tournament,
     build_seeded_qualifier_blocks,
@@ -11,6 +12,8 @@ from otp_web import (
     list_public_tournaments,
     load_public_layout_fixture,
     qualifier_group_sizes,
+    qualifier_section_counts,
+    qualifier_section_label,
     rank_qualifier_group,
 )
 
@@ -127,7 +130,22 @@ class OtpWebProjectionTests(unittest.TestCase):
             ]
 
         self.assertEqual(block_numbers(web_blocks), block_numbers(discord_blocks))
-        self.assertEqual([len(block) for block in web_blocks], [4] * 7 + [3] * 2)
+        self.assertEqual([len(block) for block in web_blocks], [3, 3, 4] + [4] * 6)
+
+    def test_34_teams_are_balanced_across_four_fixed_sections(self):
+        sizes = balanced_qualifier_group_sizes(34)
+        counts = qualifier_section_counts(len(sizes))
+        totals = []
+        cursor = 0
+        for count in counts:
+            totals.append(sum(sizes[cursor:cursor + count]))
+            cursor += count
+        self.assertEqual(counts, [3, 2, 2, 2])
+        self.assertEqual(totals, [10, 8, 8, 8])
+        self.assertEqual(
+            [qualifier_section_label(index, 9) for index in range(1, 10)],
+            ["A", "A", "A", "B", "B", "C", "C", "D", "D"],
+        )
 
     def test_application_layout_preview_tracks_new_and_renamed_teams(self):
         state = {"otp_teams": {}, "otp_application_layout_seed": 12345}

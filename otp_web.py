@@ -76,6 +76,47 @@ def qualifier_group_sizes(team_count: int) -> list[int] | None:
     return None
 
 
+def qualifier_section_counts(group_count: int) -> list[int]:
+    """Distribute qualifier groups across the four fixed A-D sections."""
+    base, extra = divmod(group_count, 4)
+    counts = [base] * 4
+    for index in (0, 2, 1, 3)[:extra]:
+        counts[index] += 1
+    return counts
+
+
+def balanced_qualifier_group_sizes(team_count: int) -> list[int] | None:
+    """Order 3/4-team groups so the fixed A-D section totals stay balanced."""
+    sizes = qualifier_group_sizes(team_count)
+    if sizes is None:
+        return None
+    counts = qualifier_section_counts(len(sizes))
+    sections = [[4] * count for count in counts]
+    three_count = sizes.count(3)
+    for _ in range(three_count):
+        candidates = [
+            (sum(section), len(section), -index, index)
+            for index, section in enumerate(sections)
+            if 4 in section
+        ]
+        if not candidates:
+            return None
+        section_index = max(candidates)[-1]
+        replace_index = sections[section_index].index(4)
+        sections[section_index][replace_index] = 3
+    return [size for section in sections for size in section]
+
+
+def qualifier_section_label(group_index: int, group_count: int) -> str:
+    """Return the fixed A-D section containing a one-based qualifier group."""
+    cursor = 0
+    for section_index, count in enumerate(qualifier_section_counts(group_count)):
+        cursor += count
+        if group_index <= cursor:
+            return chr(ord("A") + section_index)
+    return "D"
+
+
 def application_layout_seed(state: dict, application_numbers: list[int]) -> str:
     """Return the persisted application draw seed, with a stable legacy fallback."""
     stored = state.get("otp_application_layout_seed")
@@ -90,7 +131,7 @@ def build_seeded_qualifier_blocks(
     team_keys: list[str], application_number_by_key: dict[str, int], seed: str
 ) -> list[list[str]] | None:
     """Build the one canonical draw shared by the Web preview and Discord start."""
-    sizes = qualifier_group_sizes(len(team_keys))
+    sizes = balanced_qualifier_group_sizes(len(team_keys))
     if not sizes:
         return None
     shuffled = sorted(
@@ -232,15 +273,6 @@ def _stats(tournament: dict, group_index: int) -> dict[str, dict[str, int]]:
     return result
 
 
-def _section_counts(group_count: int) -> list[int]:
-    """Presentation-only A-D distribution; 10 groups becomes 3/2/3/2."""
-    base, extra = divmod(group_count, 4)
-    counts = [base] * 4
-    for index in (0, 2, 1, 3)[:extra]:
-        counts[index] += 1
-    return counts
-
-
 def _public_member(member: dict) -> dict:
     return {
         "role": member.get("role"),
@@ -305,7 +337,7 @@ def build_public_tournament(tournament: dict) -> dict[str, Any]:
     """Create one internally consistent, read-only snapshot for the Web UI."""
     teams = tournament.get("teams", {})
     raw_groups = tournament.get("blocks", [])
-    counts = _section_counts(len(raw_groups))
+    counts = qualifier_section_counts(len(raw_groups))
     placement_by_team: dict[str, str] = {}
     range_by_group: dict[int, str] = {}
     qualifier_sections = []
