@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
+import json
+import os
 import random
 
 
@@ -20,6 +22,47 @@ PUBLIC_RULES = [
     "15秒を超えた回線落ちは原則続行です。",
     "判断に迷う場合はDiscordで運営に相談してください。",
 ]
+
+
+_PUBLIC_LAYOUT_FIXTURES = {
+    "all-teams-layout-test": os.path.join(
+        os.path.dirname(__file__), "web", "fixtures", "all-teams-layout-test.json"
+    ),
+}
+
+
+def load_public_layout_fixture(tournament_id: str) -> dict[str, Any] | None:
+    """Load an explicitly named, sanitized layout test without touching Bot state."""
+    path = _PUBLIC_LAYOUT_FIXTURES.get(tournament_id)
+    if not path:
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as file:
+            fixture = json.load(file)
+    except (OSError, json.JSONDecodeError):
+        return None
+    if fixture.get("tournament_id") != tournament_id:
+        return None
+    fixture["data_mode"] = "layout_test"
+    fixture["live_updates"] = False
+    return fixture
+
+
+def list_public_layout_fixtures() -> list[dict[str, Any]]:
+    result = []
+    for tournament_id in _PUBLIC_LAYOUT_FIXTURES:
+        fixture = load_public_layout_fixture(tournament_id)
+        if not fixture:
+            continue
+        result.append({
+            "tournament_id": tournament_id,
+            "tournament_name": fixture.get("tournament_name") or "Kogane OTP杯",
+            "status": fixture.get("status", "setup"),
+            "phase": fixture.get("phase", "setup"),
+            "updated_at": fixture.get("updated_at", ""),
+            "data_mode": "layout_test",
+        })
+    return result
 
 
 def build_single_elimination_slots(team_keys: list[str], rng=None) -> tuple[list[str | None], set[str]]:

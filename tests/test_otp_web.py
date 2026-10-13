@@ -1,7 +1,14 @@
 import random
 import unittest
 
-from otp_web import build_public_tournament, build_single_elimination_slots, list_public_tournaments, rank_qualifier_group
+from otp_web import (
+    build_public_tournament,
+    build_single_elimination_slots,
+    list_public_layout_fixtures,
+    list_public_tournaments,
+    load_public_layout_fixture,
+    rank_qualifier_group,
+)
 
 
 def tournament_fixture(group_count=10):
@@ -96,6 +103,19 @@ def tournament_fixture(group_count=10):
 
 
 class OtpWebProjectionTests(unittest.TestCase):
+    def test_sanitized_34_team_layout_fixture(self):
+        fixture = load_public_layout_fixture("all-teams-layout-test")
+        self.assertIsNotNone(fixture)
+        self.assertEqual(fixture["team_count"], 34)
+        self.assertEqual(fixture["group_count"], 9)
+        self.assertEqual(fixture["upper_bracket"]["active_team_count"], 18)
+        self.assertEqual(fixture["lower_bracket"]["active_team_count"], 16)
+        self.assertEqual(fixture["data_mode"], "layout_test")
+        text = repr(fixture)
+        for private_key in ("discord_id", "reporter_id", "operator_id", "channel_id", "corrected_xp"):
+            self.assertNotIn(private_key, text)
+        self.assertTrue(any(item["tournament_id"] == "all-teams-layout-test" for item in list_public_layout_fixtures()))
+
     def test_40_teams_are_split_3_2_3_2_and_positions_are_numeric(self):
         result = build_public_tournament(tournament_fixture())
         self.assertEqual([len(block["groups"]) for block in result["qualifier_blocks"]], [3, 2, 3, 2])

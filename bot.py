@@ -17,7 +17,9 @@ from PIL import Image, ImageDraw, ImageFont
 from otp_web import (
     build_single_elimination_slots,
     build_public_tournament,
+    list_public_layout_fixtures,
     list_public_tournaments,
+    load_public_layout_fixture,
     rank_qualifier_group,
 )
 
@@ -8334,8 +8336,11 @@ async def otp_form_submission(request: Request):
 def get_public_otp_tournaments():
     """公開可能な大会一覧。Discord/運営用の識別情報は含めない。"""
     state = load_bot_state()
+    live = list_public_tournaments(state)
+    live_ids = {item["tournament_id"] for item in live}
+    fixtures = [item for item in list_public_layout_fixtures() if item["tournament_id"] not in live_ids]
     return JSONResponse(
-        content={"tournaments": list_public_tournaments(state)},
+        content={"tournaments": live + fixtures},
         headers={"Cache-Control": "no-store"},
     )
 
@@ -8345,11 +8350,14 @@ def get_public_otp_tournament(tournament_id: str):
     """同一時点のBot状態から作る、閲覧専用の大会スナップショット。"""
     tournament = load_bot_state().get("otp_tournaments", {}).get(tournament_id)
     if tournament is None:
-        return JSONResponse(
-            content={"error": "大会データが見つかりません。"},
-            status_code=404,
-            headers={"Cache-Control": "no-store"},
-        )
+        fixture = load_public_layout_fixture(tournament_id)
+        if fixture is None:
+            return JSONResponse(
+                content={"error": "大会データが見つかりません。"},
+                status_code=404,
+                headers={"Cache-Control": "no-store"},
+            )
+        return JSONResponse(content=fixture, headers={"Cache-Control": "no-store"})
     return JSONResponse(
         content=build_public_tournament(tournament),
         headers={"Cache-Control": "no-store"},
