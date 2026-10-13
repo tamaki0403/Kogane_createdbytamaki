@@ -113,6 +113,10 @@ OTP_FORM_WEBHOOK_SECRET = os.getenv("OTP_FORM_WEBHOOK_SECRET", "")
 OTP_MAIN_TOURNAMENT_ID = "otp-20261024"
 OTP_MAIN_ADMIN_CHANNEL_ID = 1559406345818472458
 OTP_MAIN_OPERATOR_ROLE_ID = 1559406643224125470
+OTP_MAIN_WEB_URL = (
+    "https://koganecreatedbytamaki-production-9bb5.up.railway.app/otp.html"
+    f"?tournament_id={APPLICATION_LAYOUT_TOURNAMENT_ID}"
+)
 OTP_MAIN_MATCH_CATEGORY_IDS = {
     "qualifier": {
         "A": 1559421140600885339,
@@ -5009,6 +5013,488 @@ class OTPDemoControlView(discord.ui.View):
         await interaction.followup.send("OTPデモを終了扱いにしました。対応する対戦チャンネルは削除しました。", ephemeral=True)
 
 
+def otp_main_panel_is_operator(member: discord.Member) -> bool:
+    if member.id == OWNER_ID:
+        return True
+    return any(
+        role.id == OTP_MAIN_OPERATOR_ROLE_ID
+        for role in getattr(member, "roles", [])
+    )
+
+
+def otp_main_tournament_for(member: discord.Member) -> tuple[dict | None, str | None]:
+    tournament = get_otp_tournaments().get(OTP_MAIN_TOURNAMENT_ID)
+    if not tournament:
+        return None, "先に「本大会設定」を実行してください。"
+    if not otp_main_panel_is_operator(member) or not otp_demo_is_operator(member, tournament):
+        return None, "この操作はOTP杯の運営のみ実行できます。"
+    return tournament, None
+
+
+async def setup_otp_main_tournament(guild: discord.Guild) -> str:
+    admin_channel = guild.get_channel(OTP_MAIN_ADMIN_CHANNEL_ID)
+    if not isinstance(admin_channel, discord.TextChannel):
+        return "当日運営チャンネルが見つかりません。"
+    if guild.get_role(OTP_MAIN_OPERATOR_ROLE_ID) is None:
+        return "運営ロールが見つかりません。"
+    category_ids = [
+        *OTP_MAIN_MATCH_CATEGORY_IDS["qualifier"].values(),
+        OTP_MAIN_MATCH_CATEGORY_IDS["upper"],
+        OTP_MAIN_MATCH_CATEGORY_IDS["lower"],
+    ]
+    missing = [
+        category_id for category_id in category_ids
+        if not isinstance(guild.get_channel(category_id), discord.CategoryChannel)
+    ]
+    if missing:
+        return "対戦カテゴリーが見つかりません: " + "、".join(map(str, missing))
+
+    tournaments = get_otp_tournaments()
+    existing = tournaments.get(OTP_MAIN_TOURNAMENT_ID, {})
+    if existing.get("status") in ("running", "paused"):
+        return "本大会はすでに開始済みのため、設定を上書きしません。"
+    for other in tournaments.values():
+        if other is not existing and other.get("web_tournament_id") == APPLICATION_LAYOUT_TOURNAMENT_ID:
+            other.pop("web_tournament_id", None)
+    tournaments[OTP_MAIN_TOURNAMENT_ID] = {
+        "id": OTP_MAIN_TOURNAMENT_ID,
+        "name": "Kogane OTP杯 2026",
+        "kind": "main",
+        "guild_id": guild.id,
+        "category_id": OTP_MAIN_MATCH_CATEGORY_IDS["qualifier"]["A"],
+        "match_category_ids": copy.deepcopy(OTP_MAIN_MATCH_CATEGORY_IDS),
+        "admin_channel_id": OTP_MAIN_ADMIN_CHANNEL_ID,
+        "summary_channel_id": None,
+        "progress_channel_id": None,
+        "operator_role_id": OTP_MAIN_OPERATOR_ROLE_ID,
+        "web_tournament_id": APPLICATION_LAYOUT_TOURNAMENT_ID,
+        "status": "setup",
+        "phase": "setup",
+        "paused": False,
+        "min_members": 4,
+        "max_members": 4,
+        "xp_limit": 2700,
+        "teams": existing.get("teams", {}),
+        "matches": {},
+        "match_order": [],
+        "blocks": [],
+        "created_at": existing.get("created_at", time.time()),
+        "updated_at": time.time(),
+    }
+    save_otp_tournaments()
+    return (
+        f"本大会 `{OTP_MAIN_TOURNAMENT_ID}` を設定し、Web進行表と連携しました。\n"
+        "予選A〜D、Aリーグ、Bリーグの6カテゴリーを使用します。\n"
+        "まとめチャンネルとDiscord公開進行チャンネルは使用せず、公開表示はWebページを正とします。"
+    )
+
+
+def otp_demo_start_check_text(tournament: dict, *, main_panel: bool = False) -> str:
+    candidates = []
+    excluded = []
+    for key, team in tournament.get("teams", {}).items():
+        ready, reason = otp_demo_team_ready(tournament, team)
+        if ready:
+            candidates.append(key)
+        else:
+            excluded.append(f"{team.get('application_id')} {team.get('team_name')}｜{reason}")
+    blocks, alignment_error = otp_demo_start_blocks(tournament, candidates)
+    lines = [f"開始対象 {len(candidates)}チーム"]
+    lines.extend(
+        f"・{tournament['teams'][key]['application_id']} {tournament['teams'][key]['team_name']}"
+        for key in sorted(
+            candidates,
+            key=lambda team_key: tournament["teams"][team_key].get("application_number") or 999999,
+        )
+    )
+    lines.extend(["", "除外対象"])
+    lines.extend(excluded or ["なし"])
+    lines.extend(["", "予選ブロック構成"])
+    if alignment_error:
+        lines.extend(["開始不可", alignment_error, "Webと異なる組分けでは開始しません。"])
+    else:
+        lines.append("開催不可" if blocks is None else " / ".join(str(len(block)) for block in blocks))
+    if main_panel:
+        lines.extend(["", "内容を確認後、運営パネルの「大会開始」を押してください。"])
+    else:
+        lines.extend([
+            "",
+            f"開始する場合は `!OTPデモ開始 {tournament['id']} 確定` を実行してください。",
+        ])
+    return "\n".join(lines)
+
+
+async def otp_interaction_send_chunks(interaction: discord.Interaction, text: str):
+    chunks = [text[index:index + 1900] for index in range(0, len(text), 1900)] or [""]
+    if interaction.response.is_done():
+        for chunk in chunks:
+            await interaction.followup.send(chunk, ephemeral=True)
+        return
+    await interaction.response.send_message(chunks[0], ephemeral=True)
+    for chunk in chunks[1:]:
+        await interaction.followup.send(chunk, ephemeral=True)
+
+
+async def approve_otp_demo_team(
+    guild: discord.Guild, operator: discord.Member, tournament: dict, application_id: str
+) -> str:
+    key = otp_demo_find_team_by_application(tournament, application_id)
+    if not key:
+        return "対象チームが見つかりません。"
+    team = tournament["teams"][key]
+    errors = await validate_otp_demo_team(guild, tournament, team, existing_key=key)
+    if errors:
+        return "承認できません:\n" + "\n".join(errors)
+    ready, reason = otp_demo_team_ready(
+        {**tournament, "teams": {key: {**team, "status": "approved"}}},
+        {**team, "status": "approved"},
+    )
+    if not ready:
+        return f"承認できません: {reason}"
+    team["status"] = "approved"
+    team["approved_by"] = str(operator.id)
+    team["approved_at"] = time.time()
+    save_otp_tournaments()
+    return f"{team['application_id']} {team['team_name']} を承認しました。"
+
+
+def withdraw_otp_demo_team(tournament: dict, application_id: str) -> str:
+    if tournament.get("status") == "running":
+        return "開始後の棄権処理は未実装です。対象対戦を保留し、運営で対応してください。"
+    key = otp_demo_find_team_by_application(tournament, application_id)
+    if not key:
+        return "対象チームが見つかりません。"
+    tournament["teams"][key]["status"] = "withdrawn"
+    save_otp_tournaments()
+    return f"{application_id} を棄権にしました。"
+
+
+async def judge_otp_demo_match(
+    guild: discord.Guild,
+    operator: discord.Member,
+    tournament: dict,
+    match_id: str,
+    winner_application_id: str,
+) -> str:
+    match = tournament.get("matches", {}).get(match_id)
+    winner_key = otp_demo_find_team_by_application(tournament, winner_application_id)
+    if not match or winner_key not in match.get("teams", []):
+        return "対象対戦または勝者指定が不正です。"
+    if match.get("status") == "done":
+        return "確定済み対戦の巻き戻しは現在未実装です。"
+    otp_demo_record_battle_result(tournament, match, winner_key, "operator", operator.id)
+    maybe_finish_qualifiers_and_build_brackets(tournament)
+    save_otp_tournaments()
+    await otp_demo_after_match_progress(guild, tournament, match)
+    return f"{match_id} を運営裁定で確定しました。"
+
+
+def hold_otp_demo_match(
+    operator: discord.Member, tournament: dict, match_id: str, reason: str
+) -> str:
+    match = tournament.get("matches", {}).get(match_id)
+    if not match or match.get("status") == "done":
+        return "保留できる対戦が見つかりません。"
+    match["status"] = "hold"
+    match.setdefault("holds", []).append({
+        "operator_id": str(operator.id),
+        "reason": reason or "理由未記入",
+        "held_at": time.time(),
+    })
+    save_otp_tournaments()
+    return f"{match_id} を保留しました。参加者入力では解除されません。"
+
+
+def unhold_otp_demo_match(operator: discord.Member, tournament: dict, match_id: str) -> str:
+    match = tournament.get("matches", {}).get(match_id)
+    if not match or match.get("status") != "hold":
+        return "保留中の対戦が見つかりません。"
+    match["status"] = "active"
+    match.setdefault("holds", []).append({
+        "operator_id": str(operator.id),
+        "reason": "保留解除",
+        "resumed_at": time.time(),
+    })
+    save_otp_tournaments()
+    return f"{match_id} の保留を解除しました。"
+
+
+class OTPMainTeamModal(discord.ui.Modal):
+    application_id = discord.ui.TextInput(
+        label="申請番号", placeholder="例：OTP-003", required=True, max_length=30
+    )
+
+    def __init__(self, action: str):
+        self.action = action
+        super().__init__(title="チーム承認" if action == "approve" else "チーム棄権")
+
+    async def on_submit(self, interaction: discord.Interaction):
+        tournament, error = otp_main_tournament_for(interaction.user)
+        if error:
+            await interaction.response.send_message(error, ephemeral=True)
+            return
+        application_id = self.application_id.value.strip()
+        if self.action == "withdraw":
+            result = withdraw_otp_demo_team(tournament, application_id)
+            await interaction.response.send_message(result, ephemeral=True)
+            return
+        result = await approve_otp_demo_team(
+            interaction.guild, interaction.user, tournament, application_id
+        )
+        await interaction.response.send_message(result, ephemeral=True)
+
+
+class OTPMainMatchModal(discord.ui.Modal):
+    def __init__(self, action: str):
+        self.action = action
+        titles = {"judge": "運営裁定", "hold": "対戦保留", "unhold": "保留解除"}
+        super().__init__(title=titles[action])
+        self.match_id = discord.ui.TextInput(
+            label="対戦ID", placeholder="例：Q001", required=True, max_length=20
+        )
+        self.add_item(self.match_id)
+        if action == "judge":
+            self.detail = discord.ui.TextInput(
+                label="勝者の申請番号", placeholder="例：OTP-003", required=True, max_length=30
+            )
+            self.add_item(self.detail)
+        elif action == "hold":
+            self.detail = discord.ui.TextInput(
+                label="保留理由", placeholder="例：報告内容を確認中", required=False, max_length=200
+            )
+            self.add_item(self.detail)
+        else:
+            self.detail = None
+
+    async def on_submit(self, interaction: discord.Interaction):
+        tournament, error = otp_main_tournament_for(interaction.user)
+        if error:
+            await interaction.response.send_message(error, ephemeral=True)
+            return
+        match_id = self.match_id.value.strip().upper()
+        if self.action == "judge":
+            winner_application_id = self.detail.value.strip()
+            await interaction.response.defer(ephemeral=True)
+            result = await judge_otp_demo_match(
+                interaction.guild, interaction.user, tournament, match_id, winner_application_id
+            )
+            await interaction.followup.send(result, ephemeral=True)
+            return
+        if self.action == "hold":
+            result = hold_otp_demo_match(
+                interaction.user, tournament, match_id, self.detail.value.strip()
+            )
+            await interaction.response.send_message(result, ephemeral=True)
+            return
+        result = unhold_otp_demo_match(interaction.user, tournament, match_id)
+        await interaction.response.send_message(result, ephemeral=True)
+
+
+class OTPMainControlView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(discord.ui.Button(label="Web進行表", style=discord.ButtonStyle.link, url=OTP_MAIN_WEB_URL, row=2))
+
+    async def require_operator(self, interaction: discord.Interaction, *, require_tournament: bool = True):
+        if interaction.channel_id != OTP_MAIN_ADMIN_CHANNEL_ID or not otp_main_panel_is_operator(interaction.user):
+            await interaction.response.send_message("この操作は当日運営チャンネルの運営のみ実行できます。", ephemeral=True)
+            return None
+        if not require_tournament:
+            return True
+        tournament, error = otp_main_tournament_for(interaction.user)
+        if error:
+            await interaction.response.send_message(error, ephemeral=True)
+            return None
+        return tournament
+
+    @discord.ui.button(label="本大会設定", style=discord.ButtonStyle.primary, custom_id="otp_main_setup", row=0)
+    async def setup_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await self.require_operator(interaction, require_tournament=False):
+            return
+        if interaction.user.id != OWNER_ID:
+            await interaction.response.send_message("本大会設定はOWNERだけが実行できます。", ephemeral=True)
+            return
+
+        async def do_action(confirmed: discord.Interaction):
+            await confirmed.followup.send(await setup_otp_main_tournament(confirmed.guild), ephemeral=True)
+
+        await interaction.response.send_message(
+            "本大会設定を保存しますか？ 開始済みの大会は上書きしません。",
+            view=AdminConfirmView("本大会設定", do_action), ephemeral=True,
+        )
+
+    @discord.ui.button(label="申請貼付", style=discord.ButtonStyle.secondary, custom_id="otp_main_register", row=0)
+    async def register_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        tournament = await self.require_operator(interaction)
+        if not tournament:
+            return
+        if tournament.get("status") not in ("setup", "paused"):
+            await interaction.response.send_message("開始後の登録更新は現在未実装です。", ephemeral=True)
+            return
+        otp_demo_bulk_waiting[interaction.guild.id] = {
+            "user_id": interaction.user.id,
+            "tournament_id": OTP_MAIN_TOURNAMENT_ID,
+        }
+        await interaction.response.send_message(
+            "登録モードに入りました。このチャンネルへチーム情報を貼り付けてください。中止する場合は `キャンセル` と送信してください。",
+            ephemeral=True,
+        )
+
+    @discord.ui.button(label="チーム承認", style=discord.ButtonStyle.success, custom_id="otp_main_approve", row=0)
+    async def approve_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if await self.require_operator(interaction):
+            await interaction.response.send_modal(OTPMainTeamModal("approve"))
+
+    @discord.ui.button(label="チーム棄権", style=discord.ButtonStyle.secondary, custom_id="otp_main_withdraw", row=0)
+    async def withdraw_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if await self.require_operator(interaction):
+            await interaction.response.send_modal(OTPMainTeamModal("withdraw"))
+
+    @discord.ui.button(label="開始前確認", style=discord.ButtonStyle.primary, custom_id="otp_main_start_check", row=0)
+    async def start_check_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        tournament = await self.require_operator(interaction)
+        if tournament:
+            await otp_interaction_send_chunks(
+                interaction, otp_demo_start_check_text(tournament, main_panel=True)
+            )
+
+    @discord.ui.button(label="大会開始", style=discord.ButtonStyle.success, custom_id="otp_main_start", row=1)
+    async def start_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        tournament = await self.require_operator(interaction)
+        if not tournament:
+            return
+
+        async def do_action(confirmed: discord.Interaction):
+            await confirmed.followup.send("大会開始処理を実行しています。", ephemeral=True)
+            try:
+                result = await start_otp_demo_tournament(confirmed.guild, confirmed.user, tournament)
+            except Exception as exc:
+                result = f"大会開始に失敗しました: {exc}"
+            await confirmed.followup.send(result, ephemeral=True)
+
+        await interaction.response.send_message(
+            "開始前確認の内容どおりに本大会を開始しますか？ 対戦チャンネルが作成されます。",
+            view=AdminConfirmView("大会開始", do_action), ephemeral=True,
+        )
+
+    @discord.ui.button(label="状況表示", style=discord.ButtonStyle.primary, custom_id="otp_main_status", row=1)
+    async def status_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        tournament = await self.require_operator(interaction)
+        if tournament:
+            await otp_interaction_send_chunks(interaction, otp_demo_summary_text(tournament))
+
+    @discord.ui.button(label="一時停止", style=discord.ButtonStyle.secondary, custom_id="otp_main_pause", row=1)
+    async def pause_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        tournament = await self.require_operator(interaction)
+        if not tournament:
+            return
+        tournament["paused"] = True
+        tournament["paused_at"] = time.time()
+        save_otp_tournaments()
+        await interaction.response.send_message("一時停止しました。新たな対戦開始は行いません。", ephemeral=True)
+
+    @discord.ui.button(label="再開", style=discord.ButtonStyle.success, custom_id="otp_main_resume", row=1)
+    async def resume_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        tournament = await self.require_operator(interaction)
+        if not tournament:
+            return
+        tournament["paused"] = False
+        tournament["resumed_at"] = time.time()
+        save_otp_tournaments()
+        await interaction.response.defer(ephemeral=True)
+        await otp_demo_start_waiting_matches(interaction.guild, tournament)
+        await interaction.followup.send("再開しました。", ephemeral=True)
+
+    @discord.ui.button(label="チャンネル再試行", style=discord.ButtonStyle.primary, custom_id="otp_main_retry", row=1)
+    async def retry_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        tournament = await self.require_operator(interaction)
+        if not tournament:
+            return
+        if tournament.get("status") != "running":
+            await interaction.response.send_message("進行中の大会だけ再試行できます。", ephemeral=True)
+            return
+        before = sum(bool(match.get("channel_id")) for match in tournament.get("matches", {}).values())
+        await interaction.response.defer(ephemeral=True)
+        await otp_demo_start_waiting_matches(interaction.guild, tournament)
+        after = sum(bool(match.get("channel_id")) for match in tournament.get("matches", {}).values())
+        failures = [
+            match for match in tournament.get("matches", {}).values()
+            if match.get("status") == "waiting" and match.get("channel_error")
+        ]
+        await interaction.followup.send(
+            f"対戦チャンネル作成を再試行しました。新規作成 {after - before}件。"
+            + (f" 未解決 {len(failures)}件。" if failures else " 未解決はありません。"),
+            ephemeral=True,
+        )
+
+    @discord.ui.button(label="運営裁定", style=discord.ButtonStyle.danger, custom_id="otp_main_judge", row=2)
+    async def judge_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if await self.require_operator(interaction):
+            await interaction.response.send_modal(OTPMainMatchModal("judge"))
+
+    @discord.ui.button(label="対戦保留", style=discord.ButtonStyle.secondary, custom_id="otp_main_hold", row=2)
+    async def hold_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if await self.require_operator(interaction):
+            await interaction.response.send_modal(OTPMainMatchModal("hold"))
+
+    @discord.ui.button(label="保留解除", style=discord.ButtonStyle.success, custom_id="otp_main_unhold", row=2)
+    async def unhold_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if await self.require_operator(interaction):
+            await interaction.response.send_modal(OTPMainMatchModal("unhold"))
+
+    @discord.ui.button(label="大会終了", style=discord.ButtonStyle.danger, custom_id="otp_main_finish", row=2)
+    async def finish_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        tournament = await self.require_operator(interaction)
+        if not tournament:
+            return
+
+        async def do_action(confirmed: discord.Interaction):
+            await confirmed.followup.send("大会終了処理を実行しています。", ephemeral=True)
+            await otp_demo_delete_all_match_channels(confirmed.guild, tournament)
+            tournament["status"] = "done"
+            tournament["finished_at"] = time.time()
+            tournament["finished_by"] = str(confirmed.user.id)
+            save_otp_tournaments()
+            await confirmed.followup.send(
+                "本大会を終了扱いにしました。対戦チャンネルは削除し、記録は保持しています。",
+                ephemeral=True,
+            )
+
+        await interaction.response.send_message(
+            "本大会を終了しますか？ 作成済みの対戦チャンネルが削除されます。",
+            view=AdminConfirmView("大会終了", do_action), ephemeral=True,
+        )
+
+
+def otp_main_control_content() -> str:
+    return (
+        "# OTP杯｜当日運営パネル\n"
+        f"大会ID：`{OTP_MAIN_TOURNAMENT_ID}`\n"
+        "既存のOTP杯コマンドをボタンから実行できます。入力が必要な操作は入力画面が開きます。\n"
+        "「大会開始」と「大会終了」は確認後に実行されます。参加者の勝敗報告は各対戦チャンネルで行います。"
+    )
+
+
+async def ensure_otp_main_control(guild: discord.Guild):
+    """当日運営チャンネルに本大会パネルを1つだけ維持する。"""
+    channel = guild.get_channel(OTP_MAIN_ADMIN_CHANNEL_ID)
+    if not isinstance(channel, discord.TextChannel):
+        return
+    guild_key = str(guild.id)
+    saved_ids = bot_state.setdefault("otp_main_control_message_ids", {})
+    message_id = saved_ids.get(guild_key)
+    if message_id:
+        try:
+            message = await channel.fetch_message(int(message_id))
+            await message.edit(content=otp_main_control_content(), view=OTPMainControlView())
+            return
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException, ValueError, TypeError):
+            pass
+    message = await channel.send(otp_main_control_content(), view=OTPMainControlView())
+    saved_ids[guild_key] = message.id
+    save_bot_state(bot_state)
+
+
 async def process_otp_demo_bulk_message(message):
     waiting = otp_demo_bulk_waiting.get(message.guild.id if message.guild else None)
     if not waiting or waiting.get("user_id") != message.author.id:
@@ -7029,6 +7515,7 @@ async def on_ready():
     bot.add_view(AdminButtonView_Rate())
     bot.add_view(AdminButtonView_Bulk())
     bot.add_view(OTPAdminControlView())
+    bot.add_view(OTPMainControlView())
     for team_key in get_otp_teams():
         bot.add_view(OTPTeamInputView(team_key))
     daily_coin_distribution.start()
@@ -7037,6 +7524,7 @@ async def on_ready():
         await update_otp_team_intros(guild)
         await post_admin_buttons(guild)
         await ensure_otp_admin_control(guild)
+        await ensure_otp_main_control(guild)
 
 @tasks.loop(time=discord.utils.utcnow().replace(hour=10, minute=0, second=0, microsecond=0).timetz())
 async def daily_coin_distribution():
@@ -7709,65 +8197,19 @@ async def otp_main_setup(ctx):
     if ctx.author.id != OWNER_ID:
         await ctx.send("管理者専用です")
         return
-    admin_channel = ctx.guild.get_channel(OTP_MAIN_ADMIN_CHANNEL_ID)
-    if not isinstance(admin_channel, discord.TextChannel):
-        await ctx.send("当日運営チャンネルが見つかりません。")
-        return
-    if ctx.guild.get_role(OTP_MAIN_OPERATOR_ROLE_ID) is None:
-        await ctx.send("運営ロールが見つかりません。")
-        return
-    category_ids = [
-        *OTP_MAIN_MATCH_CATEGORY_IDS["qualifier"].values(),
-        OTP_MAIN_MATCH_CATEGORY_IDS["upper"],
-        OTP_MAIN_MATCH_CATEGORY_IDS["lower"],
-    ]
-    missing = [
-        category_id for category_id in category_ids
-        if not isinstance(ctx.guild.get_channel(category_id), discord.CategoryChannel)
-    ]
-    if missing:
-        await ctx.send("対戦カテゴリーが見つかりません: " + "、".join(map(str, missing)))
-        return
+    await ctx.send(await setup_otp_main_tournament(ctx.guild))
 
-    tournaments = get_otp_tournaments()
-    existing = tournaments.get(OTP_MAIN_TOURNAMENT_ID, {})
-    if existing.get("status") in ("running", "paused"):
-        await ctx.send("本大会はすでに開始済みのため、設定を上書きしません。")
+
+@bot.command(name="OTP本大会パネル")
+async def otp_main_panel(ctx):
+    if ctx.channel.id != OTP_MAIN_ADMIN_CHANNEL_ID:
+        await ctx.send("このコマンドは当日運営チャンネルで使ってください。")
         return
-    for other in tournaments.values():
-        if other is not existing and other.get("web_tournament_id") == APPLICATION_LAYOUT_TOURNAMENT_ID:
-            other.pop("web_tournament_id", None)
-    tournaments[OTP_MAIN_TOURNAMENT_ID] = {
-        "id": OTP_MAIN_TOURNAMENT_ID,
-        "name": "Kogane OTP杯 2026",
-        "kind": "main",
-        "guild_id": ctx.guild.id,
-        "category_id": OTP_MAIN_MATCH_CATEGORY_IDS["qualifier"]["A"],
-        "match_category_ids": copy.deepcopy(OTP_MAIN_MATCH_CATEGORY_IDS),
-        "admin_channel_id": OTP_MAIN_ADMIN_CHANNEL_ID,
-        "summary_channel_id": None,
-        "progress_channel_id": None,
-        "operator_role_id": OTP_MAIN_OPERATOR_ROLE_ID,
-        "web_tournament_id": APPLICATION_LAYOUT_TOURNAMENT_ID,
-        "status": "setup",
-        "phase": "setup",
-        "paused": False,
-        "min_members": 4,
-        "max_members": 4,
-        "xp_limit": 2700,
-        "teams": existing.get("teams", {}),
-        "matches": {},
-        "match_order": [],
-        "blocks": [],
-        "created_at": existing.get("created_at", time.time()),
-        "updated_at": time.time(),
-    }
-    save_otp_tournaments()
-    await ctx.send(
-        f"本大会 `{OTP_MAIN_TOURNAMENT_ID}` を設定し、Web進行表と連携しました。\n"
-        "予選A〜D、Aリーグ、Bリーグの6カテゴリーを使用します。\n"
-        "まとめチャンネルとDiscord公開進行チャンネルは使用せず、公開表示はWebページを正とします。"
-    )
+    if not otp_main_panel_is_operator(ctx.author):
+        await ctx.send("OTP杯の運営専用です。")
+        return
+    await ensure_otp_main_control(ctx.guild)
+    await ctx.send("OTP杯の当日運営パネルを確認・更新しました。")
 
 
 @bot.command(name="OTPデモ登録")
@@ -7799,24 +8241,7 @@ async def otp_demo_approve(ctx, tournament_id: str, application_id: str):
     if not tournament or not otp_demo_is_operator(ctx.author, tournament):
         await ctx.send("大会が見つからないか、権限がありません。")
         return
-    key = otp_demo_find_team_by_application(tournament, application_id)
-    if not key:
-        await ctx.send("対象チームが見つかりません。")
-        return
-    team = tournament["teams"][key]
-    errors = await validate_otp_demo_team(ctx.guild, tournament, team, existing_key=key)
-    if errors:
-        await ctx.send("承認できません:\n" + "\n".join(errors))
-        return
-    ready, reason = otp_demo_team_ready({**tournament, "teams": {key: {**team, "status": "approved"}}}, {**team, "status": "approved"})
-    if not ready:
-        await ctx.send(f"承認できません: {reason}")
-        return
-    team["status"] = "approved"
-    team["approved_by"] = str(ctx.author.id)
-    team["approved_at"] = time.time()
-    save_otp_tournaments()
-    await ctx.send(f"{team['application_id']} {team['team_name']} を承認しました。")
+    await ctx.send(await approve_otp_demo_team(ctx.guild, ctx.author, tournament, application_id))
 
 
 @bot.command(name="OTPデモ棄権")
@@ -7825,16 +8250,7 @@ async def otp_demo_withdraw(ctx, tournament_id: str, application_id: str):
     if not tournament or not otp_demo_is_operator(ctx.author, tournament):
         await ctx.send("大会が見つからないか、権限がありません。")
         return
-    if tournament.get("status") == "running":
-        await ctx.send("開始後の棄権処理は初版の対象外です。手動保留で試用を中断してください。")
-        return
-    key = otp_demo_find_team_by_application(tournament, application_id)
-    if not key:
-        await ctx.send("対象チームが見つかりません。")
-        return
-    tournament["teams"][key]["status"] = "withdrawn"
-    save_otp_tournaments()
-    await ctx.send(f"{application_id} を棄権にしました。")
+    await ctx.send(withdraw_otp_demo_team(tournament, application_id))
 
 
 @bot.command(name="OTPデモ状況")
@@ -7943,27 +8359,9 @@ async def otp_demo_start_check(ctx, tournament_id: str):
     if not tournament or not otp_demo_is_operator(ctx.author, tournament):
         await ctx.send("大会が見つからないか、権限がありません。")
         return
-    candidates = []
-    excluded = []
-    for key, team in tournament.get("teams", {}).items():
-        ready, reason = otp_demo_team_ready(tournament, team)
-        if ready:
-            candidates.append(key)
-        else:
-            excluded.append(f"{team.get('application_id')} {team.get('team_name')}｜{reason}")
-    blocks, alignment_error = otp_demo_start_blocks(tournament, candidates)
-    lines = [f"開始対象 {len(candidates)}チーム"]
-    lines.extend(f"・{tournament['teams'][key]['application_id']} {tournament['teams'][key]['team_name']}" for key in sorted(candidates, key=lambda k: tournament["teams"][k].get("application_number") or 999999))
-    lines.extend(["", "除外対象"])
-    lines.extend(excluded or ["なし"])
-    lines.extend(["", "予選ブロック構成"])
-    if alignment_error:
-        lines.extend(["開始不可", alignment_error, "Webと異なる組分けでは開始しません。"])
-    else:
-        lines.append("開催不可" if blocks is None else " / ".join(str(len(b)) for b in blocks))
-    lines.append("")
-    lines.append(f"開始する場合は `!OTPデモ開始 {tournament_id} 確定` を実行してください。")
-    await ctx.send("\n".join(lines))
+    text = otp_demo_start_check_text(tournament)
+    for index in range(0, len(text), 1900):
+        await ctx.send(text[index:index + 1900])
 
 
 @bot.command(name="OTPWeb連携")
@@ -8127,19 +8525,11 @@ async def otp_demo_judge(ctx, tournament_id: str, match_id: str, winner_applicat
     if not tournament or not otp_demo_is_operator(ctx.author, tournament):
         await ctx.send("大会が見つからないか、権限がありません。")
         return
-    match = tournament.get("matches", {}).get(match_id)
-    winner_key = otp_demo_find_team_by_application(tournament, winner_application_id)
-    if not match or winner_key not in match.get("teams", []):
-        await ctx.send("対象対戦または勝者指定が不正です。")
-        return
-    if match.get("status") == "done":
-        await ctx.send("確定済み対戦の巻き戻しは初版の対象外です。")
-        return
-    otp_demo_record_battle_result(tournament, match, winner_key, "operator", ctx.author.id)
-    maybe_finish_qualifiers_and_build_brackets(tournament)
-    save_otp_tournaments()
-    await ctx.send(f"{match_id} を運営裁定で確定しました。")
-    await otp_demo_after_match_progress(ctx.guild, tournament, match)
+    await ctx.send(
+        await judge_otp_demo_match(
+            ctx.guild, ctx.author, tournament, match_id, winner_application_id
+        )
+    )
 
 
 @bot.command(name="OTP保留")
@@ -8148,14 +8538,7 @@ async def otp_demo_hold(ctx, tournament_id: str, match_id: str, *, reason: str =
     if not tournament or not otp_demo_is_operator(ctx.author, tournament):
         await ctx.send("大会が見つからないか、権限がありません。")
         return
-    match = tournament.get("matches", {}).get(match_id)
-    if not match or match.get("status") == "done":
-        await ctx.send("保留できる対戦が見つかりません。")
-        return
-    match["status"] = "hold"
-    match.setdefault("holds", []).append({"operator_id": str(ctx.author.id), "reason": reason or "理由未記入", "held_at": time.time()})
-    save_otp_tournaments()
-    await ctx.send(f"{match_id} を保留しました。参加者入力では解除されません。")
+    await ctx.send(hold_otp_demo_match(ctx.author, tournament, match_id, reason))
 
 
 @bot.command(name="OTP保留解除")
@@ -8164,14 +8547,7 @@ async def otp_demo_unhold(ctx, tournament_id: str, match_id: str):
     if not tournament or not otp_demo_is_operator(ctx.author, tournament):
         await ctx.send("大会が見つからないか、権限がありません。")
         return
-    match = tournament.get("matches", {}).get(match_id)
-    if not match or match.get("status") != "hold":
-        await ctx.send("保留中の対戦が見つかりません。")
-        return
-    match["status"] = "active"
-    match.setdefault("holds", []).append({"operator_id": str(ctx.author.id), "reason": "保留解除", "resumed_at": time.time()})
-    save_otp_tournaments()
-    await ctx.send(f"{match_id} の保留を解除しました。")
+    await ctx.send(unhold_otp_demo_match(ctx.author, tournament, match_id))
 
 
 @bot.command(name="OTPデモ一時停止")
