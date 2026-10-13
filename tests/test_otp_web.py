@@ -106,11 +106,11 @@ def tournament_fixture(group_count=10):
 
 class OtpWebProjectionTests(unittest.TestCase):
     def test_application_layout_preview_tracks_new_and_renamed_teams(self):
-        state = {"otp_teams": {}}
-        for number in range(1, 8):
+        state = {"otp_teams": {}, "otp_application_layout_seed": 12345}
+        for number in range(1, 10):
             state["otp_teams"][str(number)] = {
                 "number": number,
-                "team_name": "変更後のチーム名" if number == 2 else "",
+                "team_name": "変更後のチーム名" if number == 3 else "",
                 "leader_name": f"リーダー{number}",
                 "leader_circle": "公開所属",
                 "member_names": [f"メンバー{number}-1", f"メンバー{number}-2", f"メンバー{number}-3"],
@@ -122,15 +122,43 @@ class OtpWebProjectionTests(unittest.TestCase):
         preview = build_application_layout_preview(state)
         self.assertEqual(preview["team_count"], 7)
         self.assertEqual(qualifier_group_sizes(7), [4, 3])
-        self.assertEqual(preview["teams"]["all-teams-layout-test:OTP-001"]["name"], "チーム1")
-        self.assertEqual(preview["teams"]["all-teams-layout-test:OTP-002"]["name"], "変更後のチーム名")
-        self.assertEqual(preview["teams"]["all-teams-layout-test:OTP-002"]["registration_type"], "official")
+        self.assertNotIn("all-teams-layout-test:OTP-001", preview["teams"])
+        self.assertNotIn("all-teams-layout-test:OTP-002", preview["teams"])
+        self.assertEqual(preview["teams"]["all-teams-layout-test:OTP-003"]["name"], "変更後のチーム名")
+        self.assertEqual(preview["teams"]["all-teams-layout-test:OTP-003"]["registration_type"], "official")
         self.assertEqual(preview["upper_bracket"]["active_team_count"], 4)
         self.assertEqual(preview["lower_bracket"]["active_team_count"], 3)
         text = repr(preview)
         self.assertNotIn("非公開Xアカウント", text)
         self.assertNotIn("corrected_xp", text)
         self.assertNotIn("2700", text)
+
+    def test_application_layout_draw_is_stable_until_seed_changes(self):
+        state = {"otp_teams": {}, "otp_application_layout_seed": 111}
+        for number in range(1, 15):
+            state["otp_teams"][str(number)] = {
+                "number": number,
+                "team_name": f"チーム{number}",
+                "leader_name": f"リーダー{number}",
+                "member_names": [],
+                "players": {},
+            }
+
+        def memberships(preview):
+            return [
+                tuple(sorted(entry["team_id"] for entry in group["teams"]))
+                for block in preview["qualifier_blocks"]
+                for group in block["groups"]
+            ]
+
+        first = memberships(build_application_layout_preview(state))
+        state["otp_teams"]["3"]["team_name"] = "名前変更後"
+        renamed = memberships(build_application_layout_preview(state))
+        self.assertEqual(first, renamed)
+
+        state["otp_application_layout_seed"] = 222
+        redrawn = memberships(build_application_layout_preview(state))
+        self.assertNotEqual(first, redrawn)
 
     def test_sanitized_34_team_layout_fixture(self):
         fixture = load_public_layout_fixture("all-teams-layout-test")

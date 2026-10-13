@@ -43,6 +43,7 @@
 
   function adaptGroup(group) {
     const matches = group.matches || [];
+    const confirmed = Boolean(group.advancement_confirmed);
     return {
       id: group.group_id,
       block: group.section,
@@ -50,7 +51,7 @@
         ? `${group.start_position}〜${group.end_position}` : "",
       complete: number(group.complete_matches),
       total: number(group.total_matches),
-      confirmed: Boolean(group.advancement_confirmed),
+      confirmed,
       teams: (group.teams || []).map((entry) => {
         const data = team(entry.team_id);
         const record = entry.record || {};
@@ -60,6 +61,7 @@
           name: data.name,
           application: data.application_number,
           rank: entry.rank,
+          confirmed,
           wins: number(record.match_wins),
           losses: number(record.match_losses),
           battleWins: number(record.battle_wins),
@@ -76,9 +78,9 @@
     const classes = ["team-row"];
     if (item.qualified) classes.push("qualified");
     const record = detail
-      ? `${item.wins}勝${item.losses}敗 / ${item.battleWins}-${item.battleLosses}`
+      ? (item.confirmed ? String(item.wins) : "—")
       : `${item.wins}-${item.losses}`;
-    const rank = detail && item.rank ? ` · ${item.rank}位` : "";
+    const rank = detail && item.confirmed && item.rank ? ` · ${item.rank}位` : "";
     const provisional = item.provisional ? "（暫定上位）" : "";
     return `<div class="${classes.join(" ")}" title="${esc(provisional)}">
       <span class="seed">${esc(item.position)}</span>
@@ -164,7 +166,7 @@
     const rounds = scheduledRounds(group);
     $("#detail-content").innerHTML = `
       <div class="detail-col"><div class="label">参加チーム</div>${groupCard(group, true)}
-        <p class="detail-note">申請番号はチーム名を押すと確認できます。順位・勝敗数・獲得本数と失った本数はBotの確定データを表示します。</p></div>
+        <p class="detail-note">申請番号はチーム名を押すと確認できます。勝利数と順位は予選組の全対戦が確定した後に表示します。</p></div>
       ${rounds.map((items, index) => `<div class="detail-col"><div class="label">第${index + 1}試合</div>${items.length ? items.map(resultCard).join("") : '<p class="sub">対戦データはありません。</p>'}</div>`).join("")}`;
     $("#detail-title").focus();
   }

@@ -3035,6 +3035,9 @@ async def create_otp_team_from_form(payload: dict):
         "次のメッセージだけをコピーして、XのDMで送ってください。"
     )
     await admin_channel.send(dm_copy)
+    # The public application preview keeps this draw until another application
+    # arrives. Editing a team name or player data must not reshuffle groups.
+    bot_state["otp_application_layout_seed"] = random.SystemRandom().getrandbits(128)
     save_otp_teams()
     return team
 

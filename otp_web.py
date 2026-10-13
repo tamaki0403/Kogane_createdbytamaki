@@ -420,7 +420,11 @@ def build_application_layout_preview(state: dict) -> dict[str, Any] | None:
     applications = sorted(
         (
             team for team in state.get("otp_teams", {}).values()
-            if isinstance(team, dict) and str(team.get("number", "")).isdigit()
+            if (
+                isinstance(team, dict)
+                and str(team.get("number", "")).isdigit()
+                and int(team["number"]) not in {1, 2}
+            )
         ),
         key=lambda team: int(team["number"]),
     )
@@ -463,6 +467,15 @@ def build_application_layout_preview(state: dict) -> dict[str, Any] | None:
             "updated_at": application.get("updated_at"),
         }
         ordered_keys.append(team_key)
+
+    # Keep one draw stable across reloads and team-name edits. The Bot rotates
+    # this persisted seed only when a new application is accepted.
+    grouping_seed = state.get("otp_application_layout_seed") or (
+        "otp-application-layout-initial:" + ",".join(
+            str(application["number"]) for application in applications
+        )
+    )
+    random.Random(str(grouping_seed)).shuffle(ordered_keys)
 
     sizes = qualifier_group_sizes(len(ordered_keys))
     if sizes is None:
@@ -510,14 +523,14 @@ def build_application_layout_preview(state: dict) -> dict[str, Any] | None:
         if len(sources) < 2:
             continue
         fallback_bracket = (fallback or {}).get(f"{league}_bracket") or {}
-        if len(applications) == 34 and fallback_bracket.get("slot_sources"):
+        if len(ordered_keys) == 34 and fallback_bracket.get("slot_sources"):
             slot_sources = fallback_bracket["slot_sources"]
             slot_count = len(fallback_bracket.get("initial_slots", []))
         else:
             tokens = [f"{source['source_group_index']}:{source['rank']}" for source in sources]
             source_by_token = dict(zip(tokens, sources))
             token_slots, _ = build_single_elimination_slots(
-                tokens, rng=random.Random(f"otp-layout:{league}:{len(applications)}")
+                tokens, rng=random.Random(f"otp-layout:{league}:{len(ordered_keys)}")
             )
             slot_sources = [source_by_token.get(token) if token else None for token in token_slots]
             slot_count = len(token_slots)
@@ -535,7 +548,7 @@ def build_application_layout_preview(state: dict) -> dict[str, Any] | None:
     ]
     raw_tournament = {
         "id": tournament_id,
-        "name": f"Kogane OTP杯・{len(applications)}チーム表記テスト",
+        "name": f"Kogane OTP杯・{len(ordered_keys)}チーム表記テスト",
         "status": "registration",
         "phase": "qualifier",
         "updated_at": max(timestamps, default=0),
