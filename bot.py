@@ -15,11 +15,13 @@ from discord.ext import commands, tasks
 from itertools import combinations
 from PIL import Image, ImageDraw, ImageFont
 from otp_web import (
+    build_application_layout_preview,
     build_single_elimination_slots,
     build_public_tournament,
-    list_public_layout_fixtures,
+    list_public_application_layout_preview,
     list_public_tournaments,
     load_public_layout_fixture,
+    qualifier_group_sizes,
     rank_qualifier_group,
 )
 
@@ -2870,6 +2872,7 @@ class OTPPlayerModal(discord.ui.Modal):
             "top_weapon_rate": int(rate) if rate.is_integer() else rate,
             "corrected_xp": int(corrected) if corrected.is_integer() else corrected,
         }
+        team["updated_at"] = time.time()
         save_otp_teams()
         await refresh_otp_team_messages(interaction.guild, team)
         await interaction.response.send_message(f"{OTP_SLOT_LABELS[self.slot]}の情報を更新しました。", ephemeral=True)
@@ -2911,6 +2914,7 @@ class OTPStatusSelect(discord.ui.Select):
             return
         team["team_name"] = self.team_name
         team["status"] = self.values[0]
+        team["updated_at"] = time.time()
         save_otp_teams()
         team_channel = interaction.guild.get_channel(team.get("channel_id"))
         if team_channel:
@@ -3010,6 +3014,7 @@ async def create_otp_team_from_form(payload: dict):
         "leader_name": leader, "leader_circle": payload.get("leader_circle", ""), "x_id": payload.get("x_id", ""),
         "member_names": members, "member_circles": member_circles,
         "enthusiasm": payload.get("enthusiasm", ""), "players": {},
+        "created_at": time.time(), "updated_at": time.time(),
     }
     teams[team_key] = team
     intro_message = await team_channel.send(otp_team_intro(team), view=OTPTeamInputView(team_key))
@@ -3231,21 +3236,14 @@ def otp_demo_public_team_text(team: dict, tournament: dict) -> str:
 
 
 def calculate_otp_demo_blocks(team_keys: list[str]) -> list[list[str]] | None:
-    n = len(team_keys)
-    best = None
-    for four_count in range(n // 4, -1, -1):
-        rest = n - four_count * 4
-        if rest % 3 == 0:
-            three_count = rest // 3
-            best = [4] * four_count + [3] * three_count
-            break
-    if not best:
+    sizes = qualifier_group_sizes(len(team_keys))
+    if not sizes:
         return None
     shuffled = team_keys[:]
     random.shuffle(shuffled)
     blocks = []
     offset = 0
-    for size in best:
+    for size in sizes:
         blocks.append(shuffled[offset:offset + size])
         offset += size
     return blocks
@@ -3385,7 +3383,7 @@ def otp_demo_match_report_embed(tournament: dict, match: dict) -> discord.Embed:
     team_a = teams[a]["team_name"]
     team_b = teams[b]["team_name"]
     score = f"{match['wins'].get(a, 0)} - {match['wins'].get(b, 0)}"
-    phase_label = "予選" if match.get("phase") == "qualifier" else ("上位トーナメント" if match.get("phase") == "upper" else "下位トーナメント")
+    phase_label = "予選" if match.get("phase") == "qualifier" else ("Aリーグ" if match.get("phase") == "upper" else "Bリーグ")
     title = f"{phase_label}・{match['id']}・{match.get('battle_index', 1)}本目"
     embed = discord.Embed(title=title, color=0x5865F2)
     embed.add_field(name="対戦カード", value=f"**{team_a}**  vs  **{team_b}**", inline=False)
@@ -3860,7 +3858,7 @@ def build_otp_progress_placeholder_file(tournament: dict) -> discord.File:
     draw.text((48, 22), "OTP杯デモ 進行画像", fill=(255, 255, 255), font=font_title)
     lines = [
         f"大会ID: {tournament.get('id')}",
-        "ここに予選表・上位トーナメント・下位トーナメントを表示します。",
+        "ここに予選表・Aリーグ・Bリーグを表示します。",
         "現在は画像差し替え機能の確認用プレースホルダーです。",
         "本実装ではこの投稿を編集し、最新の進行画像へ更新します。",
     ]
@@ -3880,7 +3878,7 @@ async def otp_demo_post_progress_placeholder(guild: discord.Guild, tournament: d
         return
     text = (
         f"【OTP杯デモ進行｜{tournament.get('id')}】\n"
-        "ここに予選表・上位トーナメント・下位トーナメントの画像を貼ります。\n"
+        "ここに予選表・Aリーグ・Bリーグの画像を貼ります。\n"
         "画像生成アプリ側の実装後、この投稿を編集して最新画像に差し替える予定です。"
     )
     message_id = tournament.get("progress_placeholder_message_id")
@@ -4076,7 +4074,7 @@ async def update_otp_board_images(guild: discord.Guild, tournament: dict) -> lis
                 )
                 updated.append(f"予選{block_label}ブロック（スレッド）")
 
-    for bracket_name, label in (("upper", "上位トーナメント"), ("lower", "下位トーナメント")):
+    for bracket_name, label in (("upper", "Aリーグ"), ("lower", "Bリーグ")):
         bracket_data = build_otp_bracket_board_data(tournament, bracket_name)
         if not bracket_data:
             continue
@@ -4337,7 +4335,7 @@ def build_otp_bracket_board_data(tournament: dict, bracket_name: str) -> dict | 
         ("sf", "Semifinal", 2),
         ("final", "Final", 1),
     ]
-    title = "上位トーナメント" if bracket_name == "upper" else "下位トーナメント"
+    title = "Aリーグ" if bracket_name == "upper" else "Bリーグ"
     rounds = []
     current_slots = initial_slots
     for round_index, (round_key, label, match_count) in enumerate(round_defs, start=1):
@@ -8338,7 +8336,7 @@ def get_public_otp_tournaments():
     state = load_bot_state()
     live = list_public_tournaments(state)
     live_ids = {item["tournament_id"] for item in live}
-    fixtures = [item for item in list_public_layout_fixtures() if item["tournament_id"] not in live_ids]
+    fixtures = [item for item in list_public_application_layout_preview(state) if item["tournament_id"] not in live_ids]
     return JSONResponse(
         content={"tournaments": live + fixtures},
         headers={"Cache-Control": "no-store"},
@@ -8348,7 +8346,12 @@ def get_public_otp_tournaments():
 @api.get("/api/otp/tournaments/{tournament_id}")
 def get_public_otp_tournament(tournament_id: str):
     """同一時点のBot状態から作る、閲覧専用の大会スナップショット。"""
-    tournament = load_bot_state().get("otp_tournaments", {}).get(tournament_id)
+    state = load_bot_state()
+    if tournament_id == "all-teams-layout-test":
+        preview = build_application_layout_preview(state)
+        if preview is not None:
+            return JSONResponse(content=preview, headers={"Cache-Control": "no-store"})
+    tournament = state.get("otp_tournaments", {}).get(tournament_id)
     if tournament is None:
         fixture = load_public_layout_fixture(tournament_id)
         if fixture is None:
@@ -8376,7 +8379,7 @@ async def stream_public_otp_tournament_events(tournament_id: str):
                 signature = f"{stat.st_mtime_ns}:{stat.st_size}"
                 if signature != last_signature:
                     state = load_bot_state()
-                    if tournament_id in state.get("otp_tournaments", {}):
+                    if tournament_id in state.get("otp_tournaments", {}) or tournament_id == "all-teams-layout-test":
                         payload = json.dumps({"tournament_id": tournament_id}, ensure_ascii=False)
                         yield f"event: update\ndata: {payload}\n\n"
                     last_signature = signature

@@ -2,11 +2,13 @@ import random
 import unittest
 
 from otp_web import (
+    build_application_layout_preview,
     build_public_tournament,
     build_single_elimination_slots,
     list_public_layout_fixtures,
     list_public_tournaments,
     load_public_layout_fixture,
+    qualifier_group_sizes,
     rank_qualifier_group,
 )
 
@@ -103,6 +105,33 @@ def tournament_fixture(group_count=10):
 
 
 class OtpWebProjectionTests(unittest.TestCase):
+    def test_application_layout_preview_tracks_new_and_renamed_teams(self):
+        state = {"otp_teams": {}}
+        for number in range(1, 8):
+            state["otp_teams"][str(number)] = {
+                "number": number,
+                "team_name": "変更後のチーム名" if number == 2 else "",
+                "leader_name": f"リーダー{number}",
+                "leader_circle": "公開所属",
+                "member_names": [f"メンバー{number}-1", f"メンバー{number}-2", f"メンバー{number}-3"],
+                "member_circles": ["所属", "所属", "所属"],
+                "players": {"0": {"xp": 2700, "corrected_xp": 2680, "weapons": ["ブキA"]}},
+                "x_id": "非公開Xアカウント",
+                "updated_at": number,
+            }
+        preview = build_application_layout_preview(state)
+        self.assertEqual(preview["team_count"], 7)
+        self.assertEqual(qualifier_group_sizes(7), [4, 3])
+        self.assertEqual(preview["teams"]["all-teams-layout-test:OTP-001"]["name"], "チーム1")
+        self.assertEqual(preview["teams"]["all-teams-layout-test:OTP-002"]["name"], "変更後のチーム名")
+        self.assertEqual(preview["teams"]["all-teams-layout-test:OTP-002"]["registration_type"], "official")
+        self.assertEqual(preview["upper_bracket"]["active_team_count"], 4)
+        self.assertEqual(preview["lower_bracket"]["active_team_count"], 3)
+        text = repr(preview)
+        self.assertNotIn("非公開Xアカウント", text)
+        self.assertNotIn("corrected_xp", text)
+        self.assertNotIn("2700", text)
+
     def test_sanitized_34_team_layout_fixture(self):
         fixture = load_public_layout_fixture("all-teams-layout-test")
         self.assertIsNotNone(fixture)

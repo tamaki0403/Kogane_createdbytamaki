@@ -65,6 +65,15 @@ def list_public_layout_fixtures() -> list[dict[str, Any]]:
     return result
 
 
+def qualifier_group_sizes(team_count: int) -> list[int] | None:
+    """Return the existing Bot's preferred 4-team/3-team qualifier composition."""
+    for four_count in range(team_count // 4, -1, -1):
+        rest = team_count - four_count * 4
+        if rest % 3 == 0:
+            return [4] * four_count + [3] * (rest // 3)
+    return None
+
+
 def build_single_elimination_slots(team_keys: list[str], rng=None) -> tuple[list[str | None], set[str]]:
     """Keep first-round pairs valid and spread played matches across the bracket."""
     if len(team_keys) <= 1:
@@ -333,7 +342,9 @@ def build_public_tournament(tournament: dict) -> dict[str, Any]:
             "application_number": team.get("application_number"),
             "placement_number": placement_by_team.get(key),
             "name": team.get("team_name") or "未定",
-            "registration_type": "test" if team.get("solo_test") or not any(member.get("discord_id") for member in team.get("members", [])) else "official",
+            "registration_type": team.get("registration_type") or (
+                "test" if team.get("solo_test") or not any(member.get("discord_id") for member in team.get("members", [])) else "official"
+            ),
             "members": [_public_member(member) for member in team.get("members", [])],
         }
 
@@ -402,3 +413,154 @@ def list_public_tournaments(state: dict) -> list[dict]:
         for key, item in state.get("otp_tournaments", {}).items()
     ]
     return sorted(items, key=lambda item: item.get("updated_at") or "", reverse=True)
+
+
+def build_application_layout_preview(state: dict) -> dict[str, Any] | None:
+    """Build the reserved read-only layout page from live OTP form applications."""
+    applications = sorted(
+        (
+            team for team in state.get("otp_teams", {}).values()
+            if isinstance(team, dict) and str(team.get("number", "")).isdigit()
+        ),
+        key=lambda team: int(team["number"]),
+    )
+    fallback = load_public_layout_fixture("all-teams-layout-test")
+    if not applications:
+        return fallback
+
+    tournament_id = "all-teams-layout-test"
+    teams: dict[str, dict[str, Any]] = {}
+    ordered_keys = []
+    for application in applications:
+        number = int(application["number"])
+        application_id = f"OTP-{number:03d}"
+        team_key = f"{tournament_id}:{application_id}"
+        player_data = application.get("players", {})
+        names = [
+            application.get("leader_name") or "未入力",
+            *((application.get("member_names") or []) + ["未入力"] * 3)[:3],
+        ]
+        circles = [
+            application.get("leader_circle") or None,
+            *((application.get("member_circles") or []) + [None] * 3)[:3],
+        ]
+        members = []
+        for index, name in enumerate(names):
+            player = player_data.get(str(index), {})
+            members.append({
+                "role": "リーダー" if index == 0 else f"メンバー{index}",
+                "player_name": name,
+                "circle": circles[index],
+                "weapons": [weapon for weapon in player.get("weapons", []) if weapon],
+            })
+        teams[team_key] = {
+            "application_id": application_id,
+            "application_number": number,
+            "team_name": str(application.get("team_name") or "").strip() or f"チーム{number}",
+            "registration_type": "official",
+            "members": members,
+            "created_at": application.get("created_at"),
+            "updated_at": application.get("updated_at"),
+        }
+        ordered_keys.append(team_key)
+
+    sizes = qualifier_group_sizes(len(ordered_keys))
+    if sizes is None:
+        sizes = [len(ordered_keys)] if len(ordered_keys) <= 4 else [3, 2]
+    blocks = []
+    offset = 0
+    for size in sizes:
+        blocks.append(ordered_keys[offset:offset + size])
+        offset += size
+
+    matches: dict[str, dict[str, Any]] = {}
+    match_order = []
+    match_number = 1
+    for group_index, block in enumerate(blocks, start=1):
+        for first_index, first in enumerate(block):
+            for second in block[first_index + 1:]:
+                match_id = f"Q{match_number:03d}"
+                matches[match_id] = {
+                    "id": match_id,
+                    "phase": "qualifier",
+                    "block": group_index,
+                    "teams": [first, second],
+                    "best_of": 3,
+                    "status": "waiting",
+                    "wins": {first: 0, second: 0},
+                    "battles": [],
+                    "reports": {},
+                }
+                match_order.append(match_id)
+                match_number += 1
+
+    upper_sources = [
+        {"source_group_index": group_index, "rank": rank}
+        for group_index, block in enumerate(blocks, start=1)
+        for rank in range(1, min(2, len(block)) + 1)
+    ]
+    lower_sources = [
+        {"source_group_index": group_index, "rank": rank}
+        for group_index, block in enumerate(blocks, start=1)
+        for rank in range(3, len(block) + 1)
+    ]
+
+    brackets = {}
+    for league, sources in (("upper", upper_sources), ("lower", lower_sources)):
+        if len(sources) < 2:
+            continue
+        fallback_bracket = (fallback or {}).get(f"{league}_bracket") or {}
+        if len(applications) == 34 and fallback_bracket.get("slot_sources"):
+            slot_sources = fallback_bracket["slot_sources"]
+            slot_count = len(fallback_bracket.get("initial_slots", []))
+        else:
+            tokens = [f"{source['source_group_index']}:{source['rank']}" for source in sources]
+            source_by_token = dict(zip(tokens, sources))
+            token_slots, _ = build_single_elimination_slots(
+                tokens, rng=random.Random(f"otp-layout:{league}:{len(applications)}")
+            )
+            slot_sources = [source_by_token.get(token) if token else None for token in token_slots]
+            slot_count = len(token_slots)
+        brackets[league] = {
+            "slots": [None] * slot_count,
+            "slot_sources": slot_sources,
+            "auto_advancers": [],
+            "active_team_count": len(sources),
+        }
+
+    timestamps = [
+        value for application in applications
+        for value in (application.get("updated_at"), application.get("created_at"))
+        if isinstance(value, (int, float))
+    ]
+    raw_tournament = {
+        "id": tournament_id,
+        "name": f"Kogane OTP杯・{len(applications)}チーム表記テスト",
+        "status": "registration",
+        "phase": "qualifier",
+        "updated_at": max(timestamps, default=0),
+        "teams": teams,
+        "blocks": blocks,
+        "matches": matches,
+        "match_order": match_order,
+        "block_rankings": {},
+        "brackets": brackets,
+    }
+    preview = build_public_tournament(raw_tournament)
+    preview["data_mode"] = "application_layout_preview"
+    preview["live_updates"] = True
+    return preview
+
+
+def list_public_application_layout_preview(state: dict) -> list[dict[str, Any]]:
+    preview = build_application_layout_preview(state)
+    if not preview:
+        return []
+    return [{
+        "tournament_id": preview["tournament_id"],
+        "tournament_name": preview["tournament_name"],
+        "status": preview["status"],
+        "phase": preview["phase"],
+        "updated_at": preview.get("updated_at", ""),
+        "data_mode": preview.get("data_mode"),
+    }]

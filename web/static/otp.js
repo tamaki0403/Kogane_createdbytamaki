@@ -217,7 +217,7 @@
 
   function renderBracket() {
     const bracket = snapshot[currentLeague === "upper" ? "upper_bracket" : "lower_bracket"];
-    const accentName = currentLeague === "upper" ? "上位リーグ" : "下位リーグ";
+    const accentName = currentLeague === "upper" ? "Aリーグ" : "Bリーグ";
     $("#bracket").dataset.league = currentLeague;
     $("#league-desc").textContent = bracket ? `${accentName} / ${number(bracket.active_team_count)}チーム` : `${accentName} / 未生成`;
     $("#bracket .status").textContent = bracket ? (statusText[snapshot.status] || "進行状況") : "未生成";

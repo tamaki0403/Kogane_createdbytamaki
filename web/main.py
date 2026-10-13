@@ -6,8 +6,9 @@ from fastapi import FastAPI, File, UploadFile, Form, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from otp_web import (
+    build_application_layout_preview,
     build_public_tournament,
-    list_public_layout_fixtures,
+    list_public_application_layout_preview,
     list_public_tournaments,
     load_public_layout_fixture,
 )
@@ -386,7 +387,7 @@ def get_public_otp_tournaments():
     state = load_json(BOT_STATE_FILE)
     live = list_public_tournaments(state)
     live_ids = {item["tournament_id"] for item in live}
-    fixtures = [item for item in list_public_layout_fixtures() if item["tournament_id"] not in live_ids]
+    fixtures = [item for item in list_public_application_layout_preview(state) if item["tournament_id"] not in live_ids]
     return JSONResponse(
         content={"tournaments": live + fixtures},
         headers={"Cache-Control": "no-store"},
@@ -396,6 +397,10 @@ def get_public_otp_tournaments():
 @app.get("/api/otp/tournaments/{tournament_id}")
 def get_public_otp_tournament(tournament_id: str):
     state = load_json(BOT_STATE_FILE)
+    if tournament_id == "all-teams-layout-test":
+        preview = build_application_layout_preview(state)
+        if preview is not None:
+            return JSONResponse(content=preview, headers={"Cache-Control": "no-store"})
     tournament = state.get("otp_tournaments", {}).get(tournament_id)
     if tournament is None:
         fixture = load_public_layout_fixture(tournament_id)
@@ -423,7 +428,7 @@ async def stream_public_otp_tournament_events(tournament_id: str):
                 signature = f"{stat.st_mtime_ns}:{stat.st_size}"
                 if signature != last_signature:
                     state = load_json(BOT_STATE_FILE)
-                    if tournament_id in state.get("otp_tournaments", {}):
+                    if tournament_id in state.get("otp_tournaments", {}) or tournament_id == "all-teams-layout-test":
                         payload = json.dumps({"tournament_id": tournament_id}, ensure_ascii=False)
                         yield f"event: update\ndata: {payload}\n\n"
                     last_signature = signature
