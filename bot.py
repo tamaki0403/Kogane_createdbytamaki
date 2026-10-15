@@ -3986,7 +3986,7 @@ async def otp_demo_delete_match_channel(guild: discord.Guild, match: dict):
     match.pop("checkin_channel_id", None)
 
 
-async def otp_demo_delayed_delete_match_channel(guild: discord.Guild, tournament: dict, match_id: str, delay_seconds: int = 120):
+async def otp_demo_delayed_delete_match_channel(guild: discord.Guild, tournament: dict, match_id: str, delay_seconds: int = 60):
     await asyncio.sleep(delay_seconds)
     tournament = get_otp_tournaments().get(tournament.get("id"))
     if not tournament:
@@ -4011,9 +4011,9 @@ async def otp_demo_post_match_finish_message(guild: discord.Guild, tournament: d
         f"勝者：**{winner}**\n"
         f"最終スコア：**{score}**\n\n"
         "結果は保存されました。\n"
-        "このチャンネルは2分後に削除されます。"
+        "このチャンネルは1分後に削除されます。"
     )
-    asyncio.create_task(otp_demo_delayed_delete_match_channel(guild, tournament, match["id"], 120))
+    asyncio.create_task(otp_demo_delayed_delete_match_channel(guild, tournament, match["id"], 60))
 
 
 async def otp_demo_send_match_report_message(channel: discord.abc.Messageable, tournament: dict, match: dict):
