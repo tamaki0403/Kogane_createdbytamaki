@@ -104,6 +104,8 @@ OTP方式の大会固有値は `tournaments/*.json` に保存する。Botは `ac
 
 `tournaments/otp-rehearsal-20261014.json` は本番と同じ予選・A/Bリーグ・ステージ・BO数・運営確認フローを使う。本番とは大会ID、参加チーム、組分け、対戦結果、Discordカテゴリー、運営パネルを分離する。参加者は本番フォームからコピーせず、予行練習の運営パネルに貼り付けて登録・承認する。協力者を集めやすくするため、この予行練習だけは1チーム1〜4人で承認できる。本番大会は4人必須のまま変更しない。
 
+「運営に相談」は参加者本人へ短い送信完了だけを返し、予行練習の進行テキストチャンネルへ運営ロールのメンション、相談者、対戦カード、該当する非公開対戦チャンネルへのリンクを送る。相談時点では対戦を自動保留しない。
+
 ```text
 大会ID: otp-rehearsal-20261014
 Web: https://koganecreatedbytamaki-production-9bb5.up.railway.app/otp.html?tournament_id=otp-rehearsal-20261014

@@ -32,6 +32,10 @@ class TournamentConfigTests(unittest.TestCase):
         self.assertEqual(rehearsal["max_team_members"], 4)
         self.assertEqual(rehearsal["discord"]["admin_channel_id"], "1559647960772644934")
         self.assertEqual(
+            rehearsal["discord"]["operations_channel_id"],
+            "1559701352232390747",
+        )
+        self.assertEqual(
             set(rehearsal["discord"]["match_categories"]["qualifier"]),
             {"A", "B", "C", "D"},
         )

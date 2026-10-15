@@ -3519,11 +3519,19 @@ def otp_demo_match_guide_text(tournament: dict, match: dict) -> str:
         visibility = "このチャンネルは、両チームの登録メンバー、運営、Botだけが見られる対戦部屋です。"
         report_rule = "各チームの登録リーダーだけが報告ボタンを押せます。両チームの報告が一致したときだけ結果が確定します。"
     return (
-        f"# OTP杯 対戦部屋\n"
+        f"# 対戦前の確認｜{match['id']}\n"
         f"## {teams[a]['team_name']} vs {teams[b]['team_name']}\n\n"
         f"{visibility}\n\n"
-        "試合の連絡、部屋立て、確認はこのチャンネルで行ってください。\n"
-        "勝敗報告は、下に出る「試合報告」メッセージのボタンから行います。\n\n"
+        "試合の連絡、部屋立て、確認はこのチャンネルで行ってください。\n\n"
+        "## 回線落ちが発生した場合\n"
+        "**ゲーム開始前または開始後15秒以内**\n"
+        "勝敗報告ボタンを押さず、同じステージ・ブキ・ギアで再試合してください。\n\n"
+        "**ゲーム開始後15秒を超えた場合**\n"
+        "原則としてそのままゲームを続行し、終了後に通常どおり勝者を報告してください。\n\n"
+        "**判断に迷う・両チームで認識が一致しない場合**\n"
+        "勝敗報告ボタンを押さず、「運営に相談」を押してください。\n\n"
+        "## 勝敗報告\n"
+        "勝敗報告は、チェックイン後に表示される試合報告カードから行います。\n"
         f"{report_rule}\n\n"
         "回線落ちなど通常の勝敗報告だけで扱えない問題が起きた場合は、運営が手動で保留します。"
     )
@@ -3546,7 +3554,7 @@ def otp_demo_match_report_text(tournament: dict, match: dict) -> str:
         )
     else:
         operation_text = (
-            "1本終わったら、各チームの登録リーダーが下の勝者ボタンを押してください。\n"
+            "1ゲーム終わったら、各チームの登録リーダーが下の勝者ボタンを押してください。\n"
             "片側だけの報告では進みません。両チームの報告が一致したときだけ結果が確定します。\n"
             "報告が食い違った場合は再入力になります。再び食い違った場合は運営裁定待ちになります。"
         )
@@ -3557,7 +3565,7 @@ def otp_demo_match_report_text(tournament: dict, match: dict) -> str:
         f"形式：{'BO5' if match.get('best_of') == 5 else 'BO3'}\n"
         f"スコア：{score}\n"
         f"ステージ：**{match.get('current_stage') or '抽選待ち'}**\n\n"
-        f"下のボタンで、この1本の勝者を報告してください。\n\n"
+        f"下のボタンで、このゲームの勝者を報告してください。\n\n"
         f"{operation_text}"
     )
 
@@ -3571,10 +3579,10 @@ def otp_demo_match_report_embed(tournament: dict, match: dict) -> discord.Embed:
     phase_label = "予選" if match.get("phase") == "qualifier" else ("Aリーグ" if match.get("phase") == "upper" else "Bリーグ")
     title = f"{phase_label}・{match['id']}・{match.get('battle_index', 1)}本目"
     embed = discord.Embed(title=title, color=0x5865F2)
-    embed.add_field(name="対戦カード", value=f"**{team_a}**  vs  **{team_b}**", inline=False)
-    embed.add_field(name="現在スコア", value=f"**{score}**", inline=True)
-    embed.add_field(name="形式", value="BO5" if match.get("best_of") == 5 else "BO3", inline=True)
-    embed.add_field(name="指定ステージ", value=f"**{match.get('current_stage') or '抽選待ち'}**", inline=False)
+    format_label = "BO5" if match.get("best_of") == 5 else "BO3"
+    embed.description = f"**{team_a}**  vs  **{team_b}**"
+    embed.add_field(name=f"スコア（{format_label}）", value=f"**{score}**", inline=False)
+    embed.add_field(name="ステージ", value=f"**{match.get('current_stage') or '抽選待ち'}**", inline=False)
     if tournament.get("solo_test_mode"):
         note = (
             "1人テストでは運営が勝者ボタンで代行入力します。\n"
@@ -3582,7 +3590,7 @@ def otp_demo_match_report_embed(tournament: dict, match: dict) -> discord.Embed:
         )
     else:
         note = (
-            "各チームの登録リーダーが、この1本の勝者ボタンを押してください。\n"
+            "各チームの登録リーダーが、このゲームの勝者ボタンを押してください。\n"
             "両チームの報告が一致したときだけ結果が確定します。"
         )
     embed.add_field(name="報告方法", value=note, inline=False)
@@ -3628,7 +3636,7 @@ class OTPMatchReportView(discord.ui.View):
         self.generation = int(generation)
         for index, label in enumerate(team_labels):
             button = discord.ui.Button(
-                label=f"{label} 勝ち",
+                label=f"{label}の勝ち"[:80],
                 style=discord.ButtonStyle.primary,
                 custom_id=f"otp_match_win:{tournament_id}:{match_id}:{self.generation}:{index}",
             )
@@ -3695,12 +3703,29 @@ class OTPMatchReportView(discord.ui.View):
             return
         role_id = tournament.get("operator_role_id")
         mention = f"<@&{role_id}>" if role_id else f"<@{OWNER_ID}>"
-        await interaction.response.send_message("運営に相談を送りました。確認を待ってください。", ephemeral=True)
-        await interaction.channel.send(
+        await interaction.response.send_message("運営へ相談を送信しました。", ephemeral=True)
+        operations_channel = interaction.guild.get_channel(
+            tournament.get("operations_channel_id") or tournament.get("admin_channel_id")
+        )
+        if not isinstance(operations_channel, discord.TextChannel):
+            operations_channel = interaction.channel
+        match_channel_url = (
+            f"https://discord.com/channels/{interaction.guild.id}/{interaction.channel.id}"
+        )
+        teams = tournament.get("teams", {})
+        team_labels = [
+            teams.get(team_key, {}).get("team_name", "名称未設定")
+            for team_key in match.get("teams", [])
+        ]
+        matchup = " vs ".join(team_labels)
+        await operations_channel.send(
             f"{mention}\n"
-            f"【運営相談】{interaction.user.mention} から {match.get('id')} の相談がありました。\n"
-            "状況を確認し、必要なら保留や裁定を行ってください。",
-            allowed_mentions=discord.AllowedMentions(roles=True, users=True),
+            f"# [運営への相談｜{match.get('id')}]({match_channel_url})\n\n"
+            f"相談者：{interaction.user.mention}\n"
+            f"対戦：{matchup}\n"
+            f"対戦チャンネル：{interaction.channel.mention}\n\n"
+            "リンクを開き、該当の対戦チャンネルで状況を確認してください。",
+            allowed_mentions=discord.AllowedMentions(roles=True, users=False, everyone=False),
         )
 
     def make_callback(self, winner_index: int):
@@ -4006,6 +4031,10 @@ def otp_demo_checkin_text(tournament: dict, match: dict) -> str:
     checkins = match.get("checkins", {})
     a_mark = "チェックイン済み" if a in checkins else "待ち"
     b_mark = "チェックイン済み" if b in checkins else "待ち"
+    a_leader_id = otp_demo_get_leader_id(teams[a])
+    b_leader_id = otp_demo_get_leader_id(teams[b])
+    a_leader = f"<@{a_leader_id}>" if a_leader_id else "リーダー未登録"
+    b_leader = f"<@{b_leader_id}>" if b_leader_id else "リーダー未登録"
     if tournament.get("solo_test_mode"):
         note = "1人テストでは運営が両チーム分のチェックインを押します。"
     else:
@@ -4013,8 +4042,18 @@ def otp_demo_checkin_text(tournament: dict, match: dict) -> str:
     return (
         f"# チェックイン {match['id']}\n"
         f"{teams[a]['team_name']} vs {teams[b]['team_name']}\n\n"
-        f"{teams[a]['team_name']}：{a_mark}\n"
-        f"{teams[b]['team_name']}：{b_mark}\n\n"
+        f"{a_leader}：{a_mark}\n"
+        f"{b_leader}：{b_mark}\n\n"
+        "## 回線落ちが発生した場合\n"
+        "ゲーム開始前または開始後15秒以内に回線落ちが発生した場合は、同じステージ・ブキ・ギアで再試合してください。\n\n"
+        "開始後15秒を超えて発生した場合は、原則としてゲームを続行し、終了後に通常どおり勝者を報告してください。\n\n"
+        "## 使用できないブキを選んだ場合\n"
+        "ゲーム中に使用できないブキを選んでいることに気づいた場合は、その時点でゲームを中止してください。\n\n"
+        "使用できないブキを選んでいたプレイヤーは、使用率1位のブキに変更してください。"
+        "その他のプレイヤーはブキ・ギアを変更せず、同じステージで再試合を行ってください。"
+        "中止したゲームの勝敗は報告しません。\n\n"
+        "ゲーム終了後に使用できないブキの使用が発覚した場合、再試合は行わず、そのゲームの結果をそのまま報告してください。\n\n"
+        "## チェックイン\n"
         f"{note}\n"
         "チェックインが揃うまでは、試合報告ボタンは表示されません。"
     )
@@ -5129,9 +5168,12 @@ def otp_main_tournament_for(member: discord.Member) -> tuple[dict | None, str | 
 async def setup_otp_configured_tournament(guild: discord.Guild, config: dict) -> str:
     tournament_id = config["id"]
     admin_channel_id, operator_role_id, match_category_ids = otp_config_discord_values(config)
+    operations_channel_id = int(config["discord"].get("operations_channel_id") or admin_channel_id)
     admin_channel = guild.get_channel(admin_channel_id)
     if not isinstance(admin_channel, discord.TextChannel):
         return "当日運営チャンネルが見つかりません。"
+    if not isinstance(guild.get_channel(operations_channel_id), discord.TextChannel):
+        return "進行テキストチャンネルが見つかりません。"
     if guild.get_role(operator_role_id) is None:
         return "運営ロールが見つかりません。"
     category_ids = [
@@ -5166,6 +5208,7 @@ async def setup_otp_configured_tournament(guild: discord.Guild, config: dict) ->
         "category_id": match_category_ids["qualifier"]["A"],
         "match_category_ids": copy.deepcopy(match_category_ids),
         "admin_channel_id": admin_channel_id,
+        "operations_channel_id": operations_channel_id,
         "summary_channel_id": None,
         "progress_channel_id": None,
         "operator_role_id": operator_role_id,

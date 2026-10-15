@@ -27,6 +27,7 @@
   },
   "discord": {
     "admin_channel_id": "1559647960772644934",
+    "operations_channel_id": "1559701352232390747",
     "operator_role_id": "1559648052309008466",
     "match_categories": {
       "qualifier": {
